@@ -1,7 +1,7 @@
 ---
 name: tfy-apply
 description: This skill should be used when the user says "tfy apply", "apply manifest", "deploy from yaml", "declarative deployment", "apply yaml to truefoundry", "gitops deploy", "apply tfy manifest", or wants to create/update TrueFoundry resources from YAML manifest files using the tfy CLI.
-allowed-tools: Bash(tfy*), Bash(*/tfy-api.sh *)
+allowed-tools: Bash(tfy*), Bash(*/tfy-api.sh *), Bash(*/tfy-version.sh *)
 ---
 
 # TFY Apply — Declarative Resource Management

@@ -2,7 +2,7 @@
 name: deploy
 description: This skill should be used when the user says "deploy to truefoundry", "deploy this app", "ship to tfy", "push to truefoundry", or wants to run deploy.py. NOT for creating deployments via API — use applications skill for that. For initial project setup or checking what's deployed, use applications skill.
 disable-model-invocation: true
-allowed-tools: Bash(python*), Bash(pip*), Bash(*/tfy-api.sh *)
+allowed-tools: Bash(python*), Bash(pip*), Bash(*/tfy-api.sh *), Bash(*/tfy-version.sh *)
 ---
 
 # Deploy to TrueFoundry
