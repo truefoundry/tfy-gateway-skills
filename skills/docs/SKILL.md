@@ -1,0 +1,86 @@
+---
+name: docs
+description: This skill should be used when the user asks about TrueFoundry documentation, "how do I do X on TrueFoundry", "TrueFoundry docs", or needs reference material for TrueFoundry features, API, or deployment configuration.
+allowed-tools: Bash(curl *)
+---
+
+# TrueFoundry Documentation
+
+Fetch up-to-date TrueFoundry documentation for features, API reference, and deployment guides.
+
+## When to Use
+
+- User asks "how do I do X on TrueFoundry"
+- User needs deployment configuration guidance
+- User asks about TrueFoundry features or pricing
+- Troubleshooting TrueFoundry-specific issues
+
+## Documentation Sources
+
+### API Reference
+
+Full API docs:
+```
+https://truefoundry.com/docs/api-reference
+```
+
+Fetch a specific section:
+```bash
+curl -s https://truefoundry.com/docs/api-reference/applications/list-applications
+```
+
+### Deployment Guides
+
+| Topic | URL |
+|-------|-----|
+| Introduction to Services | `https://truefoundry.com/docs/introduction-to-a-service` |
+| Deploy First Service | `https://truefoundry.com/docs/deploy-first-service` |
+| Dockerize Code | `https://truefoundry.com/docs/dockerize-code` |
+| Ports and Domains | `https://truefoundry.com/docs/define-ports-and-domains` |
+| Endpoint Auth | `https://truefoundry.com/docs/endpoint-authentication` |
+| Resources (CPU/Memory) | `https://truefoundry.com/docs/resources-cpu-memory-storage` |
+| Fractional GPUs | `https://truefoundry.com/docs/using-fractional-gpus` |
+| Environment Variables | `https://truefoundry.com/docs/environment-variables-and-secrets` |
+| Autoscaling | `https://truefoundry.com/docs/autoscaling-overview` |
+| Liveness/Readiness Probes | `https://truefoundry.com/docs/liveness-readiness-probe` |
+| Rollout Strategy | `https://truefoundry.com/docs/rollout-strategy` |
+| Deploy Programmatically | `https://truefoundry.com/docs/deploy-service-programatically` |
+| CI/CD Setup | `https://truefoundry.com/docs/setting-up-cicd-for-your-service` |
+| Monitoring | `https://truefoundry.com/docs/monitor-your-service` |
+
+### Job Deployment
+
+| Topic | URL |
+|-------|-----|
+| Introduction to Jobs | `https://truefoundry.com/docs/introduction-to-a-job` |
+| Deploy First Job | `https://truefoundry.com/docs/deploy-first-job` |
+
+### ML & LLM
+
+| Topic | URL |
+|-------|-----|
+| ML Repos | `https://truefoundry.com/docs/ml-repos` |
+| LLM Deployment | `https://truefoundry.com/docs/llm-deployment` |
+| LLM Tracing | `https://truefoundry.com/docs/llm-tracing` |
+
+### Authentication
+
+| Topic | URL |
+|-------|-----|
+| Generating API Keys | `https://docs.truefoundry.com/docs/generating-truefoundry-api-keys` |
+
+## Fetching Docs
+
+To fetch a specific docs page for the user:
+
+```bash
+curl -sL "https://truefoundry.com/docs/deploy-first-service" | head -200
+```
+
+Or use WebFetch if available in the agent.
+
+## Composability
+
+- **Before deploy**: Fetch deploy guides for the specific app type
+- **For API usage**: Reference `references/api-endpoints.md` in _shared
+- **For troubleshooting**: Fetch relevant docs page and summarize

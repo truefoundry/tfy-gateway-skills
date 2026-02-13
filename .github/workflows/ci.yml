@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Shellcheck scripts
+        run: |
+          shellcheck scripts/*.sh hooks/auto-approve-tfy-api.sh skills/_shared/scripts/tfy-api.sh
+          find skills -mindepth 2 -name 'tfy-api.sh' -print0 | xargs -0 -r shellcheck
+
+      - name: Install script smoke test
+        run: |
+          bash scripts/install.sh --help > /tmp/install_help.txt
+          test -s /tmp/install_help.txt
