@@ -1,6 +1,7 @@
 ---
 name: llm-deploy
 description: This skill should be used when the user asks "deploy a model", "deploy LLM", "serve a model", "deploy hugging face model", "deploy vLLM", "deploy TGI", "deploy NIM", "NVIDIA NIM", "inference server", or wants to deploy any ML/LLM model on TrueFoundry.
+disable-model-invocation: true
 allowed-tools: Bash(*/tfy-api.sh *), Bash(*/tfy-version.sh *)
 ---
 

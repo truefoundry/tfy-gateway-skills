@@ -9,9 +9,10 @@ set -e
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 
-# Approve only if the command is running our tfy-api.sh or tfy-version.sh scripts
-# Avoids approving e.g. "echo tfy-api.sh; curl evil.com"
-if [[ "$COMMAND" =~ (scripts/tfy-(api|version)\.sh|truefoundry-[^/]*/scripts/tfy-(api|version)\.sh) ]]; then
+# Approve only if the command starts with our tfy-api.sh or tfy-version.sh scripts.
+# Anchored match prevents approving e.g. "echo tfy-api.sh; curl evil.com".
+if [[ "$COMMAND" =~ ^[[:space:]]*(bash[[:space:]]+)?(\.?\.?/?)*scripts/tfy-(api|version)\.sh ]] || \
+   [[ "$COMMAND" =~ ^[[:space:]]*(bash[[:space:]]+)?(\.?\.?/?)*truefoundry-[^/]*/scripts/tfy-(api|version)\.sh ]]; then
   echo '{"decision": "approve"}'
   exit 0
 fi

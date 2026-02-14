@@ -58,7 +58,7 @@ Prompts:
 
 ## Composability
 
-- **With ML repos**: Use `mlrepos` skill to find related ML repositories
+- **With deployments**: Use `applications` skill to check deployed services that consume prompts
 - **For versioning**: List prompt versions to track changes
 
 ## Error Handling
