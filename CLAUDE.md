@@ -17,8 +17,8 @@ Skills work across Claude Code, Cursor, OpenAI Codex, and OpenCode.
 # After editing anything in skills/_shared/, sync copies to all skill directories
 ./scripts/sync-shared.sh
 
-# Test locally with Claude Code (plugin mode)
-claude --plugin-dir ./plugins/truefoundry
+# Install skills and restart agent
+./scripts/install.sh
 ```
 
 ## Architecture
@@ -69,7 +69,7 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 ## Key Conventions
 
-- `sync-shared.sh` references `plugins/truefoundry/skills/` as the skills directory path — this is the plugin layout. The repo root `skills/` directory is the source of truth for development.
+- The repo root `skills/` directory is the source of truth for development.
 - Skills reference each other for composability (e.g. deploy tells users to check `workspaces` skill first). Common flows: `status → workspaces → deploy → applications`, `applications → logs`.
 - `TFY_WORKSPACE_FQN` is never auto-picked by any skill — always ask the user.
 - When adding a new skill, include both MCP and direct API instructions, reference the `status` skill for preflight checks, and run `sync-shared.sh` afterward.

@@ -115,7 +115,7 @@ The install script prefixes each skill with `truefoundry-` (e.g. `truefoundry-de
 | [prompts](skills/prompts/SKILL.md) | "show my prompts" | Browse prompt registry versions |
 | [docs](skills/docs/SKILL.md) | "truefoundry docs" | Fetch platform documentation |
 
-Skills are model-invoked — your agent picks the right one based on what you ask. The exceptions are `deploy` and `helm`, which only run when you explicitly request them.
+Skills are model-invoked — your agent picks the right one based on what you ask. The exceptions are `deploy`, `helm`, `llm-deploy`, `async-service`, and `multi-service`, which only run when you explicitly request them.
 
 ## Setup
 
@@ -137,11 +137,135 @@ export TFY_API_KEY="tfy-..."
 
 Each skill works in two modes — pick whichever fits your setup:
 
-**With MCP Server (recommended)** — If you have `tfy-mcp-server` running, skills call MCP tools like `tfy_applications_list` and `tfy_workspaces_list` directly. The full deploy workflow — workspace discovery, deploy, verify, debug — works best in this mode since the agent can chain tool calls with structured data and no Bash permission prompts.
+**Standalone (default)** — Every skill bundles `scripts/tfy-api.sh`, a lightweight authenticated curl wrapper that talks to the TrueFoundry REST API. No server needed — just env vars and credentials.
 
-**Standalone** — Every skill bundles `scripts/tfy-api.sh`, a lightweight authenticated curl wrapper that talks to the TrueFoundry REST API. No server needed — just env vars. This is the fallback for tools that don't support MCP yet.
+**With MCP Server (recommended for best experience)** — Pair skills with [tfy-mcp-server](https://github.com/truefoundry/tfy-mcp-server) for structured tool calls, compound operations, and no Bash permission prompts. See [Enhanced Setup with MCP Server](#enhanced-setup-with-mcp-server-optional) below.
 
 Both modes use the same credentials. Skills include instructions for each path, so they adapt automatically.
+
+## Enhanced Setup with MCP Server (Optional)
+
+For the best experience, pair agent skills with the [TrueFoundry MCP Server](https://github.com/truefoundry/tfy-mcp-server). Skills provide the decision-making context (when to deploy, what resources to use, how to handle errors), while the MCP server provides structured tool execution.
+
+### Benefits of adding MCP Server
+
+| Feature | Skills Only | Skills + MCP Server |
+|---------|------------|---------------------|
+| API calls | Raw bash + JSON parsing | Typed tool calls with validation |
+| Compound operations | Multiple sequential calls | Single tool (e.g. cluster + status + addons) |
+| Permission prompts | Prompted per bash call (unless hooks configured) | No prompts for MCP tool calls |
+| Token usage | Full JSON responses in context | Pre-formatted, concise responses |
+| Mutation safety | Agent follows instructions | Server enforces human approval |
+
+### Quick MCP Setup
+
+**Option 1: Local server (stdio)**
+
+```bash
+# Install
+git clone https://github.com/truefoundry/tfy-mcp-server.git
+cd tfy-mcp-server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
+
+Add to your MCP client config:
+
+<details>
+<summary><b>Claude Code</b> (~/.claude.json)</summary>
+
+```json
+{
+  "mcpServers": {
+    "truefoundry": {
+      "command": "/path/to/tfy-mcp-server/.venv/bin/tfy-mcp-server",
+      "env": {
+        "TFY_MCP_TRANSPORT": "stdio",
+        "TFY_BASE_URL": "https://your-org.truefoundry.cloud",
+        "TFY_API_KEY": "tfy-..."
+      }
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>Cursor</b> (~/.cursor/mcp.json)</summary>
+
+```json
+{
+  "mcpServers": {
+    "truefoundry": {
+      "command": "/path/to/tfy-mcp-server/.venv/bin/tfy-mcp-server",
+      "env": {
+        "TFY_MCP_TRANSPORT": "stdio",
+        "TFY_BASE_URL": "https://your-org.truefoundry.cloud",
+        "TFY_API_KEY": "tfy-..."
+      }
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>VS Code</b> (~/.vscode/mcp.json)</summary>
+
+```json
+{
+  "mcpServers": {
+    "truefoundry": {
+      "command": "/path/to/tfy-mcp-server/.venv/bin/tfy-mcp-server",
+      "env": {
+        "TFY_MCP_TRANSPORT": "stdio",
+        "TFY_BASE_URL": "https://your-org.truefoundry.cloud",
+        "TFY_API_KEY": "tfy-..."
+      }
+    }
+  }
+}
+```
+</details>
+
+**Option 2: Remote server (HTTP)**
+
+Deploy tfy-mcp-server to TrueFoundry (or any host), then point your client at the URL:
+
+```json
+{
+  "mcpServers": {
+    "truefoundry": {
+      "transport": "http",
+      "url": "https://your-mcp-server.example.com/mcp",
+      "headers": {
+        "TFY_BASE_URL": "https://your-org.truefoundry.cloud",
+        "TFY_API_KEY": "tfy-...",
+        "TFY_CLUSTER_ID": "your-cluster-id"
+      }
+    }
+  }
+}
+```
+
+### MCP Tools Available
+
+The MCP server provides 16 tools that complement the skills:
+
+| MCP Tool | Corresponding Skill |
+|----------|-------------------|
+| `tfy_config_status` | status |
+| `tfy_workspaces_list` | workspaces |
+| `tfy_clusters_list` | workspaces |
+| `tfy_applications_list`, `tfy_applications_create_deployment` | applications, deploy |
+| `tfy_jobs_list_runs` | jobs |
+| `tfy_secrets_list`, `tfy_secret_groups_create` | secrets |
+| `tfy_prompts_list` | prompts |
+| `tfy_logs_download` | logs |
+| `tfy_mlrepos_list` | — |
+| `tfy_model_deployments_get_specs` | llm-deploy |
+
+Skills without MCP equivalents (ai-gateway, helm, llm-deploy, llm-finetuning, volumes, workflows, notebooks, ssh-server, gitops, etc.) continue to work via `tfy-api.sh`.
 
 ## Hooks
 
@@ -173,11 +297,14 @@ tfy-agent-skills/
 ├── skills/
 │   ├── _shared/                   # Canonical shared files
 │   │   ├── scripts/
-│   │   │   └── tfy-api.sh         # Authenticated REST helper
+│   │   │   ├── tfy-api.sh         # Authenticated REST helper
+│   │   │   └── tfy-version.sh     # SDK/CLI/Python version detection
 │   │   └── references/
 │   │       ├── api-endpoints.md
+│   │       ├── container-versions.md
 │   │       ├── deploy-template.py
-│   │       └── sdk-patterns.md
+│   │       ├── sdk-patterns.md
+│   │       └── sdk-version-map.md
 │   ├── ai-gateway/SKILL.md
 │   ├── applications/SKILL.md
 │   ├── async-service/SKILL.md
