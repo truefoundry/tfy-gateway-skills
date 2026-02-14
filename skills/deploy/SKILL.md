@@ -2,7 +2,7 @@
 name: deploy
 description: This skill should be used when the user says "deploy to truefoundry", "deploy this app", "ship to tfy", "push to truefoundry", or wants to run deploy.py. NOT for creating deployments via API — use applications skill for that. For initial project setup or checking what's deployed, use applications skill.
 disable-model-invocation: true
-allowed-tools: Bash(python*), Bash(pip*), Bash(*/tfy-api.sh *)
+allowed-tools: Bash(python*), Bash(pip*), Bash(*/tfy-api.sh *), Bash(*/tfy-version.sh *)
 ---
 
 # Deploy to TrueFoundry
@@ -27,54 +27,65 @@ Deploy local code to TrueFoundry as a Service using the TrueFoundry Python SDK. 
 **Always verify before deploying:**
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` is **required**. Never auto-pick. Ask the user if missing.
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
 3. **Python** — TrueFoundry SDK requires Python 3.10–3.12
 4. **SDK** — `pip install truefoundry` (or `pip install -e ".[deploy]"` if the project has that extra)
 
+For credential check commands and .env setup, see `references/prerequisites.md`.
+
+## Step 0: Detect SDK & Environment
+
+**Before anything else**, detect the installed SDK version and Python environment. This prevents deployment failures from version mismatches.
+
 ```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
+# Run version detection (from this skill's scripts directory)
+$TFY_SKILL_DIR/scripts/tfy-version.sh all
 ```
 
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+### Interpret Results
 
-## Step 0: Discover Cluster Capabilities
+| SDK Version | Action |
+|------------|--------|
+| >= 0.5.0 | Use deploy patterns as-is. `replicas` accepts `int`. |
+| 0.4.x | Apply compat: use `Replicas(min=N, max=N)` object, ensure `TFY_HOST` is set. |
+| 0.3.x | Legacy SDK. Consider upgrading (`pip install -U truefoundry`) or fall back to REST API. |
+| Not installed | Fall back to REST API deployment via `tfy-api.sh` with JSON manifest. See `tfy-apply` skill. |
+
+| Python Version | Action |
+|---------------|--------|
+| 3.10–3.12 | Compatible. Proceed normally. |
+| 3.13+ | SDK may not support this version. Create a compatible venv: |
+
+```bash
+# Python 3.13+ workaround
+python3.12 -m venv .venv-deploy
+source .venv-deploy/bin/activate
+pip install truefoundry python-dotenv
+```
+
+| CLI (`tfy`) | Action |
+|------------|--------|
+| Installed | Can use `tfy apply` for declarative deploys (see `tfy-apply` skill). |
+| Not installed | Use Python SDK deploy or REST API. |
+
+**If SDK is not installed and user wants SDK-based deploy**, install it:
+```bash
+pip install truefoundry python-dotenv
+```
+
+Then re-run version detection to confirm.
+
+## Step 1: Discover Cluster Capabilities
 
 **Before asking the user about resources, GPUs, or public URLs**, fetch the cluster's capabilities so you can present only what's actually available.
 
-### Get Cluster ID
-
-Extract from workspace FQN (part before the colon):
-- Workspace FQN `tfy-ea-dev-eo-az:sai-ws` → Cluster ID `tfy-ea-dev-eo-az`
-- Or use `TFY_CLUSTER_ID` from environment if set.
-
-### Fetch Cluster Details
-
-```bash
-# Via MCP
-tfy_clusters_list(cluster_id="CLUSTER_ID")
-
-# Via Direct API
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
+Fetch the cluster's capabilities before asking about resources or public URLs. See `references/cluster-discovery.md` for how to extract cluster ID from workspace FQN and fetch cluster details (GPUs, base domains, storage classes).
 
 ### Extract Available Capabilities
 
 From the cluster response, extract:
-
-1. **Base domains** (for public URLs):
-   ```json
-   "base_domains": ["ml.tfy-eo.truefoundry.cloud", "*.ml.tfy-eo.truefoundry.cloud"]
-   ```
-   Pick the wildcard domain, strip `*.` → base domain for constructing hosts.
-
-2. **Available GPUs** — If the user needs GPU, the cluster may only support certain types. The SDK will report valid devices in the error message if you pick an unsupported one:
-   ```
-   "Valid devices are [T4, A10_4GB, A10_8GB, A10_12GB, A10_24GB, H100_94GB]"
-   ```
-   **Present only available GPU types to the user, not a generic list.**
+1. **Base domains** — pick the wildcard domain, strip `*.` → base domain for constructing hosts.
+2. **Available GPUs** — present only GPU types the cluster supports, not a generic list.
 
 ### Why This Matters
 
@@ -84,11 +95,11 @@ From the cluster response, extract:
 
 **Always discover before asking.** This prevents wasted round-trips with the user.
 
-## Step 1: Analyze Application & Suggest Resources
+## Step 2: Analyze Application & Suggest Resources
 
 **Before asking about CPU/memory/GPU**, analyze the user's codebase and ask about expected load. This produces informed resource suggestions instead of arbitrary defaults.
 
-### 1a. Codebase Analysis
+### 2a. Codebase Analysis
 
 Scan the project to determine:
 
@@ -112,7 +123,7 @@ Scan the project to determine:
    - Async/concurrent patterns (`asyncio`, `uvicorn workers`, `gunicorn`) → can handle more load per CPU
    - Database connections (`sqlalchemy`, `prisma`, `mongoose`) → connection pooling matters
 
-### 1b. Ask About Expected Load
+### 2b. Ask About Expected Load
 
 Based on the app type, ask the user targeted questions:
 
@@ -165,7 +176,7 @@ To suggest the right resources:
 4. Peak task queue depth?
 ```
 
-### 1c. Resource Suggestion Table
+### 2c. Resource Suggestion Table
 
 Present a comparison table with defaults, suggested values, and let the user choose:
 
@@ -187,37 +198,12 @@ Do you want to use the suggested values, or customize any of them?
 
 ### Resource Estimation Guidelines
 
-Use these rules of thumb when calculating suggestions:
+For detailed CPU, memory, GPU, and replica estimation rules of thumb, see `references/resource-estimation.md`. Key points:
 
-**CPU estimation:**
-- Python async (FastAPI/uvicorn): ~0.5 cores per 50 TPS for simple CRUD
-- Python sync (Flask/Django): ~1 core per 20 TPS
-- Node.js (Express): ~0.5 cores per 100 TPS for simple routes
-- Go: ~0.25 cores per 200 TPS
-- ML inference (CPU-only): 2–4 cores per model instance
-- Add 50% buffer for CPU limit vs request
-
-**Memory estimation:**
-- Base Python app: 128–256 MB
-- Python + ML libraries (torch, etc.): 2–8 GB (depends on model size)
-- Node.js app: 128–512 MB
-- Go app: 64–128 MB
-- Add memory for: loaded models, connection pools, caches, request payloads
+- Always check available GPU types on the cluster (Step 1)
 - Memory limit should be 1.5–2x the request
-
-**GPU estimation:**
-- Model parameter count × 2 bytes (FP16) = minimum VRAM needed
-- 2B params → ~4 GB VRAM → T4 (16 GB) works fine
-- 7B params → ~14 GB VRAM → A10_24GB or T4 (tight)
-- 13B params → ~26 GB VRAM → A10_24GB (quantized) or A100_40GB
-- 70B params → ~140 GB VRAM → multiple GPUs or H100/H200
-- Always check available GPU types on the cluster (Step 0)
-
-**Replica estimation:**
-- Dev/testing: 1 replica (no HA needed)
 - Production: min 2 replicas for high availability
-- Autoscaling: set max replicas = 2–4x min for traffic spikes
-- Rule of thumb: each replica handles ~50–200 TPS for async Python APIs
+- GPU VRAM needed ≈ model parameter count × 2 bytes (FP16)
 
 ### Important Notes
 
@@ -225,7 +211,7 @@ Use these rules of thumb when calculating suggestions:
 - **Let users override** — Suggestions are starting points, not mandates.
 - **Mention trade-offs** — More resources = higher cost, fewer = risk of OOM/throttling.
 - **Factor in environment** — Dev gets minimal defaults, production gets HA suggestions.
-- **Reference cluster capabilities** — Only suggest GPU types that are actually available (from Step 0).
+- **Reference cluster capabilities** — Only suggest GPU types that are actually available (from Step 1).
 
 ## Deploy Flow
 
@@ -251,13 +237,13 @@ Use these rules of thumb when calculating suggestions:
 
 2. **ANALYZE & ASK THE USER** — Before creating deploy.py:
 
-   **First**, run the codebase analysis (Step 1a) to identify framework, app type, and compute indicators.
+   **First**, run the codebase analysis (Step 2a) to identify framework, app type, and compute indicators.
 
    **Then**, gather this information from the user:
    - **Service name**: What should this service be called? (suggest project directory name if unclear)
    - **Port**: What port does your app listen on? (detect from code if possible — look for `uvicorn`, `app.listen`, `EXPOSE` in Dockerfile)
-   - **Expected load**: Ask targeted load questions based on app type (Step 1b) — TPS, concurrent users, environment
-   - **Resources**: Present the resource suggestion table (Step 1c) showing defaults vs suggested values based on load analysis. Let the user confirm or adjust.
+   - **Expected load**: Ask targeted load questions based on app type (Step 2b) — TPS, concurrent users, environment
+   - **Resources**: Present the resource suggestion table (Step 2c) showing defaults vs suggested values based on load analysis. Let the user confirm or adjust.
    - **GPU**: Does your app require GPU acceleration? If yes, present only available GPU types from Step 0. Suggest GPU size based on model parameters (Step 1c guidelines).
    - **Environment variables**:
      - Check if project has `.env` file or `config.py` with env var patterns
@@ -291,9 +277,9 @@ Use these rules of thumb when calculating suggestions:
 - [ ] **Dockerfile** — use existing Dockerfile, create one, or let TrueFoundry auto-build?
 - [ ] **Service name** — what to call this deployment
 - [ ] **Port** — what port the application listens on
-- [ ] **Expected load** — TPS, concurrent users, environment (dev/staging/prod) → use Step 1 analysis
+- [ ] **Expected load** — TPS, concurrent users, environment (dev/staging/prod) → use Step 2 analysis
 - [ ] **CPU/Memory** — show resource suggestion table from Step 1 (defaults vs suggested values)
-- [ ] **GPU** — whether GPU is needed (only offer available types from Step 0)
+- [ ] **GPU** — whether GPU is needed (only offer available types from Step 1)
 - [ ] **Replicas** — min/max for autoscaling (suggest based on load analysis)
 - [ ] **Environment variables** — check `.env`, `config.py`, or ask directly
 - [ ] **Health probes** — configure startup/readiness/liveness probes (recommended for production)
@@ -320,71 +306,13 @@ service = Service(
 
 **Always configure health probes for production services.** Without them, Kubernetes may route traffic to unready pods or fail to restart crashed ones.
 
-### Probe Types
-
 | Probe | Purpose | When to Use |
 |-------|---------|-------------|
 | **Startup** | Wait for app to initialize | Apps with slow startup (model loading, DB migrations, cache warming) |
 | **Readiness** | Can this pod receive traffic? | Always — prevents routing to unready pods |
 | **Liveness** | Is this pod alive? | Always — restarts hung processes |
 
-### Default Probe Config (HTTP)
-
-Most web apps expose a `/health` or `/healthz` endpoint:
-
-```python
-# In deploy.py (SDK)
-from truefoundry.deploy import HttpProbe, HealthProbe
-
-service = Service(
-    # ...
-    liveness_probe=HealthProbe(
-        config=HttpProbe(path="/health", port=8000),
-        initial_delay_seconds=5,
-        period_seconds=10,
-        timeout_seconds=2,
-        failure_threshold=3,
-    ),
-    readiness_probe=HealthProbe(
-        config=HttpProbe(path="/health", port=8000),
-        initial_delay_seconds=5,
-        period_seconds=10,
-        timeout_seconds=2,
-        failure_threshold=3,
-    ),
-)
-```
-
-### API Manifest Format
-
-```json
-{
-  "startup_probe": {
-    "config": {"type": "http", "path": "/health", "port": 8000},
-    "initial_delay_seconds": 10,
-    "period_seconds": 10,
-    "failure_threshold": 30,
-    "timeout_seconds": 2,
-    "success_threshold": 1
-  },
-  "readiness_probe": {
-    "config": {"type": "http", "path": "/health", "port": 8000},
-    "initial_delay_seconds": 5,
-    "period_seconds": 10,
-    "failure_threshold": 3,
-    "timeout_seconds": 2,
-    "success_threshold": 1
-  },
-  "liveness_probe": {
-    "config": {"type": "http", "path": "/health", "port": 8000},
-    "initial_delay_seconds": 5,
-    "period_seconds": 10,
-    "failure_threshold": 5,
-    "timeout_seconds": 2,
-    "success_threshold": 1
-  }
-}
-```
+For SDK format, API manifest format, and detailed probe examples, see `references/health-probes.md`.
 
 ### Tuning Guidelines
 
@@ -493,25 +421,7 @@ When the user wants their service publicly accessible, you need a valid hostname
 
 ### Step 1: Get the cluster's base domains
 
-Use `TFY_CLUSTER_ID` (from env or ask the user). The cluster ID is the part before the colon in the workspace FQN (e.g., workspace `tfy-ea-dev-eo-az:sai-ws` → cluster `tfy-ea-dev-eo-az`).
-
-```bash
-# Via MCP
-tfy_clusters_list(cluster_id="CLUSTER_ID")
-
-# Via Direct API
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
-
-Look for `base_domains` in the response. Example:
-```json
-"base_domains": [
-  "ml.tfy-eo.truefoundry.cloud",
-  "*.ml.tfy-eo.truefoundry.cloud"
-]
-```
-
-Pick the **wildcard domain** (the one starting with `*.`), and strip the `*.` prefix to get the base domain. For example: `*.ml.tfy-eo.truefoundry.cloud` → base domain is `ml.tfy-eo.truefoundry.cloud`.
+Look up the cluster's base domains. See `references/cluster-discovery.md` for how to extract cluster ID and fetch base domains. Pick the wildcard domain, strip `*.` to get the base domain.
 
 ### Step 2: Construct the host
 
@@ -577,15 +487,66 @@ pip install truefoundry python-dotenv
 python deploy.py
 ```
 
-## After Deploy
+## After Deploy — Get & Return URL
+
+**CRITICAL: Always fetch and return the deployment URL to the user. A deployment without a URL is incomplete.**
+
+### Step 1: Poll for Deployment Status
+
+After `python deploy.py` completes, the deployment is submitted but not yet live. Poll the status:
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
+
+# Get application details — replace SERVICE_NAME and WORKSPACE_FQN
+$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=SERVICE_NAME'
+```
+
+Or via MCP:
+```
+tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "SERVICE_NAME"})
+```
+
+### Step 2: Extract the URL
+
+From the API response, look for the endpoint URL in the application object:
+- **Public services**: The URL is in `ports[].host` or constructed from the host you set during deployment
+- **Internal services**: The internal DNS is `{service-name}.{namespace}.svc.cluster.local:{port}`
+
+### Step 3: Report to User
+
+**Always present this summary after deployment:**
 
 ```
-Deployment submitted. Check the TrueFoundry dashboard for status and URL.
+Deployment successful!
+
+Service: {service-name}
+Workspace: {workspace-fqn}
+Status: {BUILDING|DEPLOYING|RUNNING}
+
+Endpoints:
+  Public URL:   https://{host} (available once status is RUNNING)
+  Internal DNS: {service-name}.{namespace}.svc.cluster.local:{port}
+
+Next steps:
+  - Wait for status to become RUNNING (check with: applications skill)
+  - Test the endpoint: curl https://{host}/health
+  - View logs if issues: logs skill
 ```
 
-- **Check status**: Use `applications` skill to list deployments
-- **View logs**: Use `logs` skill
-- **Get the URL**: Check dashboard or use `applications` skill to find the service URL
+**If the service has a public URL**, include the full `https://` URL.
+**If internal-only**, show the Kubernetes DNS address and explain how other services can reach it.
+**If status is still BUILDING**, tell the user it will take a few minutes and suggest checking back.
+
+### Step 4: Verify Health (Optional but Recommended)
+
+If the deployment shows RUNNING status, do a quick health check:
+
+```bash
+curl -s https://{host}/health
+```
+
+Report the result to the user.
 
 ## Composability
 

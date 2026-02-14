@@ -18,7 +18,7 @@ View and download application and job logs from TrueFoundry.
 
 ## Download Logs
 
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-logs/scripts/tfy-api.sh` for Claude Code, `~/.cursor/skills/truefoundry-logs/scripts/tfy-api.sh` for Cursor). In the examples below, replace `TFY_API_SH` with the full path.
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ### Via MCP
 

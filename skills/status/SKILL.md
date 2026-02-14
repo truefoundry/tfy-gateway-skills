@@ -35,12 +35,7 @@ This returns connection status, configured base URL, and whether an API key is s
 
 ### Via Direct API
 
-Check environment variables and test the connection. Use the **full path** to this skill's `scripts/tfy-api.sh` when your CWD is the project root. The path depends on which agent is installed:
-
-- Claude Code: `~/.claude/skills/truefoundry-status/scripts/tfy-api.sh`
-- Cursor: `~/.cursor/skills/truefoundry-status/scripts/tfy-api.sh`
-- OpenCode: `~/.opencode/skills/truefoundry-status/scripts/tfy-api.sh`
-- Codex: `~/.codex/skills/truefoundry-status/scripts/tfy-api.sh`
+Check environment variables and test the connection. Set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ```bash
 # Check env vars are set

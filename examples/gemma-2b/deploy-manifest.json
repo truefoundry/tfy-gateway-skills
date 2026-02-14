@@ -1,0 +1,122 @@
+{
+  "type": "service",
+  "name": "gemma-2b-vllm",
+  "image": {
+    "type": "image",
+    "image_uri": "public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0",
+    "command": "python3 -u -m vllm.entrypoints.openai.api_server --host 0.0.0.0 --port 8000 --download-dir /data/ --tokenizer-mode auto --model '$(MODEL_ID)' --tokenizer '$(MODEL_ID)' --trust-remote-code --dtype '$(DTYPE)' --tensor-parallel-size '$(GPU_COUNT)' --gpu-memory-utilization '$(GPU_MEMORY_UTILIZATION)' --served-model-name '$(MODEL_NAME)' --root-path '$(TFY_SERVICE_ROOT_PATH)' --max-model-len '$(MAX_MODEL_LENGTH)' --async-scheduling --enable-prefix-caching"
+  },
+  "ports": [
+    {
+      "port": 8000,
+      "expose": true,
+      "protocol": "TCP",
+      "app_protocol": "http",
+      "host": "gemma-2b-sai-ws.ml.tfy-eo.truefoundry.cloud"
+    }
+  ],
+  "env": {
+    "DTYPE": "float16",
+    "GPU_COUNT": "1",
+    "MAX_MODEL_LENGTH": "4096",
+    "VLLM_NO_USAGE_STATS": "1",
+    "NVIDIA_REQUIRE_CUDA": "cuda>=12.1",
+    "GPU_MEMORY_UTILIZATION": "0.90",
+    "MODEL_NAME": "gemma-2b-vllm",
+    "VLLM_CACHE_ROOT": "/opt/truefoundry/.cache/vllm",
+    "HF_TOKEN": "tfy-secret://tfy-eo:mamon-hf:hf-token",
+    "HUGGING_FACE_HUB_TOKEN": "tfy-secret://tfy-eo:mamon-hf:hf-token"
+  },
+  "workspace_fqn": "tfy-ea-dev-eo-az:sai-ws",
+  "artifacts_download": {
+    "artifacts": [
+      {
+        "type": "huggingface-hub",
+        "model_id": "google/gemma-2-2b-it",
+        "revision": "main",
+        "ignore_patterns": [
+          "*.h5",
+          "*.ot",
+          "*.tflite",
+          "*.msgpack",
+          "pytorch_model*.bin",
+          "consolidated*.pth",
+          "consolidated.*.pth",
+          "consolidated.safetensors",
+          "metal/*",
+          "original/*"
+        ],
+        "download_path_env_variable": "MODEL_ID"
+      }
+    ],
+    "cache_volume": {
+      "cache_size": 22,
+      "storage_class": "azureblob-nfs-premium"
+    }
+  },
+  "replicas": 1,
+  "rollout_strategy": {
+    "type": "rolling_update",
+    "max_surge_percentage": 0,
+    "max_unavailable_percentage": 25
+  },
+  "startup_probe": {
+    "config": {
+      "type": "http",
+      "path": "/health",
+      "port": 8000
+    },
+    "failure_threshold": 35,
+    "initial_delay_seconds": 10,
+    "period_seconds": 10,
+    "success_threshold": 1,
+    "timeout_seconds": 2
+  },
+  "readiness_probe": {
+    "config": {
+      "type": "http",
+      "path": "/health",
+      "port": 8000
+    },
+    "failure_threshold": 5,
+    "initial_delay_seconds": 3,
+    "period_seconds": 10,
+    "success_threshold": 1,
+    "timeout_seconds": 2
+  },
+  "liveness_probe": {
+    "config": {
+      "type": "http",
+      "path": "/health",
+      "port": 8000
+    },
+    "failure_threshold": 10,
+    "initial_delay_seconds": 3,
+    "period_seconds": 10,
+    "success_threshold": 1,
+    "timeout_seconds": 2
+  },
+  "labels": {
+    "tfy_model_server": "vLLM",
+    "tfy_openapi_path": "openapi.json",
+    "tfy_sticky_session_header_name": "x-truefoundry-sticky-session-id",
+    "huggingface_model_task": "text-generation"
+  },
+  "allow_interception": false,
+  "resources": {
+    "devices": [
+      {
+        "type": "nvidia_gpu",
+        "count": 1,
+        "name": "T4"
+      }
+    ],
+    "cpu_request": 4,
+    "cpu_limit": 4,
+    "memory_request": 32768,
+    "memory_limit": 40960,
+    "ephemeral_storage_request": 5000,
+    "ephemeral_storage_limit": 50000,
+    "shared_memory_size": 30000
+  }
+}

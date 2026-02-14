@@ -14,16 +14,29 @@ Exception: `deploy` and `helm` have `disable-model-invocation: true` — they on
 the user explicitly asks to deploy (never auto-triggered).
 
 Available skills in this repo:
-- `status`
-- `workspaces`
-- `deploy`
-- `helm`
+- `ai-gateway`
 - `applications`
-- `jobs`
-- `logs`
-- `secrets`
-- `prompts`
+- `async-service`
+- `deploy`
 - `docs`
+- `gitops`
+- `helm`
+- `jobs`
+- `llm-benchmarking`
+- `llm-deploy`
+- `llm-finetuning`
+- `logs`
+- `mcp-server`
+- `multi-service`
+- `notebooks`
+- `prompts`
+- `secrets`
+- `ssh-server`
+- `status`
+- `tfy-apply`
+- `volumes`
+- `workflows`
+- `workspaces`
 
 ## Architecture
 
@@ -86,6 +99,7 @@ Shared files:
 - `skills/_shared/scripts/tfy-api.sh` — REST API helper
 - `skills/_shared/references/api-endpoints.md` — Endpoint reference
 - `skills/_shared/references/deploy-template.py` — Deploy script template
+- `skills/_shared/references/sdk-patterns.md` — SDK usage patterns
 
 ## Adding New Skills
 

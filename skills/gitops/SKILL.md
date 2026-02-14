@@ -33,13 +33,7 @@ Set up GitOps-style deployments with TrueFoundry. Store deployment configuration
 2. **TrueFoundry CLI** — `tfy` CLI must be available in the CI/CD environment (installed via `pip install truefoundry`)
 3. **Git repository** — A Git repo to store deployment specs
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-```
-
-Use the `status` skill to verify connection before proceeding.
+For credential check commands and .env setup, see `references/prerequisites.md`. Use the `status` skill to verify connection before proceeding.
 
 ## How GitOps Works with TrueFoundry
 

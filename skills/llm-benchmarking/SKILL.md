@@ -33,13 +33,7 @@ Benchmark deployed LLMs on TrueFoundry to measure latency, throughput, time to f
 2. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
 3. **Model endpoint** — The deployed model's host URL (OpenAI-compatible `v1/chat/completions` endpoint)
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-```
-
-Use the `status` skill to verify connection. Use the `applications` skill to find the deployed model's endpoint URL.
+For credential check commands and .env setup, see `references/prerequisites.md`. Use the `status` skill to verify connection. Use the `applications` skill to find the deployed model's endpoint URL.
 
 ## Key Metrics
 

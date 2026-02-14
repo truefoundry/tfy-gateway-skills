@@ -29,19 +29,12 @@ Fine-tune large language models on TrueFoundry using QLoRA, LoRA, or full fine-t
 **Always verify before launching a fine-tuning job:**
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` is **required**. Never auto-pick. Ask the user if missing.
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
 3. **GPU availability** — Fine-tuning requires GPU. Check cluster GPU types before proceeding.
 4. **Training data** — User must have a dataset in a supported format (see Data Preparation).
 5. **HuggingFace token** — Required for gated models (Llama, Gemma, etc.). Use the `secrets` skill to set up a TrueFoundry secret group.
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
-```
-
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## Supported Fine-Tuning Methods
 
@@ -72,19 +65,9 @@ Best-effort support:
 
 **Before asking about GPU types**, fetch the cluster's available GPUs.
 
-### Get Cluster ID
+Fetch the cluster's capabilities before asking about resources. See `references/cluster-discovery.md` for how to extract cluster ID from workspace FQN and fetch cluster details (GPUs, base domains, storage classes).
 
-Extract from workspace FQN (part before the colon):
-- Workspace FQN `tfy-ea-dev-eo-az:sai-ws` → Cluster ID `tfy-ea-dev-eo-az`
-- Or use `TFY_CLUSTER_ID` from environment if set.
-
-### Fetch Cluster Details
-
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-llm-finetuning/scripts/tfy-api.sh` for Claude Code). In the examples below, replace `TFY_API_SH` with the full path.
-
-```bash
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 Extract **available GPU types** from the response. Only present GPU types the cluster actually supports.
 
@@ -223,6 +206,8 @@ if __name__ == "__main__":
 Fine-tuning requires **significantly more GPU resources** than inference because training stores gradients, optimizer states, and activation checkpoints in addition to model weights.
 
 ### QLoRA GPU Requirements
+
+For full GPU reference and DTYPE selection, see `references/gpu-reference.md`.
 
 | Model Params | Min VRAM | Recommended GPU | CPU | Memory |
 |-------------|----------|-----------------|-----|--------|

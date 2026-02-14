@@ -1,3 +1,7 @@
+<!-- VERSION AWARENESS: Before using these patterns, run tfy-version.sh to detect
+     the installed SDK version, then check sdk-version-map.md for version-specific
+     adjustments. These patterns are tested against SDK >= 0.5.0. -->
+
 # TrueFoundry SDK Patterns Reference
 
 <!-- Reference for AI agents deploying to TrueFoundry.
@@ -15,7 +19,7 @@ from truefoundry.deploy import Image, Port, Resources, Service, NvidiaGPU, GPUTy
 service = Service(
     name="my-service",
     image=Image(
-        image_uri="vllm/vllm-openai:latest",
+        image_uri="vllm/vllm-openai:v0.13.0",  # pin version — see container-versions.md
         command="python3 -m vllm.entrypoints.openai.api_server --model google/gemma-2-2b-it --host 0.0.0.0 --port 8000",
     ),
     ports=[Port(port=8000, protocol="TCP", expose=False, app_protocol="http")],
@@ -29,6 +33,8 @@ service = Service(
 )
 service.deploy(workspace_fqn="YOUR_WORKSPACE_FQN", wait=False)
 ```
+
+**Version note:** In SDK >= 0.5.0, `replicas` accepts an `int` directly (e.g., `replicas=1`). In SDK 0.4.x and older, use `Replicas(min=1, max=1)` object. See `sdk-version-map.md` for details.
 
 **IMPORTANT:** `command` goes inside `Image()`, NOT on `Service` directly. `Service` does not accept a `command` parameter.
 

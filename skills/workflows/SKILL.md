@@ -28,23 +28,16 @@ Create, configure, and deploy workflows on TrueFoundry. Workflows are built on [
 
 **Always verify before creating a workflow:**
 
-1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** -- `TFY_WORKSPACE_FQN` is **required**. Never auto-pick. Ask the user if missing.
-3. **Python** -- Python 3.9+ required
-4. **SDK** -- Install the TrueFoundry SDK with workflow extras:
+1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **Python** — Python 3.9+ required
+4. **SDK** — Install the TrueFoundry SDK with workflow extras:
    ```bash
    pip install "truefoundry[workflow]"
    ```
-5. **Cluster setup** -- The Flyte data plane must be installed on the target cluster. The control plane ships with TrueFoundry (no additional setup). If the user gets errors about Flyte not being available, they need to contact their platform admin to install the data plane components.
+5. **Cluster setup** — The Flyte data plane must be installed on the target cluster. The control plane ships with TrueFoundry (no additional setup). If the user gets errors about Flyte not being available, they need to contact their platform admin to install the data plane components.
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
-```
-
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## Core Concepts
 

@@ -54,18 +54,13 @@ Help the user choose the right storage type:
 
 ## Prerequisites
 
+**Always verify before deploying:**
+
 1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** -- `TFY_WORKSPACE_FQN` is required. Volumes are workspace-scoped: a volume created in one workspace can only be used by applications in that same workspace. Never auto-pick. Ask the user if missing.
+2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.** Volumes are workspace-scoped: a volume created in one workspace can only be used by applications in that same workspace.
 3. **Cluster storage class** -- The target cluster must have a storage provisioner configured for the desired storage class.
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
-```
-
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## Volume Types
 
@@ -112,20 +107,19 @@ Present only the storage classes available on the user's cluster. These are the 
 | `azureblob-nfs-premium` | `blob.csi.azure.com` | Azure Blob NFS -- premium |
 | `azureblob-fuse-premium` | `blob.csi.azure.com` | Azure Blob FUSE -- premium |
 
-**To discover available storage classes on a cluster**, check the cluster details:
+**To discover available storage classes on a cluster**, see `references/cluster-discovery.md` or check the cluster details:
 
 ```bash
 # Via MCP
 tfy_clusters_list(cluster_id="CLUSTER_ID")
 
 # Via Direct API
-TFY_API_SH=~/.claude/skills/truefoundry-volumes/scripts/tfy-api.sh
 $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
 ```
 
 ## Creating a Volume
 
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-volumes/scripts/tfy-api.sh` for Claude Code, `~/.cursor/skills/truefoundry-volumes/scripts/tfy-api.sh` for Cursor). In the examples below, replace `TFY_API_SH` with the full path.
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ### Before Creating
 
@@ -171,8 +165,6 @@ tfy_applications_create_deployment(
 ### Via Direct API
 
 ```bash
-TFY_API_SH=~/.claude/skills/truefoundry-volumes/scripts/tfy-api.sh
-
 # Create a new volume
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
@@ -215,8 +207,6 @@ tfy_applications_list(filters={"workspace_fqn": "tfy-ea-dev-eo-az:my-ws", "appli
 ### Via Direct API
 
 ```bash
-TFY_API_SH=~/.claude/skills/truefoundry-volumes/scripts/tfy-api.sh
-
 # List volumes in a workspace
 $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=tfy-ea-dev-eo-az:my-ws&applicationType=volume'
 

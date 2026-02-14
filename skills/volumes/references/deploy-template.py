@@ -2,6 +2,10 @@
 
 Copy to your project root and adapt: name, port, Dockerfile path, resources.
 
+Version-aware: Prints SDK version at startup. If deployment fails due to
+SDK incompatibilities, check references/sdk-version-map.md for version-
+specific patterns and breaking changes.
+
 Requires: pip install truefoundry python-dotenv
 Env: TFY_BASE_URL, TFY_API_KEY, TFY_WORKSPACE_FQN (required; never auto-picked).
 """
@@ -14,6 +18,8 @@ try:
 except ImportError:
     pass
 
+# Compat shim: SDK < 0.5.0 reads TFY_HOST; newer versions read TFY_BASE_URL.
+# This ensures both are set regardless of SDK version. See sdk-version-map.md.
 if os.environ.get("TFY_BASE_URL") and not os.environ.get("TFY_HOST"):
     os.environ["TFY_HOST"] = os.environ["TFY_BASE_URL"].strip().rstrip("/")
 
@@ -27,6 +33,9 @@ from truefoundry.deploy import (
     # Env,  # uncomment if using typed env vars
     # SecretMount,  # uncomment if using TrueFoundry secret groups
 )
+
+import truefoundry
+print(f"TrueFoundry SDK version: {truefoundry.__version__}")
 
 PROJECT_ROOT = str(Path(__file__).resolve().parent)
 if not Path(PROJECT_ROOT).exists():

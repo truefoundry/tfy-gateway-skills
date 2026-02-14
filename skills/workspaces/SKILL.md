@@ -17,7 +17,7 @@ List TrueFoundry workspaces and clusters. Workspaces are the deploy targets; clu
 
 ## List Workspaces
 
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-workspaces/scripts/tfy-api.sh` for Claude Code, `~/.cursor/skills/truefoundry-workspaces/scripts/tfy-api.sh` for Cursor). In the examples below, replace `TFY_API_SH` with the full path.
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ### Via MCP
 
@@ -28,9 +28,6 @@ tfy_workspaces_list(filters={"cluster_id": "optional-cluster-id"})
 ### Via Direct API
 
 ```bash
-# Set the path to tfy-api.sh for your agent (example for Claude Code):
-TFY_API_SH=~/.claude/skills/truefoundry-workspaces/scripts/tfy-api.sh
-
 # List all workspaces
 $TFY_API_SH GET /api/svc/v1/workspaces
 
@@ -100,47 +97,13 @@ Clusters:
 
 ## Cluster Base Domains (for Public URLs)
 
-When a user wants to expose a service publicly, you need the cluster's base domains to construct a valid hostname. **Invalid hosts cause deploy failures.**
-
-### How to Look Up
-
-```bash
-# Via MCP
-tfy_clusters_list(cluster_id="CLUSTER_ID")
-
-# Via Direct API
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
-
-The response includes a `base_domains` array:
-```json
-"base_domains": [
-  "ml.tfy-eo.truefoundry.cloud",
-  "*.ml.tfy-eo.truefoundry.cloud"
-]
-```
-
-### How to Use
-
-1. Pick the **wildcard entry** (starts with `*.`) — e.g., `*.ml.tfy-eo.truefoundry.cloud`
-2. Strip the `*.` prefix to get the base domain: `ml.tfy-eo.truefoundry.cloud`
-3. Construct the host: `{service-name}-{workspace-name}.{base_domain}`
-4. Example: `my-app-dev-ws.ml.tfy-eo.truefoundry.cloud`
-
-### Extracting Cluster ID from Workspace FQN
-
-The cluster ID is the part before the colon in the workspace FQN:
-- Workspace FQN: `tfy-ea-dev-eo-az:sai-ws` → Cluster ID: `tfy-ea-dev-eo-az`
-
-If `TFY_CLUSTER_ID` is set in the environment, use that directly.
+When a user wants to expose a service publicly, you need the cluster's base domains to construct a valid hostname. Invalid hosts cause deploy failures. See `references/cluster-discovery.md` for how to look up base domains, extract cluster ID from workspace FQN, and construct public URLs.
 
 ## Available GPU Types
 
 When a user needs GPU resources, discover what's available on the cluster before offering options.
 
 ### How to Discover
-
-The cluster API doesn't directly list GPU types, but you can discover them in two ways:
 
 **Option A: Check cluster addons/node pools**
 ```bash
@@ -154,41 +117,9 @@ If you deploy with an unsupported GPU type, the error message lists all valid on
 "None of the nodepools support A10G. Valid devices are [T4, A10_4GB, A10_8GB, A10_12GB, A10_24GB, H100_94GB]"
 ```
 
-### GPU Type Reference
-
-Common GPU types in TrueFoundry (availability depends on the cluster):
-
-| GPU Type | VRAM | Typical Use |
-|----------|------|-------------|
-| `T4` | 16 GB | Inference, small models |
-| `A10_4GB` | 4 GB (fractional) | Light inference |
-| `A10_8GB` | 8 GB (fractional) | Medium inference |
-| `A10_12GB` | 12 GB (fractional) | Medium models |
-| `A10_24GB` | 24 GB (full A10) | Large inference, fine-tuning |
-| `A10G` | 24 GB | Similar to A10_24GB |
-| `A100_40GB` | 40 GB | Large models, training |
-| `A100_80GB` | 80 GB | Very large models |
-| `L4` | 24 GB | Inference optimized |
-| `L40S` | 48 GB | Large inference |
-| `H100_80GB` | 80 GB | Training, large models |
-| `H100_94GB` | 94 GB | Training, largest models |
-| `H200` | 141 GB | Next-gen training |
-
 **Not all types are available on every cluster.** Always check before presenting options to the user.
 
-### Python SDK Usage
-
-```python
-from truefoundry.deploy import NvidiaGPU, GPUType, Resources
-
-resources = Resources(
-    cpu_request=4, cpu_limit=4,
-    memory_request=16384, memory_limit=16384,
-    devices=[NvidiaGPU(name=GPUType.T4, count=1)],
-)
-```
-
-See `references/sdk-patterns.md` for more examples.
+For the full GPU type reference table and SDK usage examples, see `references/gpu-reference.md`.
 
 ## Composability
 

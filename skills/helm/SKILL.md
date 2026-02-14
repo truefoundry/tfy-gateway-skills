@@ -32,16 +32,9 @@ Deploy any Helm chart to TrueFoundry — databases, caches, message queues, vect
 **Always verify before deploying:**
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` is **required**. Never auto-pick. Ask the user if missing.
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
-```
-
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## User Confirmation Checklist
 
@@ -426,7 +419,7 @@ Create a TrueFoundry HelmRelease manifest with user-confirmed values. This examp
 
 **Important:** The `workspaceId` must be the internal workspace ID (not the FQN). Get it from the `workspaces` skill: `GET /api/svc/v1/workspaces?fqn=WORKSPACE_FQN` -> use the `id` field.
 
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-helm/scripts/tfy-api.sh` for Claude Code, `~/.cursor/skills/truefoundry-helm/scripts/tfy-api.sh` for Cursor). In the examples below, replace `TFY_API_SH` with the full path.
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 #### Via MCP
 
@@ -455,9 +448,6 @@ tfy_applications_create_deployment(
 #### Via Direct API
 
 ```bash
-# Set the path to tfy-api.sh for your agent (example for Claude Code):
-TFY_API_SH=~/.claude/skills/truefoundry-helm/scripts/tfy-api.sh
-
 # First, get workspace ID from FQN
 $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 

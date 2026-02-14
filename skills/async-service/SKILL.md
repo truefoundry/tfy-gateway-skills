@@ -47,17 +47,10 @@ Deploy an Async Service to TrueFoundry — a queue-based processing service that
 **Always verify before deploying:**
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` is **required**. Never auto-pick. Ask the user if missing.
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
 3. **Queue infrastructure** — A message queue must be provisioned and accessible. Use the `helm` skill to deploy NATS, Kafka, or RabbitMQ on the cluster, or use a managed service (AWS SQS, Google AMQP).
 
-```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
-```
-
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## Architecture Overview
 
@@ -305,7 +298,7 @@ if __name__ == "__main__":
 
 ### Step 3: Deploy via API Manifest
 
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-async-service/scripts/tfy-api.sh` for Claude Code, `~/.cursor/skills/truefoundry-async-service/scripts/tfy-api.sh` for Cursor). In the examples below, replace `TFY_API_SH` with the full path.
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 #### Via MCP
 

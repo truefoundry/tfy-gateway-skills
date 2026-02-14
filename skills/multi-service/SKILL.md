@@ -24,6 +24,19 @@ Orchestrate the deployment of complex applications with multiple interconnected 
 - User wants to deploy just an LLM → use `llm-deploy` skill
 - User wants to check what's deployed → use `applications` skill
 
+## CRITICAL: Service Wiring is MANDATORY
+
+**When deploying multiple services, you MUST wire them together.** Deploying services in isolation without connecting them is pointless — a frontend that can't reach its backend, or a backend that can't reach its database, is a broken deployment.
+
+**The agent MUST:**
+1. Identify ALL dependencies between services (which service needs to talk to which)
+2. Configure environment variables so each service knows how to reach its dependencies
+3. Deploy in the correct order (infrastructure → backends → frontends)
+4. Verify connectivity between services after deployment
+5. Return ALL deployment URLs and internal DNS addresses in the final summary
+
+**If the user deploys a frontend + backend + database, the frontend MUST work end-to-end.** Not just individually deployed services.
+
 ## Prerequisites
 
 Same as other deploy skills:
@@ -240,30 +253,43 @@ $TFY_API_SH PUT /api/svc/v1/apps '{...frontend manifest with API_URL...}'
 
 ## Step 6: Report Deployment Summary
 
-After all components are deployed, provide a comprehensive summary:
+**CRITICAL: Always provide a comprehensive deployment summary with ALL URLs and wiring details.**
+
+After all components are deployed, present this summary:
 
 ```
 Multi-service deployment complete!
 
-Components deployed to workspace: tfy-ea-dev-eo-az:sai-ws
+Workspace: {workspace-fqn}
 
-| Component   | Type    | Status    | Internal DNS                                    | Public URL                      |
-|-------------|---------|-----------|------------------------------------------------|----------------------------------|
-| PostgreSQL  | Helm    | Running   | my-postgres-postgresql.ns.svc.cluster.local:5432 | (internal only)               |
-| Redis       | Helm    | Running   | my-redis-redis-master.ns.svc.cluster.local:6379  | (internal only)               |
-| Backend API | Service | Running   | backend-api.ns.svc.cluster.local:8000            | https://api-sai-ws.ml.tfy.cloud |
-| Frontend    | Service | Running   | frontend.ns.svc.cluster.local:3000               | https://app-sai-ws.ml.tfy.cloud |
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Component    │ Type     │ Status  │ URL / DNS                            │
+│──────────────│──────────│─────────│──────────────────────────────────────│
+│ PostgreSQL   │ Helm     │ Running │ postgres.ns.svc.cluster.local:5432   │
+│ Redis        │ Helm     │ Running │ redis-master.ns.svc.cluster.local:6379│
+│ LLM (vLLM)  │ Service  │ Running │ https://llm-ws.ml.tfy.cloud          │
+│ Backend API  │ Service  │ Running │ https://api-ws.ml.tfy.cloud          │
+│ Frontend     │ Service  │ Running │ https://app-ws.ml.tfy.cloud          │
+└──────────────────────────────────────────────────────────────────────────┘
 
-Wiring:
-- Backend → PostgreSQL: via DATABASE_URL env var
-- Backend → Redis: via REDIS_URL env var
-- Frontend → Backend: via NEXT_PUBLIC_API_URL env var
+Service Wiring:
+  Frontend → Backend API:  NEXT_PUBLIC_API_URL=https://api-ws.ml.tfy.cloud
+  Backend  → PostgreSQL:   DATABASE_URL=postgresql://...
+  Backend  → Redis:        REDIS_URL=redis://...
+  Backend  → LLM:          LLM_BASE_URL=http://llm.ns.svc.cluster.local:8000/v1
+
+Access your app:
+  Frontend: https://app-ws.ml.tfy.cloud
+  API:      https://api-ws.ml.tfy.cloud/docs  (FastAPI Swagger)
+  LLM:     https://llm-ws.ml.tfy.cloud/v1/chat/completions
 
 Next steps:
-1. Verify each service is healthy: Use `applications` skill
-2. Check logs if any service has issues: Use `logs` skill
-3. Test the frontend URL in your browser
+  1. Open the frontend URL in your browser to verify end-to-end
+  2. Check logs for any connection issues: Use `logs` skill
+  3. Monitor services: Use `applications` skill
 ```
+
+**The user should be able to copy-paste the frontend URL and see a working app.** If they can't, the deployment is not done.
 
 ## docker-compose.yml Translation
 
@@ -333,6 +359,145 @@ Translates to Bitnami Redis Helm chart.
 | `volumes:` | Persistence in Helm values, or ephemeral storage in service resources |
 | Service name (e.g., `db`) | `{name}.{namespace}.svc.cluster.local` in Kubernetes DNS |
 | `networks:` | Not needed — all services in same workspace share a namespace |
+
+## Compound AI Application Patterns
+
+For AI-powered applications with multiple components (LLM + vector DB + API + frontend), follow these patterns:
+
+### RAG Application (Retrieval-Augmented Generation)
+
+```
+Architecture:
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js)                     │
+│                         │                                │
+│                         ▼                                │
+│                   Backend API (FastAPI)                   │
+│                    │            │                         │
+│                    ▼            ▼                         │
+│              LLM Service    Vector DB                    │
+│              (vLLM)         (Qdrant/Weaviate)            │
+│                                │                         │
+│                                ▼                         │
+│                          PostgreSQL                       │
+│                     (metadata storage)                    │
+└─────────────────────────────────────────────────────────┘
+
+Deployment order:
+1. PostgreSQL (Helm) — metadata storage
+2. Qdrant/Vector DB (Helm) — embedding storage
+3. LLM Service (llm-deploy skill) — inference endpoint
+4. Backend API (deploy skill) — orchestration layer
+5. Frontend (deploy skill) — user interface
+```
+
+**Backend API env wiring:**
+```python
+env = {
+    # Database
+    "DATABASE_URL": "postgresql://postgres:{password}@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/ragdb",
+    # Vector DB
+    "QDRANT_URL": "http://{qdrant-name}-qdrant.{namespace}.svc.cluster.local:6333",
+    # LLM
+    "LLM_BASE_URL": "http://{llm-service-name}.{namespace}.svc.cluster.local:8000/v1",
+    "LLM_MODEL_NAME": "{served-model-name}",
+    # Or use AI Gateway for LLM access:
+    # "LLM_BASE_URL": "https://{gateway-url}/api/llm",
+    # "LLM_API_KEY": "tfy-secret://{domain}:{group}:{key}",
+}
+```
+
+**Frontend env wiring:**
+```python
+env = {
+    "NEXT_PUBLIC_API_URL": "https://{backend-host}",  # if backend is public
+    # OR internal:
+    # "API_URL": "http://{backend-name}.{namespace}.svc.cluster.local:8000",
+}
+```
+
+### AI Agent with Tools
+
+```
+Architecture:
+┌─────────────────────────────────────────────────────────┐
+│                   Agent API (FastAPI)                     │
+│                    │      │       │                       │
+│                    ▼      ▼       ▼                       │
+│               LLM     MCP Server  Database               │
+│              (vLLM)   (tools)     (PostgreSQL)           │
+└─────────────────────────────────────────────────────────┘
+
+Deployment order:
+1. PostgreSQL (Helm)
+2. MCP Server (mcp-server skill) — tool execution
+3. LLM Service (llm-deploy skill) — reasoning
+4. Agent API (deploy skill) — orchestration
+```
+
+**Agent API env wiring:**
+```python
+env = {
+    "DATABASE_URL": "postgresql://postgres:{password}@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/agentdb",
+    "LLM_BASE_URL": "http://{llm-service-name}.{namespace}.svc.cluster.local:8000/v1",
+    "LLM_MODEL_NAME": "{served-model-name}",
+    "MCP_SERVER_URL": "http://{mcp-server-name}.{namespace}.svc.cluster.local:8000",
+}
+```
+
+### Full-Stack SaaS with AI
+
+```
+Architecture:
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js)                     │
+│                         │                                │
+│                         ▼                                │
+│                   Backend API (FastAPI)                   │
+│               │        │        │         │              │
+│               ▼        ▼        ▼         ▼              │
+│          PostgreSQL  Redis    LLM      Worker            │
+│          (primary)  (cache)  (vLLM)   (Celery)          │
+│                                          │               │
+│                                     RabbitMQ             │
+└─────────────────────────────────────────────────────────┘
+
+Deployment order:
+1. PostgreSQL, Redis, RabbitMQ (Helm — all infrastructure, can be parallel)
+2. LLM Service (llm-deploy skill)
+3. Celery Worker (deploy skill — connects to RabbitMQ, PostgreSQL, LLM)
+4. Backend API (deploy skill — connects to everything)
+5. Frontend (deploy skill — connects to Backend API)
+```
+
+**Backend API env wiring:**
+```python
+env = {
+    "DATABASE_URL": "postgresql://postgres:{password}@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/appdb",
+    "REDIS_URL": "redis://:{password}@{redis-name}-redis-master.{namespace}.svc.cluster.local:6379/0",
+    "CELERY_BROKER_URL": "amqp://admin:{password}@{rabbitmq-name}-rabbitmq.{namespace}.svc.cluster.local:5672/",
+    "LLM_BASE_URL": "http://{llm-service-name}.{namespace}.svc.cluster.local:8000/v1",
+    "LLM_MODEL_NAME": "{served-model-name}",
+}
+```
+
+### Wiring Verification Checklist
+
+**After deploying all components, verify:**
+
+- [ ] Each service can reach its dependencies (check logs for connection errors)
+- [ ] Database connections are established (no "connection refused" in backend logs)
+- [ ] LLM endpoint responds to health checks from the backend
+- [ ] Frontend can call backend API endpoints
+- [ ] Environment variables are correctly set (no placeholder values)
+- [ ] Secrets are properly mounted (no authentication errors)
+- [ ] All URLs use correct port numbers
+
+**If any connection fails, check:**
+1. Service name matches what was deployed (case-sensitive)
+2. Namespace is correct (derived from workspace)
+3. Port number matches the service's configured port
+4. Credentials match between infrastructure and service env vars
 
 ## Monorepo Support
 

@@ -17,8 +17,8 @@ Skills work across Claude Code, Cursor, OpenAI Codex, and OpenCode.
 # After editing anything in skills/_shared/, sync copies to all skill directories
 ./scripts/sync-shared.sh
 
-# Test locally with Claude Code (plugin mode)
-claude --plugin-dir ./plugins/truefoundry
+# Install skills and restart agent
+./scripts/install.sh
 ```
 
 ## Architecture
@@ -46,7 +46,7 @@ allowed-tools: Bash(*/tfy-api.sh *)
 ```
 
 - `description` controls when the agent auto-invokes the skill (model-invoked).
-- `disable-model-invocation: true` (used by `deploy` and `helm`) means the skill only runs on explicit user request.
+- `disable-model-invocation: true` (used by `deploy`, `helm`, `llm-deploy`, `async-service`, `multi-service`) means the skill only runs on explicit user request.
 - `allowed-tools` grants the skill permission to run specific commands without prompting.
 
 ### Shared files
@@ -69,7 +69,61 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 ## Key Conventions
 
-- `sync-shared.sh` references `plugins/truefoundry/skills/` as the skills directory path — this is the plugin layout. The repo root `skills/` directory is the source of truth for development.
+- The repo root `skills/` directory is the source of truth for development.
 - Skills reference each other for composability (e.g. deploy tells users to check `workspaces` skill first). Common flows: `status → workspaces → deploy → applications`, `applications → logs`.
 - `TFY_WORKSPACE_FQN` is never auto-picked by any skill — always ask the user.
 - When adding a new skill, include both MCP and direct API instructions, reference the `status` skill for preflight checks, and run `sync-shared.sh` afterward.
+
+## Version Awareness
+
+Skills detect the user's SDK, CLI, and Python versions before acting. This prevents failures from version mismatches.
+
+### Detection flow
+
+1. Run `tfy-version.sh all` → JSON with SDK, CLI, Python versions
+2. Check `references/sdk-version-map.md` for version-specific patterns
+3. Check `references/container-versions.md` for latest image versions
+
+### Key rules
+
+- SDK >= 0.5.0: use `sdk-patterns.md` as-is
+- SDK 0.3.x–0.4.x: apply compat shims (see `sdk-version-map.md`)
+- SDK not installed or < 0.3.0: fall back to REST API via `tfy-api.sh`
+- Python 3.13+: warn user, suggest `python3.12 -m venv`
+- Container images: always check `container-versions.md` for pinned versions; use WebFetch to check for newer stable releases when deploying
+
+### Freshness strategy
+
+| Asset | Staleness Risk | Strategy |
+|-------|---------------|----------|
+| REST API endpoints | Low | Manual updates to `api-endpoints.md` |
+| SDK patterns | Medium | `sdk-version-map.md` documents version diffs |
+| Container images | High | Pinned in `container-versions.md`, WebFetch on demand |
+| SDK docs (newer than map) | Medium | WebFetch to PyPI/GitHub/TFY docs |
+
+## Agent Teams
+
+When working on this repo, always use agent teams for parallel work. The codebase has many independent skills and shared files that can be edited concurrently. Use `TeamCreate` to coordinate multi-file changes, especially when:
+
+- Modifying multiple skills simultaneously
+- Creating new shared references while updating skills that use them
+- Running sync and install scripts after edits
+
+## Agent Skills Spec Compliance
+
+Skills follow the [Agent Skills](https://agentskills.io) open format. Frontmatter fields currently in use:
+
+| Field | Used | Purpose |
+|-------|------|---------|
+| `name` | Yes | Skill identifier, used for install prefix |
+| `description` | Yes | Trigger phrases for model invocation |
+| `allowed-tools` | Yes | Auto-approved tool patterns |
+| `disable-model-invocation` | Yes | Opt-out of auto-triggering (deploy, helm, llm-deploy, async-service, multi-service) |
+
+Optional fields to consider adding:
+
+| Field | Status | Notes |
+|-------|--------|-------|
+| `license` | Not yet | Could add `Apache-2.0` to all skills |
+| `compatibility` | Not yet | Could specify agent version requirements |
+| `metadata` | Not yet | Could add tags, categories, author info |

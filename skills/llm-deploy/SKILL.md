@@ -1,7 +1,8 @@
 ---
 name: llm-deploy
 description: This skill should be used when the user asks "deploy a model", "deploy LLM", "serve a model", "deploy hugging face model", "deploy vLLM", "deploy TGI", "deploy NIM", "NVIDIA NIM", "inference server", or wants to deploy any ML/LLM model on TrueFoundry.
-allowed-tools: Bash(*/tfy-api.sh *)
+disable-model-invocation: true
+allowed-tools: Bash(*/tfy-api.sh *), Bash(*/tfy-version.sh *)
 ---
 
 # LLM / Model Deployment
@@ -27,37 +28,50 @@ Deploy large language models and ML inference servers to TrueFoundry. Supports v
 **Always verify before deploying:**
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` is **required**. Never auto-pick. Ask the user if missing.
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+
+For credential check commands and .env setup, see `references/prerequisites.md`.
+
+## Step 0a: Detect Environment & Versions
+
+**Before deploying**, detect the installed tools and container image versions.
 
 ```bash
-# Check credentials
-echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
-echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
-echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
+# Run version detection
+$TFY_SKILL_DIR/scripts/tfy-version.sh all
 ```
 
-**If TFY_WORKSPACE_FQN is not set, STOP. Ask the user.** Suggest they use the `workspaces` skill or check the TrueFoundry dashboard.
+### Interpret Results
+
+| Component | Action |
+|-----------|--------|
+| SDK installed | Can use Python SDK for deployment if needed |
+| CLI (`tfy`) installed | Use `tfy apply` with YAML manifest (recommended for LLM deploys) |
+| Neither installed | Install CLI: `pip install truefoundry` |
+| Python 3.13+ | Create venv with Python 3.12 if SDK needed |
+
+### Verify Container Image Versions
+
+Before using the manifest templates below, check `references/container-versions.md` for the latest pinned versions. Container images for vLLM and TGI are updated frequently.
+
+**To check for newer versions on demand:**
+
+```
+WebFetch https://github.com/vllm-project/vllm/releases → latest stable vLLM version
+WebFetch https://github.com/huggingface/text-generation-inference/releases → latest stable TGI version
+```
+
+If a newer stable version exists, use it instead of the pinned version. Avoid release candidates.
 
 ## Step 0: Discover Cluster Capabilities
 
 **Before asking the user about GPU types or public URLs**, fetch the cluster's capabilities.
 
-### Get Cluster ID
+Fetch the cluster's capabilities before asking about resources or public URLs. See `references/cluster-discovery.md` for how to extract cluster ID from workspace FQN and fetch cluster details (GPUs, base domains, storage classes).
 
-Extract from workspace FQN (part before the colon):
-- Workspace FQN `tfy-ea-dev-eo-az:sai-ws` → Cluster ID `tfy-ea-dev-eo-az`
-- Or use `TFY_CLUSTER_ID` from environment if set.
+When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Fetch Cluster Details
-
-When using direct API, use the **full path** to this skill's `scripts/tfy-api.sh`. The path depends on which agent is installed (e.g. `~/.claude/skills/truefoundry-llm-deploy/scripts/tfy-api.sh` for Claude Code). In the examples below, replace `TFY_API_SH` with the full path.
-
-```bash
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
-
-### Extract
-
+From the cluster response, extract:
 1. **Base domains** — for public URL host construction (see Public URL section)
 2. **Available GPUs** — only present GPU types that the cluster actually supports
 
@@ -84,6 +98,8 @@ I'll help you deploy an LLM. Let me gather a few details:
 Based on the model, suggest appropriate resources. **Always check available GPUs from Step 0 first.**
 
 ### Model Size → GPU Mapping
+
+For full GPU types and DTYPE selection, see `references/gpu-reference.md`.
 
 | Model Params | Min VRAM (FP16) | Recommended GPU | CPU | Memory | Shared Memory |
 |-------------|-----------------|-----------------|-----|--------|---------------|
@@ -126,6 +142,21 @@ System memory (RAM) must be **much larger** than GPU VRAM because:
 - The OS and Python runtime need memory too
 - Rule of thumb: RAM should be 2–4x the model's VRAM footprint
 
+## Verify Container Image Versions
+
+Before building the manifest, check for the latest stable container image versions. Default pinned versions are in `references/container-versions.md`:
+
+| Framework | Default Image | Check for Updates |
+|-----------|--------------|-------------------|
+| vLLM | `public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0` | [vLLM Releases](https://github.com/vllm-project/vllm/releases) |
+| TGI | `ghcr.io/huggingface/text-generation-inference:2.4.1` | [TGI Releases](https://github.com/huggingface/text-generation-inference/releases) |
+| NVIDIA NIM | `nvcr.io/nim/{model-path}:{version}` | [NGC Catalog](https://catalog.ngc.nvidia.com) |
+
+**Agent instructions:**
+- Consider running WebFetch on the release page above to check if a newer stable version exists before deploying.
+- If the user requests a specific version, use that instead of these defaults.
+- Avoid release candidates — use stable releases only.
+
 ## Step 3: Build the Manifest
 
 ### vLLM Manifest Template
@@ -137,7 +168,7 @@ type: service
 name: {MODEL_NAME}
 image:
   type: image
-  image_uri: public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0
+  image_uri: public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0  # see references/container-versions.md
   command: >-
     python3 -u -m vllm.entrypoints.openai.api_server
     --host 0.0.0.0 --port 8000
@@ -258,7 +289,7 @@ type: service
 name: {MODEL_NAME}
 image:
   type: image
-  image_uri: ghcr.io/huggingface/text-generation-inference:2.4.1
+  image_uri: ghcr.io/huggingface/text-generation-inference:2.4.1  # see references/container-versions.md
   command: >-
     text-generation-launcher
     --model-id '$(MODEL_ID)'
@@ -365,7 +396,7 @@ type: service
 name: {MODEL_NAME}-nim
 image:
   type: image
-  image_uri: nvcr.io/nim/{MODEL_PATH}:{VERSION}
+  image_uri: nvcr.io/nim/{MODEL_PATH}:{VERSION}  # see references/container-versions.md
 ports:
   - port: 8000
     expose: {EXPOSE}
@@ -508,31 +539,72 @@ tfy_applications_create_deployment(
 )
 ```
 
-## Step 5: Verify Deployment
+## Step 5: Verify Deployment & Return URL
 
-After submitting, monitor the deployment:
+**CRITICAL: Always fetch and return the deployment URL and status to the user. A deployment without a reported URL is incomplete.**
 
-1. **Check application status:**
-   ```bash
-   $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=MODEL_NAME'
-   ```
+### Poll Deployment Status
 
-2. **LLM deployments take time** — GPU node provisioning (5–15 min if scaling up), model download (depends on model size), and model loading into GPU memory all happen before the service is ready. The startup probe allows up to 350 seconds (35 retries x 10s).
+After submitting the manifest, poll for status:
 
-3. **Test the endpoint** (once healthy):
-   ```bash
-   # Health check
-   curl https://{HOST}/health
+```bash
+$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=MODEL_NAME'
+```
 
-   # OpenAI-compatible completion (vLLM)
-   curl https://{HOST}/v1/chat/completions \
-     -H "Content-Type: application/json" \
-     -d '{
-       "model": "{MODEL_NAME}",
-       "messages": [{"role": "user", "content": "Hello!"}],
-       "max_tokens": 100
-     }'
-   ```
+**LLM deployments take longer than regular services:**
+- GPU node provisioning: 5–15 min (if scaling up)
+- Model download: 2–10 min (depends on model size and cache)
+- Model loading into GPU: 1–5 min
+- Total: typically 10–30 min for first deployment
+
+### Report to User
+
+**Always present this summary after deployment:**
+
+```
+LLM Deployment submitted!
+
+Model: {hf-model-id}
+Service: {service-name}
+Framework: vLLM / TGI / NIM
+Workspace: {workspace-fqn}
+GPU: {gpu-count}x {gpu-type}
+Status: {BUILDING|DEPLOYING|RUNNING}
+
+Endpoints:
+  Public URL:   https://{host} (available once RUNNING)
+  Internal DNS: {service-name}.{namespace}.svc.cluster.local:8000
+
+OpenAI-compatible API (once RUNNING):
+  curl https://{host}/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model": "{model-name}", "messages": [{"role": "user", "content": "Hello!"}], "max_tokens": 100}'
+
+Health check:
+  curl https://{host}/health
+
+Note: LLM deployments typically take 10-30 minutes for first deploy
+(GPU provisioning + model download + loading). Check status with
+the applications skill.
+```
+
+### Test Once Running
+
+When the service reaches RUNNING status:
+
+```bash
+# Health check
+curl https://{HOST}/health
+
+# OpenAI-compatible completion (vLLM/TGI)
+curl https://{HOST}/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "{MODEL_NAME}",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 100
+  }'
+```
 
 ## Public URL
 
@@ -603,7 +675,7 @@ Use the `secrets` skill to find or create the secret group.
 
 ## Health Probes
 
-**Always include health probes for model deployments.** Without them, Kubernetes has no way to know when the model is ready and may kill pods prematurely or route traffic to unready pods.
+**Always include health probes for model deployments.** Without them, Kubernetes has no way to know when the model is ready and may kill pods prematurely or route traffic to unready pods. For general probe configuration (SDK format, API manifest format), see `references/health-probes.md`. The LLM-specific probe values below should be used instead of the general defaults.
 
 ### Why Each Probe Matters
 
