@@ -16,19 +16,19 @@ BOLD=$'\033[1m'  DIM=$'\033[2m'
 RED=$'\033[31m'  GREEN=$'\033[32m'  YELLOW=$'\033[33m'
 MAGENTA=$'\033[35m'  CYAN=$'\033[36m'  NC=$'\033[0m'
 
-info()      { printf "${BOLD}>${NC} %s\n" "$*"; }
-warn()      { printf "${YELLOW}!${NC} %s\n" "$*"; }
-error()     { printf "${RED}x %s${NC}\n" "$*" >&2; }
-ok()        { printf "${GREEN}✓${NC} %s\n" "$*"; }
+info()      { printf '%s> %s%s\n' "$BOLD" "$*" "$NC"; }
+warn()      { printf '%s!%s %s\n' "$YELLOW" "$NC" "$*"; }
+error()     { printf '%sx %s%s\n' "$RED" "$*" "$NC" >&2; }
+ok()        { printf '%s✓%s %s\n' "$GREEN" "$NC" "$*"; }
 
 banner() {
-  printf "\n${MAGENTA}"
+  printf '\n%s' "$MAGENTA"
   cat <<'BANNER'
   ╔════════════════════════════════════════╗
   ║     TrueFoundry Skills Installed!     ║
   ╚════════════════════════════════════════╝
 BANNER
-  printf "${NC}\n"
+  printf '%s\n' "$NC"
 }
 
 # ── Supported agents ─────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ get_source() {
 
   # GitHub tarballs extract to {repo}-{branch}/
   local extracted
-  extracted=$(ls -d "$tmpdir"/*/ 2>/dev/null | head -1)
+  extracted=$(find "$tmpdir" -mindepth 1 -maxdepth 1 -type d | head -1)
   if [ -z "$extracted" ] || [ ! -d "$extracted/skills" ]; then
     error "Download failed or unexpected archive structure."
     exit 1
@@ -199,7 +199,7 @@ detect_and_install() {
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────────
-printf "\n${BOLD}TrueFoundry Skills${NC}\n\n"
+printf '\n%sTrueFoundry Skills%s\n\n' "$BOLD" "$NC"
 
 SOURCE_DIR="$(get_source)"
 printf "\n"
@@ -226,14 +226,14 @@ if [ "$installed" -eq 0 ]; then
   for entry in "${AGENTS_GLOBAL[@]}"; do
     local_display="${entry##*|}"
     local_config="${entry%%|*}"
-    printf "    ${DIM}•${NC} %-14s ${DIM}~/%s${NC}\n" "$local_display" "$local_config"
+    printf '    %s•%s %-14s %s~/%s%s\n' "$DIM" "$NC" "$local_display" "$DIM" "$local_config" "$NC"
   done
-  printf "\n  Install an agent first, or use ${CYAN}--agents${NC} to specify.\n\n"
+  printf '\n  Install an agent first, or use %s--agents%s to specify.\n\n' "$CYAN" "$NC"
   exit 1
 fi
 
 banner
-printf "  ${DIM}Shared files in ${CYAN}_shared/${DIM} — update once, all skills use it.${NC}\n\n"
+printf '  %sShared files in %s_shared/%s — update once, all skills use it.%s\n\n' "$DIM" "$CYAN" "$DIM" "$NC"
 warn "Restart your agent to load skills."
 printf "\n"
 info "Run again anytime to update: ${DIM}curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/scripts/install.sh | bash${NC}"
