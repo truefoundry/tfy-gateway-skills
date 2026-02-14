@@ -1,0 +1,28 @@
+{
+  "manifest": {
+    "name": "postgres-demo",
+    "type": "helm",
+    "source": {
+      "type": "oci-repo",
+      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql",
+      "version": "16.4.1"
+    },
+    "values": {
+      "auth": {
+        "postgresPassword": "demopgpass123",
+        "database": "demodb"
+      },
+      "primary": {
+        "persistence": {
+          "enabled": true,
+          "size": "5Gi"
+        },
+        "resources": {
+          "requests": { "cpu": "250m", "memory": "256Mi" },
+          "limits": { "cpu": "500m", "memory": "512Mi" }
+        }
+      }
+    }
+  },
+  "workspaceId": "cm18va5x91q4201rbfoijhiz9"
+}

@@ -14,6 +14,7 @@ set -e
 
 # Load .env if present
 if [[ -f ".env" ]]; then
+  # shellcheck source=/dev/null
   set -a; source .env; set +a
 fi
 

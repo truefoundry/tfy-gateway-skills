@@ -1,0 +1,27 @@
+{
+  "manifest": {
+    "name": "qdrant-demo",
+    "type": "helm",
+    "source": {
+      "type": "helm-repo",
+      "repo_url": "https://qdrant.github.io/qdrant-helm",
+      "chart": "qdrant",
+      "version": "1.12.5"
+    },
+    "values": {
+      "persistence": {
+        "enabled": true,
+        "size": "5Gi"
+      },
+      "resources": {
+        "requests": { "cpu": "250m", "memory": "512Mi" },
+        "limits": { "cpu": "500m", "memory": "1Gi" }
+      },
+      "service": {
+        "type": "ClusterIP"
+      }
+    },
+    "workspace_fqn": "tfy-ea-dev-eo-az:sai-ws"
+  },
+  "workspaceId": "cm18va5x91q4201rbfoijhiz9"
+}
