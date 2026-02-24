@@ -1,11 +1,10 @@
 ---
 name: deploy
-description: Deploys code or container images to TrueFoundry as HTTP services. Supports YAML manifests with `tfy apply`, Git-based remote builds, and pre-built images. Use when deploying apps, shipping services to production, or hosting web services on TrueFoundry.
+description: Deploys code or images to TrueFoundry as services. Supports REST API manifests, Git-based builds, pre-built images, and Python SDK. NOT for listing apps (use applications) or LLMs (use llm-deploy).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-metadata:
-  disable-model-invocation: "true"
-allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
+disable-model-invocation: true
+allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
 ---
 
 <objective>
@@ -21,9 +20,7 @@ Use the CLI path by default. Fall back to REST API only if `tfy` CLI is not inst
 
 ## When to Use
 
-- User says "deploy", "deploy to truefoundry", "ship this"
-- User wants to push code or images to TrueFoundry
-- User says "deploy and check status"
+Deploy code, Docker images, or Git repos to TrueFoundry as HTTP services. Defaults to REST API path; falls back to Python SDK if user has deploy.py or requests it.
 
 ## When NOT to Use
 
@@ -116,70 +113,14 @@ From the cluster response, extract:
 
 **Before asking about CPU/memory/GPU**, analyze the user's codebase and ask about expected load. This produces informed resource suggestions instead of arbitrary defaults.
 
-### 2a. Codebase Analysis
+For the full codebase analysis flow (framework detection, app categorization, load questions by app type, and resource suggestion table format), see [references/codebase-analysis.md](references/codebase-analysis.md).
 
-Scan the project to determine:
-
-1. **Framework & runtime** -- Look at dependency files and entrypoints:
-   - `requirements.txt`, `pyproject.toml`, `setup.py` -> Python (check for FastAPI, Flask, Django, Celery, etc.)
-   - `package.json` -> Node.js (check for Express, Next.js, NestJS, etc.)
-   - `go.mod` -> Go
-   - `Dockerfile` -> check `FROM` image and `CMD`/`ENTRYPOINT`
-
-2. **Application type** -- Categorize what the app does:
-   - **Web API / HTTP service** -- REST/GraphQL endpoint (FastAPI, Express, Django, etc.)
-   - **ML inference** -- Model serving (vLLM, TGI, Triton, transformers, torch, etc.)
-   - **Worker / queue consumer** -- Background processing (Celery, Bull, etc.)
-   - **Static site / frontend** -- Next.js SSR, React SPA, etc.
-   - **Data pipeline** -- Batch processing (Spark, pandas, etc.)
-
-3. **Compute indicators** -- Check for signals that affect resource needs:
-   - ML libraries (`torch`, `transformers`, `vllm`, `tensorflow`) -> likely needs GPU + high memory
-   - Image/video processing (`Pillow`, `opencv`, `ffmpeg`) -> CPU-intensive
-   - In-memory caching or large datasets (`redis`, `pandas` with large files) -> memory-intensive
-   - Async/concurrent patterns (`asyncio`, `uvicorn workers`, `gunicorn`) -> can handle more load per CPU
-   - Database connections (`sqlalchemy`, `prisma`, `mongoose`) -> connection pooling matters
-
-### 2b. Ask About Expected Load
-
-Based on the app type, ask the user targeted questions about expected TPS, concurrent users, latency targets, and environment (dev/staging/prod). For detailed question templates by app type (Web APIs, ML inference, workers), see [references/load-analysis-questions.md](references/load-analysis-questions.md).
-
-### 2c. Resource Suggestion Table
-
-Present a comparison table with defaults, suggested values, and let the user choose:
-
-```
-Based on your app (FastAPI web API, ~50 TPS, production):
-
-| Resource      | Default (min) | Suggested    | Notes                              |
-|---------------|---------------|--------------|-------------------------------------|
-| CPU request   | 0.25 cores    | 1.0 cores    | 50 TPS with async needs ~1 core    |
-| CPU limit     | 0.5 cores     | 2.0 cores    | Headroom for traffic spikes         |
-| Memory request| 256 MB        | 512 MB       | FastAPI + dependencies baseline     |
-| Memory limit  | 512 MB        | 1024 MB      | 2x request for safety margin        |
-| Replicas (min)| 1             | 2            | HA for production                   |
-| Replicas (max)| 1             | 4            | Autoscale for peak traffic          |
-| GPU           | None          | None         | Not needed for this workload        |
-
-Do you want to use the suggested values, or customize any of them?
-```
-
-### Resource Estimation Guidelines
-
-For detailed CPU, memory, GPU, and replica estimation rules of thumb, see `references/resource-estimation.md`. Key points:
+For CPU, memory, GPU, and replica estimation rules of thumb, see `references/resource-estimation.md`. Key points:
 
 - Always check available GPU types on the cluster (Step 1)
 - Memory limit should be 1.5-2x the request
 - Production: min 2 replicas for high availability
-- GPU VRAM needed ~ model parameter count x 2 bytes (FP16)
-
-### Important Notes
-
-- **Always show the suggestion table** -- Don't just pick values silently. Users should see the reasoning.
-- **Let users override** -- Suggestions are starting points, not mandates.
-- **Mention trade-offs** -- More resources = higher cost, fewer = risk of OOM/throttling.
-- **Factor in environment** -- Dev gets minimal defaults, production gets HA suggestions.
-- **Reference cluster capabilities** -- Only suggest GPU types that are actually available (from Step 1).
+- GPU VRAM needed = model parameter count x 2 bytes (FP16)
 
 ## Deploy Flow
 

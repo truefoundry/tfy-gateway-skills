@@ -14,13 +14,7 @@ Manage TrueFoundry secret groups and secrets. Secret groups organize secrets; in
 
 ## When to Use
 
-- User asks "list secrets", "show secret groups"
-- User wants to create a secret group
-- User asks "what secrets are in this group"
-- User wants to get a specific secret value
-- User wants to update a secret, rotate secret values
-- User wants to delete a secret or remove a secret group
-- Setting up secrets before a deploy
+List, create, update, or delete secret groups and individual secrets on TrueFoundry, including pre-deploy secret setup and value rotation.
 
 </objective>
 

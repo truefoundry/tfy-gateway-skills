@@ -1,6 +1,6 @@
 ---
 name: ssh-server
-description: Deploys remote development environments with SSH access on TrueFoundry. Use when setting up VS Code Remote workspaces, cloud development machines, GPU dev boxes, or remote coding environments with SSH access.
+description: Launches SSH servers on TrueFoundry for remote development. Supports VS Code Remote-SSH, GPU access, persistent storage, and auto-shutdown. NOT for notebooks or production services.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Launch an SSH server on TrueFoundry for remote development. Write a YAML manifes
 
 ## When to Use
 
-- User asks "launch ssh server", "start ssh server", "remote dev environment"
-- User wants to connect VS Code remotely to cloud GPUs
-- User needs SSH access for development/debugging
-- User asks about remote development environments
+Launch, configure, or connect to SSH-based remote development environments on TrueFoundry, including VS Code Remote-SSH and GPU dev boxes.
 
 ## When NOT to Use
 

@@ -1,6 +1,6 @@
 ---
 name: workflows
-description: Builds and deploys data processing and ML training pipelines using TrueFoundry Workflows (built on Flyte). Use when creating DAGs, orchestrating multi-step tasks, scheduling ETL pipelines, or running ML training workflows.
+description: Creates and deploys workflows (Flyte-based DAG pipelines) on TrueFoundry. Supports task/workflow decorators, cron scheduling, map tasks, conditionals, and Spark tasks. NOT for one-off jobs or web services.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
@@ -16,11 +16,7 @@ Workflow **definition** uses Python SDK (`@task`/`@workflow` decorators). Workfl
 
 ## When to Use
 
-- User wants to create a data processing or ML training pipeline
-- User says "create a workflow", "deploy a workflow", "run a pipeline"
-- User wants to schedule recurring batch operations (cron workflows)
-- User wants to orchestrate multi-step tasks: ETL, feature engineering, model training, batch inference
-- User asks about Flyte tasks, map tasks, conditional tasks, or Spark tasks on TrueFoundry
+Create, configure, or deploy multi-step DAG pipelines on TrueFoundry, including ETL, ML training, batch inference, and cron-scheduled workflows.
 
 ## When NOT to Use
 

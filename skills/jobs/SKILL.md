@@ -1,6 +1,6 @@
 ---
 name: jobs
-description: Deploys and monitors TrueFoundry batch jobs, scheduled cron jobs, and one-time tasks. Uses YAML manifests with `tfy apply`. Use when deploying jobs, scheduling cron tasks, checking job run status, or viewing execution history. For listing job applications, use applications skill.
+description: Deploys, schedules, and monitors TrueFoundry jobs. Supports one-time and cron jobs with retry, GPU, and volume mounts. For listing job apps, use applications skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
@@ -17,12 +17,7 @@ Deploy, schedule, and monitor TrueFoundry job runs. Two paths:
 
 ## When to Use
 
-- User asks "deploy a job", "create a job", "run a batch task"
-- User asks "schedule a job", "run a cron job"
-- User asks "show job runs", "list runs for my job"
-- User asks "is my job running", "job status"
-- User wants to check a specific job run
-- Debugging a failed job run
+Deploy, schedule, trigger, or monitor TrueFoundry job runs. Covers one-time jobs, cron-scheduled jobs, and job run status/history.
 
 ## When NOT to Use
 

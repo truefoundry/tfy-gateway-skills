@@ -1,6 +1,6 @@
 ---
 name: notebooks
-description: Deploys Jupyter notebooks on TrueFoundry infrastructure with optional GPU support. Use when launching JupyterLab environments, setting up ML development workspaces, or running cloud-hosted notebooks for data exploration.
+description: Launches Jupyter notebooks on TrueFoundry with GPU support, persistent storage, and auto-shutdown. Handles notebook creation, image selection, and resource configuration. NOT for production services or model serving.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, au
 
 ## When to Use
 
-- User asks "launch a notebook", "start jupyter", "create notebook"
-- User needs a development environment with GPU access
-- User wants to explore data or prototype ML models
-- User asks about notebook images, auto-shutdown, or persistent storage
+Launch, configure, or manage Jupyter notebooks on TrueFoundry infrastructure, including GPU access, image selection, storage, and auto-shutdown.
 
 ## When NOT to Use
 

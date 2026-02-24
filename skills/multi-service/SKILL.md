@@ -1,11 +1,10 @@
 ---
 name: multi-service
-description: Coordinates deployment of multiple interconnected services on TrueFoundry. Uses YAML manifests with `tfy apply` for each service. Use when deploying full-stack apps, microservices, monorepos, or docker-compose projects with frontend and backend components.
+description: Orchestrates multi-service deployments on TrueFoundry. Builds dependency graphs, deploys in order, and wires services together (docker-compose translation, DNS, secrets). NOT for single services (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-metadata:
-  disable-model-invocation: "true"
-allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
+disable-model-invocation: true
+allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 ---
 
 <objective>
@@ -14,15 +13,9 @@ allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 
 Orchestrate the deployment of complex applications with multiple interconnected services on TrueFoundry. This skill builds a dependency graph, deploys services in the correct order, and wires them together so the full application works end-to-end.
 
-Each service gets its own YAML manifest, applied in dependency order with `tfy apply`.
+## Scope
 
-## When to Use
-
-- User has a project with multiple services (e.g., frontend + backend + database)
-- User says "deploy my full app", "deploy everything", "deploy all services"
-- User has a monorepo with multiple deployable components
-- User needs microservices deployed together with inter-service communication
-- User wants to deploy an app that depends on infrastructure (DB, cache, queue)
+Orchestrate deployment of multi-service applications (frontend + backend + infra). Scans for docker-compose files, builds a dependency DAG, deploys in topological order, and wires services via Kubernetes DNS.
 
 ## When NOT to Use
 
@@ -98,94 +91,7 @@ For each discovered service, determine its **type**:
 
 ## Step 2: Build Dependency Graph
 
-Construct a directed acyclic graph (DAG) of service dependencies.
-
-### Sources of Dependency Information
-
-**From docker-compose.yml:**
-```yaml
-services:
-  backend:
-    depends_on:
-      - db
-      - redis
-    environment:
-      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # "db" is a dependency
-      - REDIS_URL=redis://redis:6379                           # "redis" is a dependency
-      - FRONTEND_ORIGIN=http://frontend:3000                   # NOT a dependency (frontend depends on backend, not the reverse)
-```
-
-**From environment variables:**
-Scan env var values for references to other service names. A hostname in a connection string (`@db:5432`, `redis:6379`) implies a dependency.
-
-**From code analysis (if no compose file):**
-Look at code for connection patterns:
-- `DATABASE_URL`, `MONGO_URI` -> depends on database
-- `REDIS_URL`, `CACHE_URL` -> depends on cache
-- `BROKER_URL`, `AMQP_URL` -> depends on message queue
-- `API_URL`, `BACKEND_URL` -> depends on another service
-
-### Dependency Rules
-
-1. **Infrastructure has no dependencies** -- databases, caches, queues are leaf nodes
-2. **Backend services depend on infrastructure** -- and potentially on other backends
-3. **Frontends depend on backends** -- never on infrastructure directly
-4. **Workers depend on queues + databases** -- same tier as backends
-5. **If A's env vars reference B's hostname -> A depends on B**
-6. **`depends_on` in compose is explicit** -- always respect it
-
-### Detect Circular Dependencies
-
-If the graph has a cycle, **stop and tell the user:**
-
-```
-Detected circular dependency: service-a -> service-b -> service-a
-
-This cannot be deployed in sequence. Options:
-1. Break the cycle by making one service start without the other (add retry logic)
-2. Use async communication (message queue) instead of direct HTTP calls
-3. Merge the tightly coupled services
-```
-
-### CRITICAL: Poll Infrastructure Readiness Before Next Tier
-
-`DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
-
-**Between each deployment tier, poll the actual pods for readiness:**
-
-1. After deploying Helm infra (DB, Redis, etc.), poll the application status API repeatedly (every 15s, up to 5 min)
-2. Check `applicationComponentStatuses` for pod readiness, not just deployment status
-3. For databases: attempt a TCP connection to the service DNS + port before deploying dependent services
-4. **Have fallback logic**: If infra isn't ready after 5 min, warn the user rather than deploying dependent services that will crash-loop
-
-```bash
-# Example: poll PostgreSQL readiness
-TFY_API_SH=~/.claude/skills/truefoundry-multi-service/scripts/tfy-api.sh
-for i in $(seq 1 20); do
-  $TFY_API_SH GET '/api/svc/v1/apps/APP_ID' | jq '.applicationComponentStatuses[0].status'
-  sleep 15
-done
-```
-
-### Compute Deploy Order
-
-Topologically sort the DAG. Services with no dependencies deploy first. Services at the same level in the graph can deploy in parallel.
-
-**Example:**
-```
-Graph:
-  frontend -> backend
-  backend  -> db, redis, worker
-  worker   -> db, redis, rabbitmq
-  db       -> (none)
-  redis    -> (none)
-  rabbitmq -> (none)
-
-Deploy order:
-  Level 0: db, redis, rabbitmq     (parallel -- no dependencies)
-  Level 1: backend, worker         (parallel -- both depend only on level 0)
-  Level 2: frontend                (depends on backend from level 1)
-```
+Construct a directed acyclic graph (DAG) of service dependencies. For dependency detection sources (compose, env vars, code analysis), dependency rules, circular dependency handling, infrastructure readiness polling, and topological sort examples, see [references/dependency-graph.md](references/dependency-graph.md).
 
 ## Step 3: Present Plan and Ask User
 
@@ -328,37 +234,7 @@ If the dependency graph includes an LLM, use the `llm-deploy` skill's approach w
 
 ## Step 6: Wire Environment Variables
 
-**This is the most critical step.** Every cross-service reference must be translated from compose service names to Kubernetes DNS.
-
-### Translation Rule
-
-In docker-compose, services reference each other by service name:
-```yaml
-DATABASE_URL=postgresql://postgres:pass@db:5432/myapp
-```
-
-In TrueFoundry, replace the service name with Kubernetes DNS:
-```
-DATABASE_URL=postgresql://postgres:pass@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/myapp
-```
-
-### Common Wiring Patterns
-
-| Compose Env Var | TrueFoundry Env Var |
-|----------------|---------------------|
-| `@db:5432` | `@{name}-db-postgresql.{ns}.svc.cluster.local:5432` |
-| `@redis:6379` | `@{name}-redis-redis-master.{ns}.svc.cluster.local:6379` |
-| `@rabbitmq:5672` | `@{name}-rabbitmq-rabbitmq.{ns}.svc.cluster.local:5672` |
-| `@mongo:27017` | `@{name}-mongo-mongodb.{ns}.svc.cluster.local:27017` |
-| `http://backend:8000` | `http://{name}-backend.{ns}.svc.cluster.local:8000` |
-| `http://frontend:3000` | `https://{name}-frontend-{ws}.{base_domain}` (if public) |
-
-### Secrets for Credentials
-
-For passwords shared between infrastructure and services:
-
-1. **Generate strong passwords** -- `openssl rand -base64 24` for each
-2. **Store in TrueFoundry secrets** (using `secrets` skill) and reference in YAML manifests as `tfy-secret://DOMAIN:SECRET_GROUP:KEY`
+**This is the most critical step.** Every cross-service reference must be translated from compose service names to Kubernetes DNS. For the translation rule, common wiring patterns (DB, Redis, RabbitMQ, etc.), DNS patterns, and secrets management, see [references/service-wiring.md](references/service-wiring.md).
 
 ## Step 7: Verify Connectivity
 

@@ -35,7 +35,7 @@
 To discover available storage classes on a cluster, see `cluster-discovery.md` or check the cluster details:
 
 ```bash
-# Via Tool Call
+# Via MCP
 tfy_clusters_list(cluster_id="CLUSTER_ID")
 
 # Via Direct API

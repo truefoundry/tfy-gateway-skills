@@ -1,11 +1,10 @@
 ---
 name: async-service
-description: Deploys TrueFoundry Async Services that process messages from queues (SQS, Kafka, NATS) with scale-to-zero support. Uses YAML manifests with `tfy apply`. Use when deploying queue consumers, async workers, event-driven services, or background job processors. NOT for regular HTTP services — use deploy skill.
+description: Deploys queue-based async services on TrueFoundry. Supports SQS, NATS, Kafka, and Google AMQP with scale-to-zero. NOT for HTTP services (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-metadata:
-  disable-model-invocation: "true"
-allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
+disable-model-invocation: true
+allowed-tools: Bash(*/tfy-api.sh *)
 ---
 
 <objective>
@@ -21,14 +20,7 @@ Two paths:
 
 ## When to Use
 
-- User wants to process messages from a queue (SQS, NATS, Kafka, AMQP)
-- User says "deploy async service", "queue consumer", "async worker"
-- User needs scale-to-zero capability (no traffic = no pods running)
-- User has workloads with large payloads stored in S3/blob storage
-- User has long-running processing tasks (seconds to minutes per request)
-- User needs resilience against traffic surges (queue buffers prevent 5XX errors)
-- User wants to decouple request receipt from processing
-- User wants at-least-once message processing guarantees
+Deploy services that consume messages from queues (SQS, NATS, Kafka, Google AMQP) with optional scale-to-zero. Best for long-running tasks, large payloads, or decoupled processing.
 
 ## When NOT to Use
 
@@ -178,110 +170,7 @@ async def health():
 
 ### Step 2: Generate YAML Manifest
 
-Create a manifest using `worker_config.input_config` for queue connection:
-
-try:
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parent / ".env")
-except ImportError:
-    pass
-
-if os.environ.get("TFY_BASE_URL") and not os.environ.get("TFY_HOST"):
-    os.environ["TFY_HOST"] = os.environ["TFY_BASE_URL"].strip().rstrip("/")
-
-from truefoundry.deploy import (
-    AsyncService,
-    Build,
-    DockerFileBuild,
-    LocalSource,
-    # GitSource,            # uncomment for Git repo builds
-    # Image,                # uncomment for pre-built Docker images
-    Port,
-    Resources,
-    # NodeSelector,         # uncomment for capacity type (spot/on-demand)
-    SQSQueueConfig,       # or NATSQueueConfig, KafkaQueueConfig
-    SidecarPattern,
-    Replicas,
-    # NvidiaGPU, GPUType,  # uncomment for GPU workloads
-)
-
-PROJECT_ROOT = str(Path(__file__).resolve().parent)
-
-async_service = AsyncService(
-    name="<SERVICE_NAME>",                          # ← ask user
-    # Option A: Build from local source code
-    image=Build(
-        build_source=LocalSource(project_root_path=PROJECT_ROOT, local_build=True),
-        build_spec=DockerFileBuild(
-            dockerfile_path="<DOCKERFILE_PATH>",    # ← ask user (e.g., "./Dockerfile")
-            build_context_path="<BUILD_CONTEXT>",   # ← ask user (e.g., "./")
-            # build_args={"<ARG_NAME>": "<value>"},  # ← ask user if needed
-            # build_secrets={"<SECRET_NAME>": "<value>"},  # ← ask user if needed
-        ),
-    ),
-    # Option B: Build from Git repo (uncomment to use instead of Option A)
-    # image=Build(
-    #     build_source=GitSource(
-    #         repo_url="<REPO_URL>",                 # ← ask user
-    #         branch_name="<BRANCH>",                # ← ask user (or use ref="<COMMIT_SHA>")
-    #     ),
-    #     build_spec=DockerFileBuild(
-    #         dockerfile_path="<DOCKERFILE_PATH>",   # ← ask user
-    #         build_context_path="<BUILD_CONTEXT>",  # ← ask user
-    #     ),
-    # ),
-    # Option C: Pre-built Docker image (uncomment to use instead of Option A)
-    # image=Image(
-    #     image_uri="<IMAGE_URI>",                   # ← ask user (e.g., "registry/image:tag")
-    #     command="<ENTRYPOINT_COMMAND>",             # ← ask user
-    # ),
-    resources=Resources(
-        cpu_request=<CPU_REQUEST>,                   # ← ask user (e.g., 0.2)
-        cpu_limit=<CPU_LIMIT>,                       # ← ask user (e.g., 0.5)
-        memory_request=<MEMORY_REQUEST>,             # ← ask user, in MB (e.g., 200)
-        memory_limit=<MEMORY_LIMIT>,                 # ← ask user, in MB (e.g., 500)
-        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user, in MB (e.g., 1000)
-        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user, in MB (e.g., 2000)
-        # devices=[NvidiaGPU(name=GPUType.<GPU_TYPE>, count=<COUNT>)],  # ← ask user if GPU needed
-        # node=NodeSelector(capacity_type="<CAPACITY_TYPE>"),  # ← ask user: "any" | "spot" | "on_demand" | "spot_fallback_on_demand"
-    ),
-    ports=[
-        Port(
-            port=<PORT>,                             # ← ask user (e.g., 8000)
-            protocol="<PROTOCOL>",                   # ← ask user: "TCP" or "HTTP"
-            expose=<EXPOSE>,                         # ← ask user: True/False
-            app_protocol="http",
-        ),
-    ],
-    replicas=Replicas(
-        min=<MIN_REPLICAS>,                          # ← ask user (0 = scale-to-zero)
-        max=<MAX_REPLICAS>,                          # ← ask user
-    ),
-    sidecar=SidecarPattern(
-        destination_url="http://0.0.0.0:<PORT>/<ENDPOINT_PATH>",  # ← ask user: port + endpoint path
-    ),
-    worker_config_concurrent_workers=<CONCURRENT_WORKERS>,  # ← ask user (e.g., 1)
-    input_queue=SQSQueueConfig(
-        queue_url="<QUEUE_URL>",                     # ← ask user
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", ""),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
-        aws_region="<REGION>",                       # ← ask user (e.g., "us-east-1")
-        visibility_timeout=<VISIBILITY_TIMEOUT>,     # ← ask user, in seconds (e.g., 30)
-    ),
-    # output_queue=SQSQueueConfig(...)               # ← ask user if output queue is needed
-)
-
-if __name__ == "__main__":
-    workspace_fqn = (os.environ.get("TFY_WORKSPACE_FQN") or "").strip()
-    if not workspace_fqn:
-        raise SystemExit(
-            "TFY_WORKSPACE_FQN is required. "
-            "Get it from the TrueFoundry dashboard or tfy_workspaces_list. "
-            "Do not auto-pick a workspace."
-        )
-    async_service.deploy(workspace_fqn=workspace_fqn, wait=False)
-    print("Async Service deployment submitted. Check the TrueFoundry dashboard for status.")
-```
+For the complete SDK deploy.py template with all configuration options (image source, resources, ports, queue config, scaling), see [references/async-sidecar-deploy.md](references/async-sidecar-deploy.md).
 
 **For pre-built images**, replace the `image` section:
 
@@ -469,36 +358,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 
 ## Deploying with the Python Library Pattern
 
-### Step 1: Install the Library
-
-```bash
-pip install truefoundry[async]
-```
-
-### Step 2: Implement the Handler
-
-```python
-# worker.py
-from truefoundry.async_service import AsyncHandler, Message
-
-class MyHandler(AsyncHandler):
-    def __init__(self):
-        # Initialize models, connections, etc.
-        pass
-
-    async def process(self, message: Message) -> dict:
-        """Process a single message from the queue."""
-        payload = message.body
-        # Your processing logic here (can take minutes)
-        result = {"status": "processed", "output": payload}
-        return result
-
-handler = MyHandler()
-```
-
-### Step 3: Deploy
-
-Use the same `deploy.py` approach as the sidecar pattern but replace `SidecarPattern` with `PythonLibraryPattern` configuration in the SDK, or set `"pattern": "python-library"` in the API manifest. The entry command should point to your worker script.
+For the Python library implementation (handler class, install steps, and deploy configuration), see [references/async-python-library.md](references/async-python-library.md). Use this pattern when processing time exceeds 1 minute per message or you need direct queue consumption control.
 
 ## Autoscaling and Scale-to-Zero
 

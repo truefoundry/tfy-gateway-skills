@@ -1,6 +1,6 @@
 ---
 name: ml-repos
-description: This skill should be used when the user asks "list ML repos", "show model registry", "what models do I have", "list models", "find model", "show ML repositories", "model artifacts", "browse models", "ML repo details", "model registry", "list artifacts", "show my models", "get model info", or wants to browse TrueFoundry ML repos, models, and artifacts.
+description: Browses TrueFoundry ML repositories and model registry. Lists repos, models, and artifacts with FQNs for use in other skills. NOT for deploying models (use llm-deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -12,13 +12,9 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 Browse TrueFoundry ML repositories and model registry. List ML repos, get repo details, and list models/artifacts within a repo.
 
-## When to Use
+## Scope
 
-- User asks "list ML repos", "show model registry"
-- User wants to find a model or artifact
-- User asks "what models do I have"
-- User needs an ML repo FQN for prompts or fine-tuning
-- User wants to browse the model registry
+Browse ML repositories, list models and artifacts, and retrieve FQNs for use with other skills (prompts, llm-finetuning, llm-deploy).
 
 </objective>
 

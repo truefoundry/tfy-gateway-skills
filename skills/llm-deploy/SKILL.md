@@ -1,11 +1,10 @@
 ---
 name: llm-deploy
-description: Deploys ML and LLM models on TrueFoundry with GPU inference servers (vLLM, TGI, NVIDIA NIM). Uses YAML manifests with `tfy apply`. Use when serving language models, deploying Hugging Face models, or hosting GPU-accelerated inference endpoints.
+description: Deploys LLMs and ML inference servers (vLLM, TGI, NVIDIA NIM) on TrueFoundry with GPU allocation, model caching, and health probes. NOT for regular apps (use deploy skill) or benchmarking (use llm-benchmarking skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-metadata:
-  disable-model-invocation: "true"
-allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
+disable-model-invocation: true
+allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 ---
 
 <objective>
@@ -14,18 +13,9 @@ allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 
 Deploy large language models and ML inference servers to TrueFoundry. Supports vLLM, TGI, and custom model servers with proper GPU allocation, model caching, health probes, and production-ready defaults.
 
-Two paths:
+## Scope
 
-1. **CLI** (`tfy apply`) -- Write a YAML manifest and apply it. Works everywhere.
-2. **REST API** (fallback) -- When CLI unavailable, use `tfy-api.sh`.
-
-## When to Use
-
-- User says "deploy a model", "deploy LLM", "serve Gemma/Llama/Mistral/..."
-- User says "deploy vLLM", "deploy TGI", "inference server"
-- User wants to deploy a HuggingFace model for inference
-- User wants GPU-accelerated model serving
-- User wants to deploy NVIDIA NIM (optimized inference containers)
+Deploy LLMs and ML models for inference on TrueFoundry using vLLM, TGI, or NVIDIA NIM with proper GPU allocation and production defaults.
 
 ## When NOT to Use
 

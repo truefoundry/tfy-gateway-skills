@@ -1,6 +1,6 @@
 ---
 name: prompts
-description: This skill should be used when the user asks "list prompts", "show my prompts", "get prompt version", "show prompt registry", "what prompts do I have", "find prompt", "prompt versions", "view prompt template", "browse prompts", "check prompt history", "create a prompt", "save a prompt", "update prompt", "delete prompt", "tag prompt version", "manage prompts", or wants to manage TrueFoundry prompt registry prompts and their versions.
+description: Manages TrueFoundry prompt registry prompts and versions. Handles listing, creating, updating, deleting, and tagging prompt versions. NOT for deploying LLM services.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,13 +14,7 @@ List, create, update, delete, and tag TrueFoundry prompt registry prompts and ve
 
 ## When to Use
 
-- User asks "list prompts", "show prompts"
-- User wants to get a specific prompt and its versions
-- User asks for a specific prompt version
-- User wants to "create a prompt", "save a prompt", "update prompt"
-- User wants to "delete prompt" or "delete prompt version"
-- User wants to "tag prompt version" (e.g., tag as production)
-- Working with LLM prompt management
+List, create, update, delete, or tag prompts and prompt versions in the TrueFoundry prompt registry.
 
 </objective>
 
