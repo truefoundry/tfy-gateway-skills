@@ -1,6 +1,6 @@
 ---
 name: notebooks
-description: This skill should be used when the user asks "launch a notebook", "deploy jupyter", "start a notebook", "jupyter notebook", "create notebook", "notebook for development", "start jupyterlab", "GPU notebook", "notebook with GPU", "data exploration environment", "ML development environment", "run jupyter on cloud", or wants to run Jupyter notebooks on TrueFoundry infrastructure.
+description: Launches Jupyter notebooks on TrueFoundry with GPU support, persistent storage, and auto-shutdown. Handles notebook creation, image selection, and resource configuration. NOT for production services or model serving.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, au
 
 ## When to Use
 
-- User asks "launch a notebook", "start jupyter", "create notebook"
-- User needs a development environment with GPU access
-- User wants to explore data or prototype ML models
-- User asks about notebook images, auto-shutdown, or persistent storage
+Launch, configure, or manage Jupyter notebooks on TrueFoundry infrastructure, including GPU access, image selection, storage, and auto-shutdown.
 
 ## When NOT to Use
 

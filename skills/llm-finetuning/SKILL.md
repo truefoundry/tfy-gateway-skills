@@ -1,6 +1,6 @@
 ---
 name: llm-finetuning
-description: This skill should be used when the user asks "finetune a model", "fine-tune LLM", "train a model", "LoRA finetuning", "QLoRA finetuning", "full finetuning", "fine-tune on my data", "customize a model", "adapt a model", "retrain a language model", "train on my dataset", "custom model training", or wants to fine-tune, adapt, or retrain a large language model on their own data using TrueFoundry.
+description: Fine-tunes LLMs on TrueFoundry using QLoRA, LoRA, or full fine-tuning. Supports models up to 70B with GPU jobs, experiment tracking, and one-click deploy. NOT for inference deployment (use llm-deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
@@ -12,13 +12,9 @@ allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
 
 Fine-tune large language models on TrueFoundry using QLoRA, LoRA, or full fine-tuning. Supports models up to 70B parameters across Llama, Mistral, Qwen, Gemma, Phi, and other architectures. Training runs as a TrueFoundry Job with GPU acceleration, experiment tracking, and one-click deployment of the finetuned model.
 
-## When to Use
+## Scope
 
-- User says "finetune a model", "fine-tune LLM", "train a model"
-- User says "LoRA finetuning", "QLoRA finetuning", "full finetuning"
-- User wants to customize a base model on their own data
-- User wants to adapt a HuggingFace model for a specific task
-- User says "train on my dataset", "fine-tune on my data"
+Fine-tune LLMs on custom data using QLoRA (default), LoRA, or full fine-tuning. Runs as a TrueFoundry Job with GPU acceleration and experiment tracking.
 
 ## When NOT to Use
 

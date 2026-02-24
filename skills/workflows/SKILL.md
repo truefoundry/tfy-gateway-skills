@@ -1,6 +1,6 @@
 ---
 name: workflows
-description: This skill should be used when the user asks "create a workflow", "deploy a workflow", "run a pipeline", "schedule a workflow", "cron workflow", "TrueFoundry workflow", "build a DAG", "orchestrate tasks", "create an ML pipeline", "Flyte workflow", "batch pipeline", "ETL pipeline on truefoundry", or wants to build data processing or ML training pipelines using TrueFoundry Workflows (built on Flyte).
+description: Creates and deploys workflows (Flyte-based DAG pipelines) on TrueFoundry. Supports task/workflow decorators, cron scheduling, map tasks, conditionals, and Spark tasks. NOT for one-off jobs or web services.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(python*) Bash(pip*)
@@ -14,11 +14,7 @@ Create, configure, and deploy workflows on TrueFoundry. Workflows are built on [
 
 ## When to Use
 
-- User wants to create a data processing or ML training pipeline
-- User says "create a workflow", "deploy a workflow", "run a pipeline"
-- User wants to schedule recurring batch operations (cron workflows)
-- User wants to orchestrate multi-step tasks: ETL, feature engineering, model training, batch inference
-- User asks about Flyte tasks, map tasks, conditional tasks, or Spark tasks on TrueFoundry
+Create, configure, or deploy multi-step DAG pipelines on TrueFoundry, including ETL, ML training, batch inference, and cron-scheduled workflows.
 
 ## When NOT to Use
 

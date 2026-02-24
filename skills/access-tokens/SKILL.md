@@ -1,6 +1,6 @@
 ---
 name: access-tokens
-description: This skill should be used when the user asks "list access tokens", "create API key", "generate access token", "show my tokens", "personal access token", "create PAT", "delete token", "manage API keys", "revoke token", "new API key", "truefoundry token", "CI/CD token", "generate TFY key", or wants to manage TrueFoundry personal access tokens.
+description: Manages TrueFoundry personal access tokens (PATs). List, create, and delete tokens for API auth, CI/CD, and gateway access.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,11 +14,7 @@ Manage TrueFoundry personal access tokens (PATs). List, create, and delete token
 
 ## When to Use
 
-- User asks "list my access tokens", "show my API keys"
-- User wants to create a new API key for CI/CD
-- User asks "generate a token for the gateway"
-- User wants to revoke or delete a token
-- User needs a PAT for automated deployments or gitops
+List, create, or delete personal access tokens for API authentication, CI/CD pipelines, or AI Gateway access.
 
 </objective>
 

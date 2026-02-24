@@ -1,6 +1,6 @@
 ---
 name: tracing
-description: This skill should be used when the user asks "add tracing", "set up tracing", "instrument my app", "trace LLM calls", "create tracing project", "add observability", "monitor LLM calls", "OpenTelemetry setup", "traceloop setup", "add telemetry", "trace my application", "LLM observability", "track model calls", "instrument with traceloop", "create tracing app", or wants to add tracing/observability to their application using TrueFoundry's tracing platform.
+description: Adds OpenTelemetry-based tracing to applications via TrueFoundry's tracing platform (Traceloop SDK). Creates tracing projects, instruments Python/TypeScript code, and captures LLM calls and custom spans. NOT for deploying services.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(pip*) Bash(npm*)
@@ -14,11 +14,7 @@ Add OpenTelemetry-based tracing and observability to applications using TrueFoun
 
 ## When to Use
 
-- User asks "add tracing to my app", "instrument my code"
-- User wants to trace LLM calls (OpenAI, Anthropic, etc.)
-- User asks to create a tracing project on TrueFoundry
-- User wants observability for their AI/ML application
-- User mentions Traceloop, OpenTelemetry, or LLM monitoring
+Set up tracing projects, install Traceloop SDK, and instrument Python or TypeScript applications for LLM call tracing and observability on TrueFoundry.
 
 </objective>
 

@@ -1,10 +1,9 @@
 ---
 name: llm-deploy
-description: This skill should be used when the user asks "deploy a model", "deploy LLM", "serve a model", "deploy hugging face model", "deploy vLLM", "deploy TGI", "deploy NIM", "NVIDIA NIM", "inference server", "serve gemma", "serve llama", "serve mistral", "GPU model serving", "host a language model", "deploy ML model", or wants to deploy any ML/LLM model on TrueFoundry.
+description: Deploys LLMs and ML inference servers (vLLM, TGI, NVIDIA NIM) on TrueFoundry with GPU allocation, model caching, and health probes. NOT for regular apps (use deploy skill) or benchmarking (use llm-benchmarking skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-metadata:
-  disable-model-invocation: "true"
+disable-model-invocation: true
 allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 ---
 
@@ -14,13 +13,9 @@ allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 
 Deploy large language models and ML inference servers to TrueFoundry. Supports vLLM, TGI, and custom model servers with proper GPU allocation, model caching, health probes, and production-ready defaults.
 
-## When to Use
+## Scope
 
-- User says "deploy a model", "deploy LLM", "serve Gemma/Llama/Mistral/..."
-- User says "deploy vLLM", "deploy TGI", "inference server"
-- User wants to deploy a HuggingFace model for inference
-- User wants GPU-accelerated model serving
-- User wants to deploy NVIDIA NIM (optimized inference containers)
+Deploy LLMs and ML models for inference on TrueFoundry using vLLM, TGI, or NVIDIA NIM with proper GPU allocation and production defaults.
 
 ## When NOT to Use
 

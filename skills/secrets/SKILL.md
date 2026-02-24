@@ -1,6 +1,6 @@
 ---
 name: secrets
-description: This skill should be used when the user asks "list secrets", "show secret groups", "create a secret", "add secret", "what secrets do I have", "manage secrets", "delete secret group", "view secret value", "secret group details", "set up secrets for deployment", "configure environment variables", or wants to manage TrueFoundry secret groups and individual secrets.
+description: Manages TrueFoundry secret groups and secrets. Handles listing, creating, updating, and deleting secret groups and individual key-value secrets. NOT for managing environment variables directly.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,13 +14,7 @@ Manage TrueFoundry secret groups and secrets. Secret groups organize secrets; in
 
 ## When to Use
 
-- User asks "list secrets", "show secret groups"
-- User wants to create a secret group
-- User asks "what secrets are in this group"
-- User wants to get a specific secret value
-- User wants to update a secret, rotate secret values
-- User wants to delete a secret or remove a secret group
-- Setting up secrets before a deploy
+List, create, update, or delete secret groups and individual secrets on TrueFoundry, including pre-deploy secret setup and value rotation.
 
 </objective>
 

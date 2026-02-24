@@ -1,6 +1,6 @@
 ---
 name: docs
-description: This skill should be used when the user asks about TrueFoundry documentation, "how do I do X on TrueFoundry", "TrueFoundry docs", "show me the guide for", "where is the API reference", "help with TrueFoundry config", "TrueFoundry tutorial", "explain TrueFoundry feature", "find docs about", or needs reference material for TrueFoundry features, API, or deployment configuration.
+description: Fetches TrueFoundry documentation, API reference, and deployment guides. Use when the user needs platform docs or how-to guidance.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(curl *)
@@ -14,10 +14,7 @@ Fetch up-to-date TrueFoundry documentation for features, API reference, and depl
 
 ## When to Use
 
-- User asks "how do I do X on TrueFoundry"
-- User needs deployment configuration guidance
-- User asks about TrueFoundry features or pricing
-- Troubleshooting TrueFoundry-specific issues
+Fetch up-to-date TrueFoundry documentation for features, API reference, deployment guides, or troubleshooting.
 
 </objective>
 

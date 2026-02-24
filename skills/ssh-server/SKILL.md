@@ -1,6 +1,6 @@
 ---
 name: ssh-server
-description: This skill should be used when the user asks "launch ssh server", "deploy ssh server", "remote development", "VS Code remote", "SSH access", "start dev environment", "cloud development machine", "GPU dev box", "remote coding setup", "SSH into server", "set up remote workspace", or wants a remote development environment with SSH access on TrueFoundry.
+description: Launches SSH servers on TrueFoundry for remote development. Supports VS Code Remote-SSH, GPU access, persistent storage, and auto-shutdown. NOT for notebooks or production services.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Launch an SSH server on TrueFoundry for remote development. Connect with VS Code
 
 ## When to Use
 
-- User asks "launch ssh server", "start ssh server", "remote dev environment"
-- User wants to connect VS Code remotely to cloud GPUs
-- User needs SSH access for development/debugging
-- User asks about remote development environments
+Launch, configure, or connect to SSH-based remote development environments on TrueFoundry, including VS Code Remote-SSH and GPU dev boxes.
 
 ## When NOT to Use
 

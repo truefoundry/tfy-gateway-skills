@@ -1,6 +1,6 @@
 ---
 name: logs
-description: This skill should be used when the user asks "show logs", "view logs", "what are the logs", "download logs", "debug my app", "why is my app failing", "check application output", "tail logs", "stream logs", "search logs for errors", "get logs for my service", or wants to see, download, search, or debug application and job logs from TrueFoundry.
+description: Views, downloads, and searches application and job logs from TrueFoundry. Supports time-range filtering, pod filtering, and error search. NOT for deployment status (use applications skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -12,13 +12,9 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 View and download application and job logs from TrueFoundry.
 
-## When to Use
+## Scope
 
-- User asks "show logs", "view logs for my app"
-- User wants to debug a deployment
-- User says "what went wrong", "why did it fail"
-- User asks to download logs for a time range
-- After a deploy, to check if the app started correctly
+View, download, and search application and job logs from TrueFoundry. Useful for debugging deployments, checking startup output, and finding errors.
 
 </objective>
 

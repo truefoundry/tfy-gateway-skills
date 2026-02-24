@@ -1,6 +1,6 @@
 ---
 name: jobs
-description: This skill should be used when the user asks "deploy a job", "create a job", "run a batch task", "schedule a job", "show job runs", "list runs", "job status", "is my job running", "run a batch job", "execute a task", "cron job", "one-time job", "trigger a run", "check job run", "failed job", or wants to deploy or monitor TrueFoundry job executions. For listing job applications, use applications skill.
+description: Deploys, schedules, and monitors TrueFoundry jobs. Supports one-time and cron jobs with retry, GPU, and volume mounts. For listing job apps, use applications skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
@@ -14,12 +14,7 @@ Deploy, schedule, and monitor TrueFoundry job runs.
 
 ## When to Use
 
-- User asks "deploy a job", "create a job", "run a batch task"
-- User asks "schedule a job", "run a cron job"
-- User asks "show job runs", "list runs for my job"
-- User asks "is my job running", "job status"
-- User wants to check a specific job run
-- Debugging a failed job run
+Deploy, schedule, trigger, or monitor TrueFoundry job runs. Covers one-time jobs, cron-scheduled jobs, and job run status/history.
 
 ## When NOT to Use
 

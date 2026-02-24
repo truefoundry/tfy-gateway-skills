@@ -1,6 +1,6 @@
 ---
 name: ai-gateway
-description: This skill should be used when the user asks "use AI gateway", "call LLM through gateway", "gateway API", "unified LLM API", "route LLM requests", "rate limit LLM", "LLM proxy", "model routing", "access LLMs", "single API for all models", "configure model gateway", "set up LLM endpoint", or wants to use TrueFoundry's AI Gateway to access LLMs through a unified API, manage virtual access tokens, or configure load balancing and budget controls for LLM usage.
+description: Configures TrueFoundry AI Gateway for unified OpenAI-compatible LLM access. Covers auth (PAT/VAT), model routing, rate limiting, and budget controls. NOT for deploying models (use llm-deploy).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl*) Bash(python*)
@@ -14,12 +14,7 @@ Use TrueFoundry's AI Gateway to access 1000+ LLMs through a unified OpenAI-compa
 
 ## When to Use
 
-- User wants to call LLMs through a unified API
-- User asks about AI Gateway, LLM proxy, or model routing
-- User wants to set up rate limiting or budget controls for LLM access
-- User wants load balancing across multiple LLM providers
-- User wants to switch between self-hosted and cloud models without code changes
-- User asks about Virtual Access Tokens or gateway authentication
+Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure auth tokens (PAT/VAT), set up rate limiting, budget controls, or load balancing across providers.
 
 ## When NOT to Use
 

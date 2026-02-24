@@ -1,6 +1,6 @@
 ---
 name: preferences
-description: This skill manages user deployment preferences. Other skills should check preferences before asking repeated questions. Used when the user says "remember my workspace", "save my preferences", "default workspace", "always use", "stop asking me about", "show my settings", "what are my defaults", "update my preferences", "forget my settings", "reset defaults", "change default environment", or wants to persist deployment settings across sessions.
+description: Manages user deployment preferences (default workspace, resources, environment). Persists settings locally so other skills skip repeated questions. NOT for storing secrets or API keys.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Persist user deployment preferences to avoid asking the same questions repeatedl
 
 ## When to Use
 
-- User says "remember this", "always use workspace X", "save my default"
-- User says "stop asking me about the workspace", "use the same settings"
-- **Proactively**: Before asking a question, check if a preference already exists
-- **After deployment**: Offer to save choices the user made during deployment
+Save, view, update, or reset default deployment settings (workspace, resources, environment). Also used proactively by other skills to check for saved preferences before prompting.
 
 ## When NOT to Use
 

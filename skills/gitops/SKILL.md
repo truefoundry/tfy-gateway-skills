@@ -1,6 +1,6 @@
 ---
 name: gitops
-description: This skill should be used when the user asks "setup gitops", "CI/CD pipeline", "deploy on push", "github actions truefoundry", "gitlab CI truefoundry", "gitops deployment", "tfy apply", "deploy from git", "automate deployments", "infrastructure as code", "continuous deployment", "deploy on merge", "bitbucket pipeline truefoundry", "auto deploy from repo", or wants to set up automated deployments from a Git repository.
+description: Sets up GitOps CI/CD pipelines for TrueFoundry using tfy apply. Supports GitHub Actions, GitLab CI, and Bitbucket Pipelines. NOT for manual deploys (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,12 +14,7 @@ Set up GitOps-style deployments with TrueFoundry. Store deployment configuration
 
 ## When to Use
 
-- User says "setup gitops", "CI/CD pipeline", "deploy on push"
-- User says "github actions truefoundry", "gitlab CI truefoundry"
-- User wants automated deployments triggered by Git pushes
-- User wants to store TrueFoundry deployment configs in a Git repository
-- User wants to use `tfy apply` in a CI/CD pipeline
-- User wants infrastructure-as-code for TrueFoundry resources
+Set up automated Git-based deployments with `tfy apply`. Store TrueFoundry YAML specs in Git and auto-deploy on push/merge via CI/CD pipelines.
 
 ## When NOT to Use
 
@@ -198,213 +193,15 @@ for file in $DELETED_FILES; do
 done
 ```
 
-## CI/CD Integration: GitHub Actions
+## CI/CD Integration
 
-### Workflow 1: Validate on Pull Request
+For complete workflow files for each CI provider:
 
-Create `.github/workflows/dry_run_on_pr.yaml`:
+- **GitHub Actions**: See [references/gitops-github-actions.md](references/gitops-github-actions.md) -- PR validation (dry-run) and merge-to-deploy workflows, plus required secrets setup.
+- **GitLab CI**: See [references/gitops-gitlab-ci.md](references/gitops-gitlab-ci.md) -- validate and deploy stages with caching.
+- **Bitbucket Pipelines**: See [references/gitops-bitbucket-pipelines.md](references/gitops-bitbucket-pipelines.md) -- PR validation and branch-based deploy.
 
-```yaml
-name: TrueFoundry Dry Run
-
-on:
-  pull_request:
-    branches: [main]
-    paths:
-      - '**.yaml'
-
-jobs:
-  dry-run:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install TrueFoundry CLI
-        run: pip install truefoundry
-
-      - name: Get changed files
-        id: changed
-        run: |
-          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.yaml')
-          echo "files=$FILES" >> $GITHUB_OUTPUT
-
-      - name: Validate YAML specs
-        env:
-          TFY_HOST: ${{ secrets.TFY_HOST }}
-          TFY_API_KEY: ${{ secrets.TFY_API_KEY }}
-        run: |
-          for file in ${{ steps.changed.outputs.files }}; do
-            echo "Validating $file..."
-
-            # Check valid YAML syntax
-            python -c "import yaml; yaml.safe_load(open('$file'))"
-
-            # Verify filename matches internal name field
-            FILE_BASE=$(basename "$file" .yaml)
-            SPEC_NAME=$(python -c "import yaml; print(yaml.safe_load(open('$file')).get('name', ''))")
-            if [ "$FILE_BASE" != "$SPEC_NAME" ]; then
-              echo "WARNING: filename '$FILE_BASE' does not match spec name '$SPEC_NAME'"
-            fi
-
-            # Dry run validation
-            tfy apply --file "$file" --dry-run
-          done
-```
-
-### Workflow 2: Apply on Merge
-
-Create `.github/workflows/apply_on_merge.yaml`:
-
-```yaml
-name: TrueFoundry Apply
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - '**.yaml'
-
-jobs:
-  apply:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install TrueFoundry CLI
-        run: pip install truefoundry
-
-      - name: Apply changed specs
-        env:
-          TFY_HOST: ${{ secrets.TFY_HOST }}
-          TFY_API_KEY: ${{ secrets.TFY_API_KEY }}
-        run: |
-          # Apply modified/added files
-          CHANGED=$(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- '*.yaml')
-          for file in $CHANGED; do
-            echo "Applying $file..."
-            tfy apply --file "$file"
-          done
-
-          # Warn about deleted files
-          DELETED=$(git diff --name-only --diff-filter=D HEAD~1 HEAD -- '*.yaml')
-          for file in $DELETED; do
-            echo "::warning::$file was deleted. Remove the corresponding resource from TrueFoundry dashboard."
-          done
-```
-
-### Required GitHub Secrets
-
-Set these in your repository settings (Settings -> Secrets and variables -> Actions):
-
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `TFY_HOST` | TrueFoundry platform URL | `https://your-org.truefoundry.cloud` |
-| `TFY_API_KEY` | TrueFoundry API key | `tfy-...` |
-
-## CI/CD Integration: GitLab CI
-
-Create `.gitlab-ci.yml`:
-
-```yaml
-stages:
-  - validate
-  - deploy
-
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-cache:
-  paths:
-    - .cache/pip
-
-.tfy-setup: &tfy-setup
-  image: python:3.12-slim
-  before_script:
-    - pip install truefoundry
-
-dry-run:
-  <<: *tfy-setup
-  stage: validate
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - "**/*.yaml"
-  script:
-    - |
-      CHANGED=$(git diff --name-only origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD -- '*.yaml')
-      for file in $CHANGED; do
-        echo "Validating $file..."
-        tfy apply --file "$file" --dry-run
-      done
-
-apply:
-  <<: *tfy-setup
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - "**/*.yaml"
-  script:
-    - |
-      CHANGED=$(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- '*.yaml')
-      for file in $CHANGED; do
-        echo "Applying $file..."
-        tfy apply --file "$file"
-      done
-```
-
-Set `TFY_HOST` and `TFY_API_KEY` as CI/CD variables in GitLab (Settings -> CI/CD -> Variables).
-
-## CI/CD Integration: Bitbucket Pipelines
-
-Create `bitbucket-pipelines.yml`:
-
-```yaml
-image: python:3.12-slim
-
-pipelines:
-  pull-requests:
-    '**':
-      - step:
-          name: Validate TrueFoundry Specs
-          script:
-            - pip install truefoundry
-            - |
-              CHANGED=$(git diff --name-only origin/$BITBUCKET_PR_DESTINATION_BRANCH...HEAD -- '*.yaml')
-              for file in $CHANGED; do
-                echo "Validating $file..."
-                tfy apply --file "$file" --dry-run
-              done
-
-  branches:
-    main:
-      - step:
-          name: Apply TrueFoundry Specs
-          script:
-            - pip install truefoundry
-            - |
-              CHANGED=$(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- '*.yaml')
-              for file in $CHANGED; do
-                echo "Applying $file..."
-                tfy apply --file "$file"
-              done
-```
-
-Set `TFY_HOST` and `TFY_API_KEY` as repository variables in Bitbucket.
+All providers require `TFY_HOST` and `TFY_API_KEY` as repository secrets/variables.
 
 ## Step-by-Step: Setting Up GitOps (Summary)
 

@@ -1,6 +1,6 @@
 ---
 name: status
-description: This skill should be used when the user asks "is truefoundry connected", "check my truefoundry config", "truefoundry status", "am I authenticated", "test my TFY connection", "verify API key", "check TFY credentials", "is my TFY setup working", "TrueFoundry health check", "can I reach truefoundry", or wants to verify credentials, diagnose authentication issues, or confirm connectivity before any TrueFoundry operation.
+description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation. NOT for listing workspaces or deploying.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Check TrueFoundry connection and verify credentials are configured.
 
 ## When to Use
 
-- User asks about TrueFoundry connection status
-- Before any TrueFoundry operation (deploy, list apps, etc.)
-- User says "check my TFY config", "am I connected to TrueFoundry"
-- Troubleshooting authentication issues
+Verify TrueFoundry credentials and connectivity, or diagnose authentication issues before performing platform operations.
 
 ## When NOT to Use
 

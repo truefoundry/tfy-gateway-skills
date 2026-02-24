@@ -1,10 +1,9 @@
 ---
 name: helm
-description: This skill should be used when the user asks "deploy a database", "install redis", "helm chart", "deploy postgres", "deploy mongodb", "install a helm chart", "deploy vector database", "deploy qdrant", "deploy milvus", "deploy elasticsearch", "install a chart", "deploy infrastructure", "set up a database", "add redis to my cluster", "deploy rabbitmq", "install kafka", "deploy monitoring stack", or wants to deploy any infrastructure component via Helm on TrueFoundry. Supports ANY public or private OCI Helm chart.
+description: Deploys Helm charts to TrueFoundry for infrastructure components (databases, caches, queues, vector DBs, monitoring). Supports any OCI-compatible chart. NOT for application code (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-metadata:
-  disable-model-invocation: "true"
+disable-model-invocation: true
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
 
@@ -16,15 +15,7 @@ Deploy any Helm chart to TrueFoundry — databases, caches, message queues, vect
 
 ## When to Use
 
-- User wants to deploy a database (PostgreSQL, MySQL, MongoDB, etc.)
-- User wants to install a cache (Redis, Memcached)
-- User wants to deploy a message queue (RabbitMQ, Kafka, NATS)
-- User says "install helm chart", "deploy via helm"
-- User wants infrastructure components, not application code
-- User wants to deploy a vector database (Qdrant, Milvus, Weaviate, Chroma)
-- User wants to deploy monitoring tools (Prometheus, Grafana)
-- User has a custom/private Helm chart to deploy
-- User wants to deploy ANY infrastructure component available as a Helm chart
+Deploy infrastructure via Helm charts: databases, caches, message queues, vector DBs, monitoring, or any custom OCI chart.
 
 ## When NOT to Use
 

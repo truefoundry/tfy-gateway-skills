@@ -1,6 +1,6 @@
 ---
 name: applications
-description: This skill should be used when the user asks "what's deployed", "list my apps", "show services", "deployment status", "is my app running", "what services are running", "check my deployments", "show running apps", "app health", "list deployments", "show my workloads", or wants to inspect, list, or manage application deployments on TrueFoundry. NOT for deploying local code — use deploy skill for that.
+description: Lists, inspects, and manages TrueFoundry application deployments. Shows status, health, and details for services, jobs, and Helm releases. NOT for deploying code (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,11 +14,7 @@ List, inspect, and manage applications and deployments on TrueFoundry.
 
 ## When to Use
 
-- User asks "what's deployed", "list apps", "show my services"
-- User asks "is my app running", "deployment status"
-- User asks to inspect a specific application or deployment
-- User wants to create a deployment via API manifest
-- Checking status after a deploy
+List, inspect, or manage deployed applications and their deployment history. Also supports creating deployments via API manifest for pre-built images.
 
 ## When NOT to Use
 

@@ -1,6 +1,6 @@
 ---
 name: workspaces
-description: This skill should be used when the user asks "list workspaces", "show clusters", "what workspaces are available", "which workspace", "find my workspace FQN", "show GPU types", "what GPUs are available", "cluster base domain", "workspace for deployment", "get cluster info", "list environments", or needs a workspace FQN for deployment or filtering.
+description: Lists TrueFoundry workspaces and clusters. Provides workspace FQNs for deployment, cluster connectivity status, available GPU types, and base domains. NOT for deploying or managing applications.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ List TrueFoundry workspaces and clusters. Workspaces are the deploy targets; clu
 
 ## When to Use
 
-- User asks "list workspaces", "show my workspaces", "which workspace"
-- User needs a `workspace_fqn` for deploy or filtering
-- User asks "list clusters", "show clusters", "cluster status"
-- Before deploying, to confirm target workspace
+List workspaces and clusters, find workspace FQNs for deployment, check cluster connectivity, or discover available GPU types and base domains.
 
 </objective>
 

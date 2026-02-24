@@ -1,6 +1,6 @@
 ---
 name: service-test
-description: This skill should be used when the user asks "test my deployment", "is my service healthy", "smoke test my app", "validate endpoint", "check if app is working", "health check", "test deployed service", "monitor deployment", "verify my service", "run endpoint tests", "check service response time", "is my API up", or wants to verify a deployed TrueFoundry service is responding correctly.
+description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs, MCP servers, and web apps. NOT for LLM benchmarking or log viewing.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl *)
@@ -14,12 +14,7 @@ Validate that a deployed TrueFoundry service is healthy and responding correctly
 
 ## When to Use
 
-- After deploying a service, to verify it's actually working
-- User asks "is my service healthy", "test my deployment"
-- User asks "smoke test", "validate endpoint", "check if app is working"
-- User wants to verify an MCP server is responding and listing tools
-- User wants to measure basic response times for a deployed service
-- As the final step in a deploy → verify workflow
+Verify a deployed service is healthy and responding, run endpoint smoke tests, or perform basic load soak tests after deployment.
 
 ## When NOT to Use
 

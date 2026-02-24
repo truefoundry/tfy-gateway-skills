@@ -1,6 +1,6 @@
 ---
 name: volumes
-description: This skill should be used when the user asks "create a volume", "list volumes", "persistent storage", "mount a volume", "attach storage", "shared storage for pods", "add disk to service", "volume sizing", "storage class options", "expand volume", "attach PVC", "mount shared data", or wants to manage TrueFoundry persistent volumes. NOT for blob storage (S3/GCS) questions.
+description: Creates and manages persistent volumes on TrueFoundry. Handles creation, listing, mounting, storage class selection, and static volume attachment. NOT for blob storage (S3/GCS).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,13 +14,7 @@ Create and manage persistent volumes on TrueFoundry. Volumes provide shared, low
 
 ## When to Use
 
-- User asks "create a volume", "add persistent storage"
-- User asks "list volumes", "show my volumes"
-- User wants to share data across pods or replicas (training data, model weights)
-- User needs checkpointing for ML training jobs
-- User wants to mount storage to a service or job
-- User asks about storage classes or volume types
-- User wants to attach pre-existing Kubernetes PersistentVolumes (EFS, GCS, S3)
+Create, list, or mount persistent volumes on TrueFoundry, including dynamic provisioning, static PV attachment, storage class selection, and Volume Browser setup.
 
 ## When NOT to Use
 
@@ -93,37 +87,7 @@ Static volumes require the PersistentVolume to already exist in the Kubernetes c
 
 ## Storage Classes by Cloud Provider
 
-Present only the storage classes available on the user's cluster. These are the common defaults:
-
-### AWS
-| Storage Class | Driver | Description |
-|---------------|--------|-------------|
-| `efs-sc` | `efs.csi.aws.com` | Elastic File System -- shared NFS, scales automatically |
-
-### GCP
-| Storage Class | Driver | Description |
-|---------------|--------|-------------|
-| `standard-rwx` | Filestore | Basic HDD Filestore -- cost-effective shared storage |
-| `premium-rwx` | Filestore | Premium SSD Filestore -- higher IOPS |
-| `enterprise-rwx` | Filestore | Enterprise-grade Filestore -- highest durability and performance |
-
-### Azure
-| Storage Class | Driver | Description |
-|---------------|--------|-------------|
-| `azurefile` | `file.csi.azure.com` | Azure Files -- standard tier |
-| `azurefile-premium` | `file.csi.azure.com` | Azure Files -- premium SSD tier |
-| `azureblob-nfs-premium` | `blob.csi.azure.com` | Azure Blob NFS -- premium |
-| `azureblob-fuse-premium` | `blob.csi.azure.com` | Azure Blob FUSE -- premium |
-
-**To discover available storage classes on a cluster**, see `references/cluster-discovery.md` or check the cluster details:
-
-```bash
-# Via MCP
-tfy_clusters_list(cluster_id="CLUSTER_ID")
-
-# Via Direct API
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
+For storage class tables by cloud provider (AWS, GCP, Azure) and discovery commands, see `references/volume-storage-classes.md`.
 
 </context>
 
@@ -442,76 +406,11 @@ cache_volume:
 
 ## Static Volume Setup
 
-For mounting pre-existing cloud storage as Kubernetes PersistentVolumes.
-
-### AWS EFS
-
-1. Install the EFS CSI driver on the cluster
-2. Create an EFS access point with proper permissions (UID:1000, GID:1000)
-3. Create the PersistentVolume in Kubernetes referencing `file_system_id::access_point_id`
-4. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-### AWS S3 (via CSI)
-
-1. Configure IAM policies for S3 access
-2. Create a PersistentVolume with the `s3.csi.aws.com` driver and bucket name in `volumeAttributes`
-3. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-### GCP GCS (via GCS Fuse)
-
-1. Enable the GCS Fuse CSI driver on the GKE cluster
-2. Configure IAM service account with `storage.objectAdmin` role
-3. Create a Kubernetes ServiceAccount with workload identity annotation
-4. Create the PersistentVolume with `gcsfuse.csi.storage.gke.io` driver
-5. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-### Azure Files / Blob
-
-1. Ensure the Azure CSI drivers are installed on the AKS cluster
-2. Create the Azure storage resource (File Share or Blob container)
-3. Create the PersistentVolume referencing the Azure resource
-4. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-**Note:** Static volume setup requires Kubernetes cluster access. If the user does not have cluster admin permissions, direct them to their platform administrator.
+For detailed setup instructions for AWS EFS, AWS S3, GCP GCS Fuse, and Azure Files/Blob, see `references/static-volume-setup.md`.
 
 ## Volume Browser
 
-TrueFoundry provides an optional Volume Browser -- a web-based file manager UI for browsing, uploading, downloading, and managing files inside a volume without SSH access.
-
-### Volume Browser Configuration
-
-The `volume_browser` object is optional on the volume manifest. Omit it entirely to disable.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `username` | string | No | Login username for the browser UI (defaults to `admin`) |
-| `password_secret_fqn` | string | No | FQN of a TrueFoundry secret containing the browser password. Create the secret first using the `secrets` skill. Format: `cluster:workspace:secret-name` |
-| `endpoint` | object | **Yes** (if volume_browser is set) | Public endpoint where the browser will be served |
-| `endpoint.host` | string | **Yes** | Hostname (e.g. the cluster's base domain). Get available hosts from the cluster details. |
-| `endpoint.path` | string | No | URL path prefix (e.g. `/my-volume/`). Defaults to `/` |
-| `service_account` | string | No | Kubernetes ServiceAccount for the browser pod. Defaults to `default` |
-
-### Setting Up Volume Browser
-
-1. **Create a password secret** (if the user doesn't have one):
-   - Use the `secrets` skill to create a secret containing the desired password
-   - Note the secret FQN (e.g. `my-cluster:my-workspace:vol-browser-pw`)
-
-2. **Get the cluster's base domain** for the endpoint host:
-   ```bash
-   # Via MCP
-   tfy_clusters_list(cluster_id="CLUSTER_ID")
-
-   # Via Direct API
-   $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-   ```
-   Look for the cluster's base domain in the response (e.g. `my-cluster.example.truefoundry.com`).
-
-3. **Include `volume_browser` in the volume manifest** -- see API examples above in "Creating a Volume".
-
-### Volume Browser Access
-
-Once enabled, the Volume Browser is accessible at `https://{endpoint.host}{endpoint.path}`. Users log in with the configured username and password.
+For Volume Browser configuration fields, setup steps, and access instructions, see `references/volume-browser-setup.md`.
 
 </instructions>
 

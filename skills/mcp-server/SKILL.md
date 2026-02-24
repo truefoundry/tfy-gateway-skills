@@ -1,6 +1,6 @@
 ---
 name: mcp-server
-description: This skill should be used when the user asks "deploy MCP server", "host MCP server", "MCP deployment", "deploy tool server", "model context protocol", "deploy stdio server as HTTP", "host my tools remotely", "deploy npx MCP package", "deploy uvx MCP package", "run MCP server in cloud", "MCP gateway setup", or wants to deploy an MCP server on TrueFoundry as a hosted HTTP service.
+description: Deploys MCP (Model Context Protocol) servers on TrueFoundry. Converts stdio-based MCP servers (npm/uvx) into hosted HTTP services via mcp-proxy. NOT for regular services (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
@@ -12,12 +12,9 @@ allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 
 Deploy MCP (Model Context Protocol) servers on TrueFoundry. Convert stdio-based MCP servers (npm/uvx packages) into hosted HTTP services using mcp-proxy.
 
-## When to Use
+## Scope
 
-- User asks "deploy MCP server", "host my MCP server"
-- User wants to make a local MCP server available over HTTP
-- User has an npx/uvx MCP server they want to deploy to the cloud
-- User asks about MCP gateway integration
+Deploy stdio-based MCP servers (npm/uvx packages or custom) as hosted HTTP services on TrueFoundry using mcp-proxy.
 
 ## When NOT to Use
 
