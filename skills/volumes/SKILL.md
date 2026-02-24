@@ -135,21 +135,49 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 
 ### Before Creating
 
-**ALWAYS confirm with the user before creating a volume:**
+**ALWAYS ask the user these questions in order:**
 
-1. **Volume name** -- What should the volume be called?
-2. **Size** -- How much storage? (in Gi, e.g. `50Gi`). Cannot be reduced later.
-3. **Storage class** -- Which storage class? Present available options from the cluster.
-4. **Workspace** -- Which workspace? Volumes are workspace-scoped.
+1. **Volume type** -- "Do you want to create a new volume or use an existing Kubernetes PersistentVolume?"
+   - **Create new** → proceed with dynamic volume questions below
+   - **Use existing** → ask for the PersistentVolume name in Kubernetes, then skip to workspace
+2. **Volume name** -- What should the volume be called?
+3. **Size** -- How much storage? (integer in GB, e.g. `50`). Cannot be reduced later.
+4. **Storage class** -- Which storage class? Present available options from the cluster.
+5. **Workspace** -- Which workspace? Volumes are workspace-scoped.
+6. **Volume Browser** -- "Do you want to enable Volume Browser? It provides a web UI to browse and manage files in your volume without SSH." (Optional)
+   - If yes, ask for:
+     - **Endpoint host** -- The hostname where the browser will be accessible (e.g. `my-cluster.example.truefoundry.com`). Present available hosts from the cluster's base domain.
+     - **Endpoint path** -- URL path prefix (optional, defaults to `/`)
+     - **Username** -- Login username for the browser (optional, defaults to `admin`)
+     - **Password secret** -- FQN of a TrueFoundry secret containing the browser password. If user doesn't have one, help them create it using the `secrets` skill first.
 
 Present a summary and ask for confirmation:
 
 ```
 Volume to create:
+  Type:          Create new (dynamic)
   Name:          training-data
-  Size:          100Gi
+  Size:          100 GB
   Storage class: efs-sc
   Workspace:     my-cluster:my-workspace
+  Volume Browser: Enabled
+    Endpoint:    https://my-cluster.example.truefoundry.com/training-data/
+    Username:    admin
+    Password:    (secret: my-cluster:my-workspace:vol-browser-pw)
+
+Note: Size can be expanded later but not reduced.
+Proceed?
+```
+
+For volumes without Volume Browser:
+```
+Volume to create:
+  Type:          Create new (dynamic)
+  Name:          training-data
+  Size:          100 GB
+  Storage class: efs-sc
+  Workspace:     my-cluster:my-workspace
+  Volume Browser: Disabled
 
 Note: Size can be expanded later but not reduced.
 Proceed?
@@ -157,15 +185,58 @@ Proceed?
 
 ### Via MCP
 
+**Create new volume (without Volume Browser):**
+
 ```
 tfy_applications_create_deployment(
     manifest={
-        "kind": "Volume",
+        "type": "volume",
         "name": "my-volume",
-        "volume_config": {
-            "type": "new",
-            "size": "100Gi",
+        "config": {
+            "type": "dynamic",
+            "size": 100,
             "storage_class": "efs-sc"
+        }
+    },
+    options={"workspace_id": "ws-id-here"}
+)
+```
+
+**Create new volume (with Volume Browser):**
+
+```
+tfy_applications_create_deployment(
+    manifest={
+        "type": "volume",
+        "name": "my-volume",
+        "config": {
+            "type": "dynamic",
+            "size": 100,
+            "storage_class": "efs-sc"
+        },
+        "volume_browser": {
+            "username": "admin",
+            "password_secret_fqn": "my-cluster:my-workspace:vol-browser-pw",
+            "endpoint": {
+                "host": "my-cluster.example.truefoundry.com",
+                "path": "/my-volume/"
+            }
+        }
+    },
+    options={"workspace_id": "ws-id-here"}
+)
+```
+
+**Use existing PersistentVolume:**
+
+```
+tfy_applications_create_deployment(
+    manifest={
+        "type": "volume",
+        "name": "my-existing-vol",
+        "config": {
+            "type": "static",
+            "persistent_volume_name": "pv-name-in-k8s"
         }
     },
     options={"workspace_id": "ws-id-here"}
@@ -176,16 +247,42 @@ tfy_applications_create_deployment(
 
 ### Via Direct API
 
+**Create new volume (without Volume Browser):**
+
 ```bash
-# Create a new volume
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "kind": "Volume",
+    "type": "volume",
     "name": "my-volume",
-    "volume_config": {
-      "type": "new",
-      "size": "100Gi",
+    "config": {
+      "type": "dynamic",
+      "size": 100,
       "storage_class": "efs-sc"
+    }
+  },
+  "workspaceId": "ws-id-here"
+}'
+```
+
+**Create new volume (with Volume Browser):**
+
+```bash
+$TFY_API_SH PUT /api/svc/v1/apps '{
+  "manifest": {
+    "type": "volume",
+    "name": "my-volume",
+    "config": {
+      "type": "dynamic",
+      "size": 100,
+      "storage_class": "efs-sc"
+    },
+    "volume_browser": {
+      "username": "admin",
+      "password_secret_fqn": "my-cluster:my-workspace:vol-browser-pw",
+      "endpoint": {
+        "host": "my-cluster.example.truefoundry.com",
+        "path": "/my-volume/"
+      }
     }
   },
   "workspaceId": "ws-id-here"
@@ -197,10 +294,10 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 ```bash
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "kind": "Volume",
+    "type": "volume",
     "name": "my-existing-vol",
-    "volume_config": {
-      "type": "existing",
+    "config": {
+      "type": "static",
       "persistent_volume_name": "pv-name-in-k8s"
     }
   },
@@ -379,15 +476,52 @@ For mounting pre-existing cloud storage as Kubernetes PersistentVolumes.
 
 ## Volume Browser
 
-TrueFoundry provides an optional Volume Browser UI for managing files in a volume without SSH. When creating a volume, this can be enabled by setting a password-protected secret for access.
+TrueFoundry provides an optional Volume Browser -- a web-based file manager UI for browsing, uploading, downloading, and managing files inside a volume without SSH access.
+
+### Volume Browser Configuration
+
+The `volume_browser` object is optional on the volume manifest. Omit it entirely to disable.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `username` | string | No | Login username for the browser UI (defaults to `admin`) |
+| `password_secret_fqn` | string | No | FQN of a TrueFoundry secret containing the browser password. Create the secret first using the `secrets` skill. Format: `cluster:workspace:secret-name` |
+| `endpoint` | object | **Yes** (if volume_browser is set) | Public endpoint where the browser will be served |
+| `endpoint.host` | string | **Yes** | Hostname (e.g. the cluster's base domain). Get available hosts from the cluster details. |
+| `endpoint.path` | string | No | URL path prefix (e.g. `/my-volume/`). Defaults to `/` |
+| `service_account` | string | No | Kubernetes ServiceAccount for the browser pod. Defaults to `default` |
+
+### Setting Up Volume Browser
+
+1. **Create a password secret** (if the user doesn't have one):
+   - Use the `secrets` skill to create a secret containing the desired password
+   - Note the secret FQN (e.g. `my-cluster:my-workspace:vol-browser-pw`)
+
+2. **Get the cluster's base domain** for the endpoint host:
+   ```bash
+   # Via MCP
+   tfy_clusters_list(cluster_id="CLUSTER_ID")
+
+   # Via Direct API
+   $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
+   ```
+   Look for the cluster's base domain in the response (e.g. `my-cluster.example.truefoundry.com`).
+
+3. **Include `volume_browser` in the volume manifest** -- see API examples above in "Creating a Volume".
+
+### Volume Browser Access
+
+Once enabled, the Volume Browser is accessible at `https://{endpoint.host}{endpoint.path}`. Users log in with the configured username and password.
 
 </instructions>
 
 <success_criteria>
 
-- The user can list all volumes in their target workspace
+- The agent asked "create new or use existing?" before proceeding
 - The agent has confirmed volume name, size, storage class, and workspace with the user before creating
+- The agent asked whether to enable Volume Browser and collected endpoint/password details if yes
 - The volume was successfully created and is in RUNNING status
+- The user can list all volumes in their target workspace
 - The user can attach the volume to a service or job using the correct volume FQN
 - The agent has advised on appropriate sizing based on the user's use case
 - The user understands the difference between volumes and blob storage for their scenario
@@ -399,6 +533,7 @@ TrueFoundry provides an optional Volume Browser UI for managing files in a volum
 ## Composability
 
 - **Before deploying with volumes**: Use `workspaces` skill to get workspace FQN, then create the volume in the same workspace
+- **With secrets skill**: Create a password secret before enabling Volume Browser (password_secret_fqn is required)
 - **With deploy skill**: After creating a volume, add `VolumeMount` to the service's deploy.py to attach it
 - **With llm-deploy skill**: Use `cache_volume` in LLM deployment manifests for model weight caching
 - **With jobs skill**: Mount volumes to training jobs for checkpointing and shared data access
