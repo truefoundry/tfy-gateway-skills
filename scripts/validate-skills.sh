@@ -20,10 +20,51 @@ require_file_contains() {
   fi
 }
 
+get_frontmatter_block() {
+  local file="$1"
+  awk '
+    $0 == "---" {
+      delimiter_count++
+      if (delimiter_count == 1) {
+        next
+      }
+      if (delimiter_count == 2) {
+        exit
+      }
+    }
+    delimiter_count == 1 {
+      print
+    }
+  ' "$file"
+}
+
 get_frontmatter_value() {
   local file="$1"
   local key="$2"
-  sed -n '1,/^---$/p' "$file" | grep -m1 "^${key}:" | sed "s/^${key}:[[:space:]]*//"
+  get_frontmatter_block "$file" | awk -v key="$key" '
+    $0 ~ "^[[:space:]]*" key ":[[:space:]]*" {
+      sub("^[[:space:]]*" key ":[[:space:]]*", "", $0)
+      print
+      exit
+    }
+  '
+}
+
+get_explicit_only_skills_from_agents() {
+  local agents_file="$1"
+  awk '
+    /The explicit-only skills are:/ {
+      line = $0
+      while (match(line, /`[^`]+`/)) {
+        skill = substr(line, RSTART + 1, RLENGTH - 2)
+        print skill
+        line = substr(line, RSTART + RLENGTH)
+      }
+      exit
+    }
+  ' "$agents_file" \
+    | sort \
+    | paste -sd' ' -
 }
 
 echo "Validating skill frontmatter..."
@@ -61,13 +102,16 @@ done < <(find "$SKILLS_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md | sort)
 
 echo "Validating disable-model-invocation policy..."
 
-expected_disabled="async-service deploy helm llm-deploy multi-service"
+expected_disabled="$(get_explicit_only_skills_from_agents "$REPO_ROOT/AGENTS.md")"
+if [[ -z "$expected_disabled" ]]; then
+  fail "could not parse explicit-only skills from AGENTS.md"
+fi
+
 actual_disabled="$({
   for skill_md in "$SKILLS_DIR"/*/SKILL.md; do
-    # Check both legacy top-level field and current metadata nested field
-    frontmatter="$(sed -n '1,/^---$/p' "$skill_md")"
-    if echo "$frontmatter" | grep -q '^disable-model-invocation:[[:space:]]*true$' || \
-       echo "$frontmatter" | grep -q 'disable-model-invocation:[[:space:]]*"true"'; then
+    # Check both legacy top-level field and current metadata nested field.
+    frontmatter="$(get_frontmatter_block "$skill_md")"
+    if echo "$frontmatter" | grep -Eq "^[[:space:]]*disable-model-invocation:[[:space:]]*(true|\"true\"|'true')([[:space:]]*#.*)?$"; then
       basename "$(dirname "$skill_md")"
     fi
   done
@@ -99,7 +143,7 @@ echo "Validating docs consistency..."
 
 # Verify all three docs mention the explicit-only skills
 for doc in README.md AGENTS.md CLAUDE.md; do
-  for skill in deploy helm llm-deploy async-service multi-service; do
+  for skill in $expected_disabled; do
     if ! grep -q "$skill" "$REPO_ROOT/$doc"; then
       fail "$doc does not mention explicit-only skill: $skill"
     fi

@@ -111,6 +111,7 @@ Before submitting a PR:
 - **Never auto-pick `TFY_WORKSPACE_FQN`** — always ask the user
 - **Keep decision logic inline** in skills — only extract lookup tables and boilerplate to shared refs
 - **Don't hardcode environment-specific values** in examples — use placeholders or env vars
+- **Never commit secrets** (`.env`, API keys, tokens) — use `.env.example` placeholders only
 - **Both MCP and API paths** must be documented in every skill that makes API calls
 
 ## Questions?

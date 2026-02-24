@@ -30,15 +30,49 @@ jobs:
           bash scripts/install.sh --help > /tmp/install_help.txt
           test -s /tmp/install_help.txt
 
-      - name: Install script end-to-end test (Codex target)
+  install-e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - agent: claude
+            config_dir: .claude
+            skills_dir: .claude/skills
+          - agent: cursor
+            config_dir: .cursor
+            skills_dir: .cursor/skills
+          - agent: codex
+            config_dir: .codex
+            skills_dir: .codex/skills
+          - agent: opencode
+            config_dir: .config/opencode
+            skills_dir: .config/opencode/skill
+          - agent: windsurf
+            config_dir: .windsurf
+            skills_dir: .windsurf/skills
+          - agent: cline
+            config_dir: .cline
+            skills_dir: .cline/skills
+          - agent: roo-code
+            config_dir: .roo-code
+            skills_dir: .roo-code/skills
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install script end-to-end test (${{ matrix.agent }})
         run: |
           export HOME="$(mktemp -d)"
-          mkdir -p "$HOME/.codex"
-          bash scripts/install.sh --global --agents codex > /tmp/install_run.txt
-          test -d "$HOME/.codex/skills"
-          skill_count=$(find "$HOME/.codex/skills" -mindepth 1 -maxdepth 1 -type d -name 'truefoundry-*' | wc -l | tr -d ' ')
+          mkdir -p "$HOME/${{ matrix.config_dir }}"
+          bash scripts/install.sh --global --agents "${{ matrix.agent }}" > /tmp/install_run_${{ matrix.agent }}.txt
+
+          target_dir="$HOME/${{ matrix.skills_dir }}"
+          test -d "$target_dir"
+
+          skill_count=$(find "$target_dir" -mindepth 1 -maxdepth 1 -type d -name 'truefoundry-*' | wc -l | tr -d ' ')
           expected_count=$(find "$PWD/skills" -mindepth 1 -maxdepth 1 -type d -not -name '_*' | wc -l | tr -d ' ')
           test "$skill_count" = "$expected_count"
-          test -L "$HOME/.codex/skills/truefoundry-status/scripts"
-          test -L "$HOME/.codex/skills/truefoundry-status/references"
-          test -x "$HOME/.codex/skills/_shared/scripts/tfy-api.sh"
+
+          test -L "$target_dir/truefoundry-status/scripts"
+          test -L "$target_dir/truefoundry-status/references"
+          test -x "$target_dir/_shared/scripts/tfy-api.sh"

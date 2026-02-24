@@ -9,7 +9,9 @@ set -euo pipefail
 
 REPO="truefoundry/tfy-agent-skills"
 BRANCH="main"
-TARBALL_URL="https://github.com/$REPO/archive/refs/heads/$BRANCH.tar.gz"
+DEFAULT_REF="$BRANCH"
+SOURCE_REF="${TFY_SKILLS_REF:-$DEFAULT_REF}"
+EXPECTED_SHA256="${TFY_SKILLS_SHA256:-}"
 
 # ── Colours ──────────────────────────────────────────────────────────────────
 BOLD=$'\033[1m'  DIM=$'\033[2m'
@@ -57,23 +59,33 @@ SHARED_REFS=( "references/api-endpoints.md" "references/deploy-template.py" "ref
 # ── Parse args ───────────────────────────────────────────────────────────────
 MODE=""            # "" = auto (global + local if applicable), "global", "local"
 FILTER_AGENTS=""   # comma-separated agent names to restrict to
+REF_SET_BY_ARG=0
+SHA_SET_BY_ARG=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --global) MODE="global"; shift ;;
     --local)  MODE="local";  shift ;;
     --agents) FILTER_AGENTS="$2"; shift 2 ;;
+    --ref) SOURCE_REF="$2"; REF_SET_BY_ARG=1; shift 2 ;;
+    --sha256) EXPECTED_SHA256="$2"; SHA_SET_BY_ARG=1; shift 2 ;;
     --help|-h)
       cat <<EOF
-Usage: install.sh [--global] [--local] [--agents claude,cursor,codex]
+Usage: install.sh [--global] [--local] [--agents claude,cursor,codex] [--ref REF] [--sha256 SHA256]
 
 Options:
   --global         Install to ~/.{agent}/skills/ only
   --local          Install to ./{agent}/skills/ in current directory only
   --agents LIST    Comma-separated agent names: claude,cursor,codex,opencode,windsurf,cline,roo-code
+  --ref REF        Git ref to install from (branch, tag, or commit SHA)
+  --sha256 HASH    Verify downloaded tarball SHA256 before extraction
 
 Without flags, installs globally to all detected agents,
 plus locally if agent config dirs exist in the current directory.
+
+Environment:
+  TFY_SKILLS_REF     Default ref when --ref is not provided (default: $DEFAULT_REF)
+  TFY_SKILLS_SHA256  Expected tarball SHA256 when --sha256 is not provided
 EOF
       exit 0 ;;
     *) error "Unknown option: $1"; exit 1 ;;
@@ -87,6 +99,37 @@ agent_allowed() {
   echo ",$FILTER_AGENTS," | grep -qi ",$name,"
 }
 
+sha256_of_file() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{print tolower($1)}'
+    return 0
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{print tolower($1)}'
+    return 0
+  fi
+  if command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$file" | sed -E 's/^.*= //' | tr '[:upper:]' '[:lower:]'
+    return 0
+  fi
+  return 1
+}
+
+download_to_file() {
+  local url="$1"
+  local output_file="$2"
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$url" -o "$output_file"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$output_file" "$url"
+  else
+    error "Neither curl nor wget found. Install one and retry."
+    exit 1
+  fi
+}
+
 # ── Download source ──────────────────────────────────────────────────────────
 get_source() {
   # If running from inside the repo, use local files
@@ -96,6 +139,9 @@ get_source() {
     local repo_root
     repo_root="$(cd "$script_dir/.." 2>/dev/null && pwd)" || true
     if [ -d "$repo_root/skills/_shared" ]; then
+      if [ "$REF_SET_BY_ARG" -eq 1 ] || [ "$SHA_SET_BY_ARG" -eq 1 ] || [ -n "${TFY_SKILLS_REF:-}" ] || [ -n "${TFY_SKILLS_SHA256:-}" ]; then
+        warn "Using local repo source; --ref/--sha256 and TFY_SKILLS_REF/TFY_SKILLS_SHA256 are ignored."
+      fi
       info "Installing from local repo: ${CYAN}$repo_root${NC}" >&2
       echo "$repo_root"
       return 0
@@ -103,21 +149,34 @@ get_source() {
   fi
 
   # Download tarball (no git required)
-  info "Downloading from ${CYAN}github.com/$REPO${NC}..."
+  local tarball_url="https://codeload.github.com/$REPO/tar.gz/$SOURCE_REF"
+  info "Downloading ${CYAN}$REPO${NC} ref ${CYAN}$SOURCE_REF${NC}..."
   local tmpdir
   tmpdir=$(mktemp -d)
   trap 'rm -rf "$tmpdir"' EXIT
 
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$TARBALL_URL" | tar xz -C "$tmpdir"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO- "$TARBALL_URL" | tar xz -C "$tmpdir"
-  else
-    error "Neither curl nor wget found. Install one and retry."
-    exit 1
+  local tarball="$tmpdir/source.tar.gz"
+  download_to_file "$tarball_url" "$tarball"
+
+  if [ -n "$EXPECTED_SHA256" ]; then
+    local actual_sha256 expected_sha256
+    expected_sha256="$(printf '%s' "$EXPECTED_SHA256" | tr '[:upper:]' '[:lower:]')"
+    if ! actual_sha256="$(sha256_of_file "$tarball")"; then
+      error "No SHA256 tool found (need sha256sum, shasum, or openssl) for verification."
+      exit 1
+    fi
+    if [ "$actual_sha256" != "$expected_sha256" ]; then
+      error "SHA256 mismatch for downloaded tarball."
+      error "Expected: $expected_sha256"
+      error "Actual:   $actual_sha256"
+      exit 1
+    fi
+    ok "SHA256 verified."
   fi
 
-  # GitHub tarballs extract to {repo}-{branch}/
+  tar xz -f "$tarball" -C "$tmpdir"
+
+  # GitHub tarballs extract to a single top-level directory.
   local extracted
   extracted=$(find "$tmpdir" -mindepth 1 -maxdepth 1 -type d | head -1)
   if [ -z "$extracted" ] || [ ! -d "$extracted/skills" ]; then

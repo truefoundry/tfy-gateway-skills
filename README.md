@@ -12,7 +12,14 @@ export TFY_BASE_URL="https://your-org.truefoundry.cloud"
 export TFY_API_KEY="tfy-..."
 ```
 
+Keep secrets local only. Do not commit `.env` or API keys to Git.
+
 Restart your agent, then ask things like *"deploy my FastAPI app"*, *"show logs for my-service"*, or *"what's deployed?"*
+
+Example workflow:
+1. Ask: `is truefoundry connected?` (uses `status`)
+2. Ask: `what workspaces are available?` (uses `workspaces`)
+3. Ask: `show logs for my-service` (uses `logs`)
 
 ## Skills
 
