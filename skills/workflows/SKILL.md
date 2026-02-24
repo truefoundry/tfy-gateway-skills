@@ -69,18 +69,17 @@ from truefoundry.deploy import Resources
 # Define task configuration
 task_config = PythonTaskConfig(
     image=TaskPythonBuild(
-        python_version="3.11",
+        python_version="<PYTHON_VERSION>",           # ← ask user (e.g., "3.11")
         pip_packages=[
             "truefoundry[workflow]",
-            "pandas",
-            "scikit-learn",
+            # ← ask user for required packages
         ],
     ),
     resources=Resources(
-        cpu_request=0.5,
-        cpu_limit=1.0,
-        memory_request=512,
-        memory_limit=1024,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        cpu_limit=<CPU_LIMIT>,                       # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
+        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
     ),
 )
 
@@ -130,40 +129,36 @@ from truefoundry.deploy import Resources
 # CPU task
 cpu_task_config = PythonTaskConfig(
     image=TaskPythonBuild(
-        python_version="3.11",
+        python_version="<PYTHON_VERSION>",           # ← ask user
         pip_packages=[
             "truefoundry[workflow]",
-            "pandas==2.1.0",
-            "numpy",
+            # ← ask user for required packages
         ],
-        # Or use a requirements file:
-        # requirements_path="requirements.txt",
     ),
     resources=Resources(
-        cpu_request=0.5,
-        cpu_limit=1.0,
-        memory_request=512,
-        memory_limit=1024,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        cpu_limit=<CPU_LIMIT>,                       # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
+        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
     ),
 )
 
 # GPU task (for training or inference steps)
 gpu_task_config = PythonTaskConfig(
     image=TaskPythonBuild(
-        python_version="3.11",
+        python_version="<PYTHON_VERSION>",           # ← ask user
         pip_packages=[
             "truefoundry[workflow]",
-            "torch",
-            "transformers",
+            # ← ask user for required packages
         ],
     ),
     resources=Resources(
-        cpu_request=2.0,
-        cpu_limit=4.0,
-        memory_request=8192,
-        memory_limit=16384,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        cpu_limit=<CPU_LIMIT>,                       # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
+        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
         devices=[
-            GPUDevice(name="T4", count=1),
+            GPUDevice(name="<GPU_TYPE>", count=<GPU_COUNT>),  # ← ask user
         ],
     ),
 )
@@ -184,12 +179,12 @@ For tasks that need a pre-built Docker image instead of a Python build:
 from truefoundry.workflow import task, ContainerTask
 
 container_task = ContainerTask(
-    name="my-container-task",
-    image="my-registry/my-image:latest",
-    command=["python", "run.py"],
+    name="<TASK_NAME>",                              # ← ask user
+    image="<IMAGE_URI>",                             # ← ask user
+    command=["python", "<SCRIPT>"],                  # ← ask user
     resources=Resources(
-        cpu_request=1.0,
-        memory_request=2048,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
     ),
 )
 ```
@@ -336,9 +331,9 @@ tfy deploy workflow \
 from truefoundry.workflow import WorkflowDeployment
 
 deployment = WorkflowDeployment(
-    name="my-ml-pipeline",
-    workflow_file="workflow.py",
-    workspace_fqn="your-workspace-fqn",
+    name="<WORKFLOW_NAME>",                          # ← ask user
+    workflow_file="<WORKFLOW_FILE>",                  # ← ask user (e.g., "workflow.py")
+    workspace_fqn="<WORKSPACE_FQN>",                 # ← ask user, never auto-pick
 )
 deployment.deploy()
 ```

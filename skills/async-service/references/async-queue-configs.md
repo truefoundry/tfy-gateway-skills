@@ -51,7 +51,7 @@ To deploy NATS on your cluster, use the `helm` skill:
     "source": {
       "type": "oci-repo",
       "version": "latest",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/nats"
+      "oci_chart_url": "oci://REGISTRY/NATS_CHART"
     },
     "values": {
       "jetstream": {"enabled": true}
@@ -73,7 +73,7 @@ To deploy NATS on your cluster, use the `helm` skill:
 }
 ```
 
-To deploy Kafka on your cluster, use the `helm` skill with the Bitnami Kafka chart (`oci://registry-1.docker.io/bitnamicharts/kafka`).
+To deploy Kafka on your cluster, use the `helm` skill. Ask the user for the chart source URL.
 
 ## Google AMQP
 
@@ -92,11 +92,11 @@ If the user does not have a queue provisioned, use the `helm` skill to deploy on
 
 ### Common Queue Charts
 
-| Queue | Chart | OCI URL | Default Port |
-|-------|-------|---------|-------------|
-| NATS | `nats` | `oci://registry-1.docker.io/bitnamicharts/nats` | 4222 |
-| Kafka | `kafka` | `oci://registry-1.docker.io/bitnamicharts/kafka` | 9092 |
-| RabbitMQ | `rabbitmq` | `oci://registry-1.docker.io/bitnamicharts/rabbitmq` | 5672 |
+| Queue | Default Port | Notes |
+|-------|-------------|-------|
+| NATS | 4222 | Ask user for chart source URL |
+| Kafka | 9092 | Ask user for chart source URL |
+| RabbitMQ | 5672 | Ask user for chart source URL |
 
 **For AWS SQS or Google AMQP**, the queue is a managed cloud service -- no Helm deployment needed. The user provides the queue URL and credentials.
 

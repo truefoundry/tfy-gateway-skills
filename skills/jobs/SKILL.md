@@ -39,12 +39,50 @@ Same as deploy skill: `TFY_BASE_URL`, `TFY_API_KEY`, `TFY_WORKSPACE_FQN` require
 
 <instructions>
 
-### Step 1: Analyze the Job
+### Step 1: User Confirmation Checklist
 
-- What does the job do? (training, batch processing, data pipeline, maintenance)
-- One-time or scheduled?
-- Resource requirements (CPU/GPU/memory)
-- Expected duration
+**Before writing any code, walk through this checklist with the user and confirm every value.**
+
+### Basic Configuration
+- [ ] **Job name** — What to call this job
+- [ ] **Job type** — One-time (manual trigger) or scheduled (cron)?
+- [ ] **Environment** — Dev, staging, or production?
+
+### Image Source
+- [ ] **Image source** — Source code (local with PythonBuild), source code (Dockerfile), or pre-built Docker image?
+- [ ] **If PythonBuild:**
+  - [ ] **Command** — Entrypoint command (e.g., `python train.py`)
+  - [ ] **Python version** — Which Python version? (e.g., 3.11)
+  - [ ] **Requirements path** — Path to requirements.txt
+- [ ] **If Dockerfile:**
+  - [ ] **Dockerfile path** — Path to Dockerfile (e.g., `./Dockerfile`)
+  - [ ] **Command** — Entrypoint command
+  - [ ] **Build arguments** — Any Docker build args (optional)
+- [ ] **If Docker image:**
+  - [ ] **Image URI** — Full image URI (e.g., `registry/image:tag`)
+  - [ ] **Command** — Container entrypoint command
+
+### Resources
+- [ ] **Device type** — CPU only, or GPU? If GPU, which type?
+- [ ] **CPU** — Request and limit
+- [ ] **Memory** — Request and limit in MB
+- [ ] **Storage** — Ephemeral storage request and limit in MB
+- [ ] **Capacity type** — Any, Spot, or On Demand?
+
+### Scheduling (if cron)
+- [ ] **Cron schedule** — Cron expression (minute hour day month weekday)
+- [ ] **Concurrency policy** — Forbid, Allow, or Replace if runs overlap?
+
+### Retry & Timeout
+- [ ] **Retries** — Number of retries on failure (default: 0)
+- [ ] **Timeout** — Max job duration in seconds (optional)
+
+### Environment & Secrets
+- [ ] **Environment variables** — Key-value pairs
+- [ ] **Secrets** — TrueFoundry secret groups to mount
+- [ ] **Volume mounts** — Persistent volumes to attach (optional)
+
+**Do NOT deploy with hardcoded defaults without asking. Every `<PLACEHOLDER>` in the templates below MUST be replaced with a value confirmed by the user. If unsure about any field, ask — never assume.**
 
 ### Step 2: Create deploy.py
 
@@ -61,56 +99,67 @@ from truefoundry.deploy import Build, Job, PythonBuild, Resources, LocalSource, 
 
 # Option A: From local code with PythonBuild
 job = Job(
-    name="my-job",
+    name="<JOB_NAME>",                              # ← ask user
     image=Build(
         build_source=LocalSource(local_build=False),
         build_spec=PythonBuild(
-            command="python train.py",
-            python_version="3.11",
-            requirements_path="requirements.txt",
+            command="<COMMAND>",                     # ← ask user (e.g., "python train.py")
+            python_version="<PYTHON_VERSION>",       # ← ask user (e.g., "3.11")
+            requirements_path="<REQUIREMENTS_PATH>", # ← ask user (e.g., "requirements.txt")
         ),
     ),
     resources=Resources(
-        cpu_request=2, cpu_limit=4,
-        memory_request=4000, memory_limit=8000,
-        ephemeral_storage_request=1000, ephemeral_storage_limit=2000,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        cpu_limit=<CPU_LIMIT>,                       # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
+        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
+        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user (MB)
+        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user (MB)
     ),
     env={
-        "ENVIRONMENT": "production",
+        # ← ask user for environment variables
     },
 )
 
-# Option B: From Docker image
+# Option B: From Dockerfile
 job = Job(
-    name="my-job",
+    name="<JOB_NAME>",                              # ← ask user
     image=Build(
         build_spec=DockerFileBuild(
-            dockerfile_path="Dockerfile",
-            command="python train.py",
+            dockerfile_path="<DOCKERFILE_PATH>",     # ← ask user
+            command="<COMMAND>",                      # ← ask user
         ),
         build_source=LocalSource(local_build=False),
     ),
     resources=Resources(
-        cpu_request=2, cpu_limit=4,
-        memory_request=4000, memory_limit=8000,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        cpu_limit=<CPU_LIMIT>,                       # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
+        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
+        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user (MB)
+        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user (MB)
     ),
 )
 
 # Option C: Pre-built image
 from truefoundry.deploy import Image
 job = Job(
-    name="my-job",
+    name="<JOB_NAME>",                              # ← ask user
     image=Image(
-        image_uri="my-registry/my-image:latest",
-        command="python train.py",
+        image_uri="<IMAGE_URI>",                     # ← ask user
+        command="<COMMAND>",                          # ← ask user
     ),
     resources=Resources(
-        cpu_request=2, cpu_limit=4,
-        memory_request=4000, memory_limit=8000,
+        cpu_request=<CPU_REQUEST>,                   # ← ask user
+        cpu_limit=<CPU_LIMIT>,                       # ← ask user
+        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
+        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
+        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user (MB)
+        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user (MB)
     ),
 )
 
-job.deploy(workspace_fqn="your-workspace-fqn")
+job.deploy(workspace_fqn="<WORKSPACE_FQN>")          # ← ask user, never auto-pick
 ```
 
 ### Scheduled Jobs (Cron)
@@ -119,10 +168,10 @@ job.deploy(workspace_fqn="your-workspace-fqn")
 from truefoundry.deploy import Job, CronTrigger
 
 job = Job(
-    name="nightly-retrain",
+    name="<JOB_NAME>",                              # ← ask user
     # ... image and resources ...
     trigger=CronTrigger(
-        schedule="0 2 * * *",  # 2 AM daily
+        schedule="<CRON_EXPRESSION>",                # ← ask user
     ),
 )
 ```
@@ -143,9 +192,9 @@ Common schedules:
 from truefoundry.deploy import Job, ManualTrigger
 
 job = Job(
-    name="my-job",
+    name="<JOB_NAME>",                              # ← ask user
     trigger=ManualTrigger(
-        num_retries=3,
+        num_retries=<NUM_RETRIES>,                   # ← ask user
     ),
     # ... rest of config
 )
@@ -177,9 +226,11 @@ Then set command: `python train.py --epochs 50 --batch-size 64`
 from truefoundry.deploy import Resources, NvidiaGPU, GPUType
 
 resources = Resources(
-    cpu_request=4, cpu_limit=8,
-    memory_request=16000, memory_limit=32000,
-    devices=[NvidiaGPU(name=GPUType.A10_24GB, count=1)],
+    cpu_request=<CPU_REQUEST>,                       # ← ask user
+    cpu_limit=<CPU_LIMIT>,                           # ← ask user
+    memory_request=<MEMORY_REQUEST>,                 # ← ask user (MB)
+    memory_limit=<MEMORY_LIMIT>,                     # ← ask user (MB)
+    devices=[NvidiaGPU(name=GPUType.<GPU_TYPE>, count=<GPU_COUNT>)],  # ← ask user
 )
 ```
 
@@ -189,12 +240,12 @@ resources = Resources(
 from truefoundry.deploy import Job, VolumeMount
 
 job = Job(
-    name="training-job",
+    name="<JOB_NAME>",                              # ← ask user
     # ... image, resources ...
     mounts=[
         VolumeMount(
-            mount_path="/data",
-            volume_fqn="your-volume-fqn",
+            mount_path="<MOUNT_PATH>",               # ← ask user
+            volume_fqn="<VOLUME_FQN>",               # ← ask user
         ),
     ],
 )
@@ -213,7 +264,7 @@ After deployment, trigger manually via API:
 
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
-$TFY_API_SH POST /api/svc/v1/jobs/JOB_ID/runs -d '{}'
+$TFY_API_SH POST /api/svc/v1/jobs/trigger '{"applicationId":"JOB_APP_ID"}'
 ```
 
 ## After Deploy — Report Status
@@ -243,7 +294,7 @@ Schedule: {cron expression if scheduled, or "Manual trigger"}
 
 To trigger the job:
   - Dashboard: Click "Run Job" on the job page
-  - API: POST /api/svc/v1/jobs/{JOB_ID}/runs
+  - API: POST /api/svc/v1/jobs/trigger with {"applicationId":"JOB_APP_ID"}
 
 To monitor runs:
   - Use the job monitoring commands below
@@ -258,26 +309,28 @@ To monitor runs:
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
 
-$TFY_API_SH POST /api/svc/v1/applications -d '{
-  "name": "my-batch-job",
-  "type": "job",
-  "workspace_fqn": "WORKSPACE_FQN",
+# First, get workspace ID from FQN
+$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
+
+# Then deploy
+$TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "name": "my-batch-job",
-    "components": {
-      "image": {
-        "type": "image",
-        "image_uri": "python:3.11-slim",
-        "command": "python -c \"print('"'"'Hello from TrueFoundry Job!'"'"')\""
-      },
-      "resources": {
-        "cpu_request": 0.5,
-        "cpu_limit": 1,
-        "memory_request": 500,
-        "memory_limit": 1000
-      }
-    }
-  }
+    "name": "<JOB_NAME>",
+    "type": "job",
+    "image": {
+      "type": "image",
+      "image_uri": "<IMAGE_URI>",
+      "command": "<COMMAND>"
+    },
+    "resources": {
+      "cpu_request": <CPU_REQUEST>,
+      "cpu_limit": <CPU_LIMIT>,
+      "memory_request": <MEMORY_REQUEST>,
+      "memory_limit": <MEMORY_LIMIT>
+    },
+    "workspace_fqn": "<WORKSPACE_FQN>"
+  },
+  "workspaceId": "<WORKSPACE_ID>"
 }'
 ```
 
@@ -334,7 +387,7 @@ $TFY_API_SH GET '/api/svc/v1/jobs/JOB_ID/runs?sortBy=createdAt&searchPrefix=my-r
 Job Runs for data-pipeline:
 | Run Name       | Status    | Started            | Duration |
 |----------------|-----------|--------------------|---------| 
-| run-20260210-1 | SUCCEEDED | 2026-02-10 09:00   | 5m 32s  |
+| run-20260210-1 | FINISHED  | 2026-02-10 09:00   | 5m 32s  |
 | run-20260210-2 | FAILED    | 2026-02-10 10:00   | 1m 05s  |
 | run-20260210-3 | RUNNING   | 2026-02-10 11:00   | —       |
 ```

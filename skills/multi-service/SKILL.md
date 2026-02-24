@@ -86,9 +86,9 @@ For each discovered service, determine its **type**:
 
 | Type | How to Detect | Deploy Method |
 |------|--------------|---------------|
-| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (Bitnami) |
-| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (Bitnami) |
-| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (Bitnami) |
+| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (ask user for chart source) |
+| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (ask user for chart source) |
+| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (ask user for chart source) |
 | **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service |
 | **LLM** | Image contains `vllm`, `tgi`, `triton`, `ollama` | `llm-deploy` skill |
 | **MCP Server** | Exposes `/mcp` endpoint, uses MCP protocol | `mcp-server` skill |
@@ -247,16 +247,9 @@ Walk the dependency graph level by level. **Wait for each level to be healthy be
 
 ### For Infrastructure (Helm Charts)
 
-Use the `helm` skill approach. All charts use `PUT /api/svc/v1/apps` with `kind: HelmChart` and `source.repo_url: https://charts.bitnami.com/bitnami`. Common charts:
+Use the `helm` skill approach. All charts use `PUT /api/svc/v1/apps` with `type: "helm"`. **Ask the user for the chart source URL, chart name, and version.** Do not assume a specific chart registry.
 
-| Service | `chart_name` | Key Values |
-|---------|-------------|------------|
-| PostgreSQL | `postgresql` (v16.4.1) | `auth.postgresPassword`, `auth.database`, `primary.persistence.size: "10Gi"` |
-| Redis | `redis` (v20.6.2) | `auth.password`, `architecture: "standalone"` |
-| RabbitMQ | `rabbitmq` (v15.1.2) | `auth.username`, `auth.password` |
-| MongoDB | `mongodb` | `auth.rootUser`, `auth.rootPassword` |
-
-Name each chart `APP_NAME-{service}` (e.g., `myapp-db`, `myapp-redis`). See the `helm` skill for full manifest examples.
+Name each chart `APP_NAME-{service}` (e.g., `myapp-db`, `myapp-redis`). See the `helm` skill for full manifest examples and source type formats (`oci-repo`, `helm-repo`, `git-helm-repo`).
 
 ### Verify Infrastructure is Running
 
@@ -275,32 +268,32 @@ Deploy using the Service manifest with wired env vars:
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
     "kind": "Service",
-    "name": "APP_NAME-backend",
+    "name": "<APP_NAME>-<SERVICE_NAME>",
     "image": {
       "type": "image",
-      "image_uri": "PREBUILT_IMAGE_OR_REGISTRY_IMAGE",
-      "command": "uvicorn main:app --host 0.0.0.0 --port 8000"
+      "image_uri": "<IMAGE_URI>",
+      "command": "<COMMAND>"
     },
     "ports": [
       {
-        "port": 8000,
-        "protocol": "TCP",
-        "expose": true,
-        "host": "APP_NAME-backend-WS.BASE_DOMAIN",
+        "port": <PORT>,
+        "protocol": "<PROTOCOL>",
+        "expose": <EXPOSE>,
+        "host": "<APP_NAME>-<SERVICE_NAME>-<WORKSPACE>.<BASE_DOMAIN>",
         "app_protocol": "http"
       }
     ],
     "resources": {
-      "cpu_request": 0.5,
-      "cpu_limit": 1.0,
-      "memory_request": 512,
-      "memory_limit": 1024
+      "cpu_request": <CPU_REQUEST>,
+      "cpu_limit": <CPU_LIMIT>,
+      "memory_request": <MEMORY_REQUEST>,
+      "memory_limit": <MEMORY_LIMIT>
     },
     "env": {
       "DATABASE_URL": "postgresql://postgres:PASSWORD@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/DB_NAME",
       "REDIS_URL": "redis://:PASSWORD@APP_NAME-redis-redis-master.NAMESPACE.svc.cluster.local:6379/0"
     },
-    "replicas": { "min": 1, "max": 1 }
+    "replicas": { "min": <MIN_REPLICAS>, "max": <MAX_REPLICAS> }
   },
   "workspaceId": "WORKSPACE_ID"
 }'
@@ -421,7 +414,7 @@ See `references/compose-translation.md` for the full translation reference. Key 
 - **Always scan for compose files first** before asking the user about architecture
 - `build:` services -> TrueFoundry Service with `DockerFileBuild`
 - `image:` services (custom) -> TrueFoundry Service with pre-built image
-- `image:` services (postgres, redis, etc.) -> Helm charts (Bitnami)
+- `image:` services (postgres, redis, etc.) -> Helm charts (ask user for chart source)
 - `depends_on` -> deploy order in the dependency graph
 - `healthcheck` -> TrueFoundry liveness/readiness probes
 - `volumes` -> Helm persistence or TrueFoundry Volumes

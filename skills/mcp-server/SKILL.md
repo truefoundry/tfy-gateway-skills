@@ -37,6 +37,31 @@ MCP servers typically communicate over stdio (standard input/output). TrueFoundr
 
 <instructions>
 
+## User Confirmation Checklist
+
+**Before deploying an MCP server, ALWAYS confirm these with the user:**
+
+### Basic Configuration
+- [ ] **Server name** — What to call this MCP server deployment
+- [ ] **MCP package** — Which MCP server package? (npm package name or Python/uvx package name)
+- [ ] **Package type** — npm (npx) or Python (uvx) or custom Dockerfile?
+- [ ] **Arguments** — Any arguments to pass to the MCP server? (optional)
+
+### Resources
+- [ ] **CPU** — Request and limit
+- [ ] **Memory** — Request and limit in MB
+- [ ] **Storage** — Ephemeral storage request and limit in MB
+
+### Networking
+- [ ] **Expose** — Should the MCP server be publicly accessible?
+- [ ] **Port** — Port number (default: 8000)
+
+### Environment & Secrets
+- [ ] **Environment variables** — API keys and config the MCP server needs (e.g., NOTION_API_KEY, GITHUB_TOKEN)
+- [ ] **Secrets** — Use TrueFoundry secrets for sensitive values
+
+**Do NOT deploy with hardcoded defaults without asking. Every `<PLACEHOLDER>` in the templates below MUST be replaced with a value confirmed by the user. If unsure about any field, ask — never assume.**
+
 ## Deploy npm-based MCP Server (npx)
 
 For MCP servers distributed as npm packages.
@@ -49,27 +74,27 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 TFY_API_SH=~/.claude/skills/truefoundry-mcp-server/scripts/tfy-api.sh
 
 $TFY_API_SH POST /api/svc/v1/applications -d '{
-  "name": "my-mcp-server",
+  "name": "<SERVER_NAME>",
   "type": "service",
   "workspace_fqn": "WORKSPACE_FQN",
   "manifest": {
-    "name": "my-mcp-server",
+    "name": "<SERVER_NAME>",
     "components": {
       "image": {
         "type": "image",
         "image_uri": "node:24",
-        "command": "npx -y mcp-proxy --port 8000 --host 0.0.0.0 --server stream npx -y @your-org/your-mcp-server"
+        "command": "npx -y mcp-proxy --port 8000 --host 0.0.0.0 --server stream npx -y <MCP_PACKAGE>"
       },
       "ports": [
         {"port": 8000, "protocol": "TCP", "app_protocol": "http"}
       ],
       "resources": {
-        "cpu_request": 0.5,
-        "cpu_limit": 1,
-        "memory_request": 512,
-        "memory_limit": 1024,
-        "ephemeral_storage_request": 2000,
-        "ephemeral_storage_limit": 4000
+        "cpu_request": <CPU_REQUEST>,
+        "cpu_limit": <CPU_LIMIT>,
+        "memory_request": <MEMORY_REQUEST>,
+        "memory_limit": <MEMORY_LIMIT>,
+        "ephemeral_storage_request": <STORAGE_REQUEST>,
+        "ephemeral_storage_limit": <STORAGE_LIMIT>
       }
     }
   }
@@ -82,16 +107,16 @@ $TFY_API_SH POST /api/svc/v1/applications -d '{
 from truefoundry.deploy import Service, Image, Port, Resources
 
 service = Service(
-    name="my-mcp-server",
+    name="<SERVER_NAME>",
     image=Image(
         image_uri="node:24",
-        command="npx -y mcp-proxy --port 8000 --host 0.0.0.0 --server stream npx -y @your-org/your-mcp-server",
+        command="npx -y mcp-proxy --port 8000 --host 0.0.0.0 --server stream npx -y <MCP_PACKAGE>",
     ),
     ports=[Port(port=8000, protocol="TCP", app_protocol="http")],
     resources=Resources(
-        cpu_request=0.5, cpu_limit=1,
-        memory_request=512, memory_limit=1024,
-        ephemeral_storage_request=2000, ephemeral_storage_limit=4000,
+        cpu_request=<CPU_REQUEST>, cpu_limit=<CPU_LIMIT>,
+        memory_request=<MEMORY_REQUEST>, memory_limit=<MEMORY_LIMIT>,
+        ephemeral_storage_request=<STORAGE_REQUEST>, ephemeral_storage_limit=<STORAGE_LIMIT>,
     ),
     env={
         # Add any required env vars for the MCP server
@@ -99,7 +124,7 @@ service = Service(
     },
 )
 
-service.deploy(workspace_fqn="your-workspace-fqn")
+service.deploy(workspace_fqn="<WORKSPACE_FQN>")
 ```
 
 ## Deploy Python-based MCP Server (uvx)
@@ -110,27 +135,27 @@ For MCP servers distributed as Python packages.
 
 ```bash
 $TFY_API_SH POST /api/svc/v1/applications -d '{
-  "name": "my-python-mcp",
+  "name": "<SERVER_NAME>",
   "type": "service",
   "workspace_fqn": "WORKSPACE_FQN",
   "manifest": {
-    "name": "my-python-mcp",
+    "name": "<SERVER_NAME>",
     "components": {
       "image": {
         "type": "image",
         "image_uri": "public.ecr.aws/docker/library/python:3.11-slim",
-        "command": "sh -c \"pip install uv mcp-proxy && mcp-proxy --host=0.0.0.0 --port=8000 --server stream uvx your-mcp-package\""
+        "command": "sh -c \"pip install uv mcp-proxy && mcp-proxy --host=0.0.0.0 --port=8000 --server stream uvx <MCP_PACKAGE>\""
       },
       "ports": [
         {"port": 8000, "protocol": "TCP", "app_protocol": "http"}
       ],
       "resources": {
-        "cpu_request": 0.5,
-        "cpu_limit": 1,
-        "memory_request": 512,
-        "memory_limit": 1024,
-        "ephemeral_storage_request": 2000,
-        "ephemeral_storage_limit": 4000
+        "cpu_request": <CPU_REQUEST>,
+        "cpu_limit": <CPU_LIMIT>,
+        "memory_request": <MEMORY_REQUEST>,
+        "memory_limit": <MEMORY_LIMIT>,
+        "ephemeral_storage_request": <STORAGE_REQUEST>,
+        "ephemeral_storage_limit": <STORAGE_LIMIT>
       }
     }
   }
@@ -143,20 +168,20 @@ $TFY_API_SH POST /api/svc/v1/applications -d '{
 from truefoundry.deploy import Service, Image, Port, Resources
 
 service = Service(
-    name="my-python-mcp",
+    name="<SERVER_NAME>",
     image=Image(
         image_uri="public.ecr.aws/docker/library/python:3.11-slim",
-        command='sh -c "pip install uv mcp-proxy && mcp-proxy --host=0.0.0.0 --port=8000 --server stream uvx your-mcp-package"',
+        command='sh -c "pip install uv mcp-proxy && mcp-proxy --host=0.0.0.0 --port=8000 --server stream uvx <MCP_PACKAGE>"',
     ),
     ports=[Port(port=8000, protocol="TCP", app_protocol="http")],
     resources=Resources(
-        cpu_request=0.5, cpu_limit=1,
-        memory_request=512, memory_limit=1024,
-        ephemeral_storage_request=2000, ephemeral_storage_limit=4000,
+        cpu_request=<CPU_REQUEST>, cpu_limit=<CPU_LIMIT>,
+        memory_request=<MEMORY_REQUEST>, memory_limit=<MEMORY_LIMIT>,
+        ephemeral_storage_request=<STORAGE_REQUEST>, ephemeral_storage_limit=<STORAGE_LIMIT>,
     ),
 )
 
-service.deploy(workspace_fqn="your-workspace-fqn")
+service.deploy(workspace_fqn="<WORKSPACE_FQN>")
 ```
 
 ## Deploy Custom MCP Server
@@ -169,7 +194,7 @@ For custom MCP servers you've built yourself:
 from truefoundry.deploy import Service, Build, DockerFileBuild, LocalSource, Port, Resources
 
 service = Service(
-    name="custom-mcp-server",
+    name="<SERVER_NAME>",
     image=Build(
         build_source=LocalSource(local_build=False),
         build_spec=DockerFileBuild(
@@ -178,12 +203,12 @@ service = Service(
     ),
     ports=[Port(port=8000, protocol="TCP", app_protocol="http")],
     resources=Resources(
-        cpu_request=0.5, cpu_limit=1,
-        memory_request=512, memory_limit=1024,
+        cpu_request=<CPU_REQUEST>, cpu_limit=<CPU_LIMIT>,
+        memory_request=<MEMORY_REQUEST>, memory_limit=<MEMORY_LIMIT>,
     ),
 )
 
-service.deploy(workspace_fqn="your-workspace-fqn")
+service.deploy(workspace_fqn="<WORKSPACE_FQN>")
 ```
 
 Example Dockerfile for a custom MCP server:

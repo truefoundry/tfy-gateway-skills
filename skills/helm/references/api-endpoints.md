@@ -77,11 +77,17 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 | GET | `/api/ml/v1/ml-repos` | List ML repos |
 | GET | `/api/ml/v1/ml-repos/{id}` | Get ML repo |
 
+## Models
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/ml/v1/models` | List models (query: fqn, ml_repo_id, name) |
+
 ## Personal Access Tokens
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/svc/v1/personal-access-tokens` | List PATs |
-| POST | `/api/svc/v1/personal-access-tokens` | Create PAT |
+| POST | `/api/svc/v1/personal-access-tokens` | Create PAT (body: name) |
+| DELETE | `/api/svc/v1/personal-access-tokens/{id}` | Delete PAT |
 
 ## API Docs
 - Full reference: `https://truefoundry.com/docs/api-reference`

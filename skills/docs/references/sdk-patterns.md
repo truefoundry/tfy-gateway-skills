@@ -189,7 +189,7 @@ Helm charts are deployed via the API, not the Python SDK.
     "source": {
       "type": "oci-repo",
       "version": "16.7.21",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
+      "oci_chart_url": "oci://REGISTRY/CHART_NAME"
     },
     "values": {},
     "workspace_fqn": "cluster-id:workspace-name"

@@ -49,8 +49,8 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 **Before deploying a Helm chart, ALWAYS confirm these with the user:**
 
-- [ ] **Chart source** — Which chart? (suggest from common charts table)
-- [ ] **Chart registry** — Public (Bitnami, official) or private registry?
+- [ ] **Chart source** — Ask the user which chart and registry they want to use
+- [ ] **Chart registry** — What is the registry URL? (OCI registry, Helm repo, or Git repo)
 - [ ] **Chart version** — Specific version or latest?
 - [ ] **Release name** — What to call this deployment? (default: chart name + random suffix)
 - [ ] **Namespace/Workspace** — Which workspace FQN? (never auto-pick)
@@ -72,26 +72,27 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 For chart sources, OCI URLs, registries, version discovery, and the chart selection guide, see [references/helm-chart-sources.md](references/helm-chart-sources.md).
 
-Key points: TrueFoundry supports `oci-repo` (recommended), `helm-repo`, and `git-helm-repo` source types. Bitnami charts (`oci://registry-1.docker.io/bitnamicharts/{chart}`) are recommended for most use cases.
+Key points: TrueFoundry supports `oci-repo` (recommended), `helm-repo`, and `git-helm-repo` source types. Always ask the user for the chart source. Do not assume or recommend specific chart registries.
 
 ## Deploy Flow
 
 ### 1. Gather Configuration
 
-Ask the user for critical configuration values. For a **PostgreSQL** example:
+Ask the user for the chart source and critical configuration values:
 
 ```
-I'll deploy PostgreSQL to TrueFoundry. Let me confirm a few things:
+I'll deploy a Helm chart to TrueFoundry. Let me confirm a few things:
 
-1. Chart version: Use postgresql 15.x (latest stable)? Or specific version?
-2. Database name: What should the default database be called? (default: postgres)
-3. Password: I'll generate a strong random password. Or do you have a TrueFoundry secret group to reference?
-4. Storage: How much persistent storage? (default: 10Gi for dev, 50Gi+ for prod)
-5. Resources:
-   - CPU: 0.5 cores for dev, 2+ for prod?
-   - Memory: 512Mi for dev, 2Gi+ for prod?
-6. Replicas: 1 for dev, 3+ for prod high availability?
-7. Access: Internal-only (default) or expose externally?
+1. Chart source: What is the chart registry URL? (e.g., an OCI registry URL, Helm repo URL, or Git repo)
+   - If you're unsure, you can search https://artifacthub.io for available charts.
+2. Chart name: What is the chart name? (e.g., postgresql, redis, my-custom-chart)
+3. Chart version: What version should I use? (always pin a specific version for production)
+4. Configuration values: What values do you need to set?
+   - Credentials (passwords, usernames)
+   - Storage size (e.g., 10Gi for dev, 50Gi+ for prod)
+   - Resources (CPU/memory requests and limits)
+   - Replicas (1 for dev, 3+ for prod high availability)
+   - Network access (internal-only or expose externally)
 ```
 
 ### 2. Build HelmRelease Manifest
@@ -101,26 +102,15 @@ Create a TrueFoundry HelmRelease manifest with user-confirmed values:
 ```json
 {
   "manifest": {
-    "name": "postgres-prod",
+    "name": "my-release-name",
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "16.7.21",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://REGISTRY/CHART_NAME"
     },
     "values": {
-      "auth": {
-        "postgresPassword": "GENERATED_OR_SECRET_REF",
-        "database": "myapp"
-      },
-      "primary": {
-        "persistence": { "enabled": true, "size": "50Gi" },
-        "resources": {
-          "requests": { "cpu": "2", "memory": "2Gi" },
-          "limits": { "cpu": "4", "memory": "4Gi" }
-        }
-      },
-      "readReplicas": { "replicaCount": 2 }
+      "YOUR_CHART_VALUES": "See the chart's values.yaml for available options"
     },
     "workspace_fqn": "cluster-id:workspace-name"
   },
@@ -129,6 +119,8 @@ Create a TrueFoundry HelmRelease manifest with user-confirmed values:
 ```
 
 **Note:** `workspaceId` must be the internal ID, not the FQN. Get it from the `workspaces` skill.
+
+> **Note:** The `version` field in `source` is required. Omitting it will cause a validation error. Find the latest version using the chart discovery methods described above.
 
 ### 3. Deploy via MCP or API
 
@@ -141,12 +133,12 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 ```
 tfy_applications_create_deployment(
     manifest={
-        "name": "postgres-prod",
+        "name": "my-release-name",
         "type": "helm",
         "source": {
             "type": "oci-repo",
-            "version": "16.7.21",
-            "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
+            "version": "CHART_VERSION",
+            "oci_chart_url": "oci://REGISTRY/CHART_NAME"
         },
         "values": {...},
         "workspace_fqn": "cluster-id:workspace-name"
@@ -169,22 +161,15 @@ $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 # Then deploy
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "name": "postgres-prod",
+    "name": "my-release-name",
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "16.7.21",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://REGISTRY/CHART_NAME"
     },
     "values": {
-      "auth": {"postgresPassword": "...", "database": "myapp"},
-      "primary": {
-        "persistence": {"enabled": true, "size": "50Gi"},
-        "resources": {
-          "requests": {"cpu": "2", "memory": "2Gi"},
-          "limits": {"cpu": "4", "memory": "4Gi"}
-        }
-      }
+      "YOUR_CHART_VALUES": "See the chart values.yaml for available options"
     },
     "workspace_fqn": "cluster-id:workspace-name"
   },

@@ -90,30 +90,29 @@ A TrueFoundry manifest is a YAML file with a `name`, `type`, and type-specific c
 Deploys a long-running HTTP service.
 
 ```yaml
-name: my-api-service
+name: <SERVICE_NAME>
 type: service
 image:
   type: image
-  image_uri: docker.io/myorg/my-api:latest
+  image_uri: <IMAGE_URI>
 ports:
-  - port: 8000
+  - port: <PORT>
     protocol: TCP
-    expose: true
+    expose: <EXPOSE>
     app_protocol: http
-    host: my-api-service-my-workspace.example.truefoundry.cloud
+    host: <HOST>
 resources:
-  cpu_request: 0.5
-  cpu_limit: 1.0
-  memory_request: 512
-  memory_limit: 1024
-  ephemeral_storage_request: 1024
-  ephemeral_storage_limit: 2048
+  cpu_request: <CPU_REQUEST>
+  cpu_limit: <CPU_LIMIT>
+  memory_request: <MEMORY_REQUEST>
+  memory_limit: <MEMORY_LIMIT>
+  ephemeral_storage_request: <STORAGE_REQUEST>
+  ephemeral_storage_limit: <STORAGE_LIMIT>
 replicas:
-  min: 2
-  max: 5
+  min: <MIN_REPLICAS>
+  max: <MAX_REPLICAS>
 env:
-  DATABASE_URL: postgres://user:pass@db-host:5432/mydb
-  LOG_LEVEL: info
+  <ENV_KEY>: <ENV_VALUE>
 liveness_probe:
   config:
     type: http
@@ -132,30 +131,31 @@ readiness_probe:
   period_seconds: 10
   timeout_seconds: 2
   failure_threshold: 3
-workspace_fqn: cluster-id:workspace-name
+workspace_fqn: <WORKSPACE_FQN>
 ```
+
+> **Note:** The `replicas` field above uses the object format `{min: N, max: N}` which works with `tfy apply` CLI. If deploying via the REST API directly (`PUT /api/svc/v1/apps`), use a plain integer for `replicas` (e.g., `replicas: 2`). The REST API does not accept the min/max object format.
 
 ### Job Manifest
 
 Runs a batch or scheduled workload.
 
 ```yaml
-name: data-pipeline-job
+name: <JOB_NAME>
 type: job
 image:
   type: image
-  image_uri: docker.io/myorg/pipeline:latest
+  image_uri: <IMAGE_URI>
 resources:
-  cpu_request: 1.0
-  cpu_limit: 2.0
-  memory_request: 2048
-  memory_limit: 4096
+  cpu_request: <CPU_REQUEST>
+  cpu_limit: <CPU_LIMIT>
+  memory_request: <MEMORY_REQUEST>
+  memory_limit: <MEMORY_LIMIT>
 env:
-  INPUT_BUCKET: s3://my-data/input
-  OUTPUT_BUCKET: s3://my-data/output
-retries: 3
-timeout: 3600
-workspace_fqn: cluster-id:workspace-name
+  <ENV_KEY>: <ENV_VALUE>
+retries: <RETRIES>
+timeout: <TIMEOUT>
+workspace_fqn: <WORKSPACE_FQN>
 ```
 
 ### Helm Chart Manifest
@@ -163,28 +163,15 @@ workspace_fqn: cluster-id:workspace-name
 Deploys a Helm chart (databases, caches, infrastructure components).
 
 ```yaml
-name: postgres-prod
+name: <RELEASE_NAME>
 type: helm
 source:
   type: oci-repo
-  version: "16.7.21"
-  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+  version: "<CHART_VERSION>"
+  oci_chart_url: oci://<REGISTRY>/<CHART_NAME>
 values:
-  auth:
-    postgresPassword: "STRONG_PASSWORD"
-    database: myapp
-  primary:
-    persistence:
-      enabled: true
-      size: 50Gi
-    resources:
-      requests:
-        cpu: "2"
-        memory: 2Gi
-      limits:
-        cpu: "4"
-        memory: 4Gi
-workspace_fqn: cluster-id:workspace-name
+  # ← ask user for chart-specific values
+workspace_fqn: <WORKSPACE_FQN>
 ```
 
 ## Environment Variable Substitution

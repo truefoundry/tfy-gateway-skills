@@ -93,14 +93,16 @@ services:
 
 ### Database/Cache/Queue (well-known images)
 
-| Compose Image | TrueFoundry Deployment | Chart |
+| Compose Image | TrueFoundry Deployment | Notes |
 |--------------|----------------------|-------|
-| `postgres:*` | Helm: `bitnami/postgresql` | Map `POSTGRES_PASSWORD` -> `auth.postgresPassword`, `POSTGRES_DB` -> `auth.database`, `POSTGRES_USER` -> `auth.username` |
-| `mysql:*` / `mariadb:*` | Helm: `bitnami/mysql` or `bitnami/mariadb` | Map `MYSQL_ROOT_PASSWORD` -> `auth.rootPassword`, `MYSQL_DATABASE` -> `auth.database` |
-| `mongo:*` | Helm: `bitnami/mongodb` | Map `MONGO_INITDB_ROOT_USERNAME` -> `auth.rootUser`, `MONGO_INITDB_ROOT_PASSWORD` -> `auth.rootPassword` |
-| `redis:*` / `valkey:*` | Helm: `bitnami/redis` | Map password if set, default `architecture: standalone` |
-| `rabbitmq:*` | Helm: `bitnami/rabbitmq` | Map `RABBITMQ_DEFAULT_USER` -> `auth.username`, `RABBITMQ_DEFAULT_PASS` -> `auth.password` |
-| `elasticsearch:*` | Helm: `bitnami/elasticsearch` | Map `ELASTIC_PASSWORD` -> `security.elasticPassword` |
+| `postgres:*` | Helm chart (ask user for chart source) | Map `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_USER` to chart-specific values |
+| `mysql:*` / `mariadb:*` | Helm chart (ask user for chart source) | Map `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE` to chart-specific values |
+| `mongo:*` | Helm chart (ask user for chart source) | Map `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD` to chart-specific values |
+| `redis:*` / `valkey:*` | Helm chart (ask user for chart source) | Map password if set; chart values depend on the chart used |
+| `rabbitmq:*` | Helm chart (ask user for chart source) | Map `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` to chart-specific values |
+| `elasticsearch:*` | Helm chart (ask user for chart source) | Map `ELASTIC_PASSWORD` to chart-specific values |
+
+**Important:** Always ask the user which Helm chart and registry to use for infrastructure components. Value mappings depend on the specific chart. Check the chart's `values.yaml` for configuration options.
 
 ### Volumes
 

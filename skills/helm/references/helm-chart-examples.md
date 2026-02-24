@@ -1,6 +1,8 @@
 # Helm Chart Example Configurations
 
-All examples below use `oci-repo`. You can also use `helm-repo` or `git-helm-repo` -- see [helm-chart-sources.md](helm-chart-sources.md) for all source types.
+**Note:** All examples below use placeholder registry URLs (`oci://YOUR_REGISTRY/YOUR_CHART`). Replace these with your actual chart registry URL. Ask the user for the chart source — do not assume a specific registry.
+
+All examples use `oci-repo`. You can also use `helm-repo` or `git-helm-repo` -- see [helm-chart-sources.md](helm-chart-sources.md) for all source types.
 
 ## Redis (Cache)
 
@@ -11,8 +13,8 @@ All examples below use `oci-repo`. You can also use `helm-repo` or `git-helm-rep
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "18.6.0",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/redis"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://YOUR_REGISTRY/redis"
     },
     "values": {
       "auth": {
@@ -48,8 +50,8 @@ All examples below use `oci-repo`. You can also use `helm-repo` or `git-helm-rep
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "14.8.0",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/mongodb"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://YOUR_REGISTRY/mongodb"
     },
     "values": {
       "auth": {
@@ -86,8 +88,8 @@ All examples below use `oci-repo`. You can also use `helm-repo` or `git-helm-rep
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "12.10.0",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/rabbitmq"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://YOUR_REGISTRY/rabbitmq"
     },
     "values": {
       "auth": {
@@ -119,8 +121,8 @@ All examples below use `oci-repo`. You can also use `helm-repo` or `git-helm-rep
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "0.11.0",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/qdrant"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://YOUR_REGISTRY/qdrant"
     },
     "values": {
       "persistence": {
@@ -148,8 +150,8 @@ All examples below use `oci-repo`. You can also use `helm-repo` or `git-helm-rep
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "21.4.0",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/elasticsearch"
+      "version": "CHART_VERSION",
+      "oci_chart_url": "oci://YOUR_REGISTRY/elasticsearch"
     },
     "values": {
       "master": {
