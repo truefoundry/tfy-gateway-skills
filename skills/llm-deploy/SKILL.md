@@ -252,18 +252,49 @@ Same as the `deploy` skill — look up cluster base domains and construct the ho
 
 ## User Confirmation Checklist
 
-**Before deploying, confirm these with the user:**
+**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
 
-- [ ] **Model** — HuggingFace model ID and revision
-- [ ] **Framework** — vLLM, TGI, or NVIDIA NIM
-- [ ] **GPU type & count** — from available cluster GPUs (Step 0)
-- [ ] **Resources** — CPU, memory, shared memory (show suggestion table from Step 2)
-- [ ] **DTYPE** — float16 or bfloat16 (based on GPU)
-- [ ] **Max model length** — context window size
-- [ ] **Access** — public URL or internal-only
-- [ ] **Authentication** — HF token for gated models (from TrueFoundry secrets)
-- [ ] **Environment** — dev (1 replica) or production (2+ replicas)
-- [ ] **Service name** — what to call the deployment
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Model** — HuggingFace model ID. If user mentions a model name, resolve to the full HF ID (e.g., "llama 3.2 1B" → `meta-llama/Llama-3.2-1B-Instruct`).
+- [ ] **Service name** — Suggest based on model name (e.g., `llama-3-2-1b`).
+- [ ] **GPU + resources** — Present a suggestion table based on model size (see Step 2). Include GPU type & count, CPU, memory, shared memory, DTYPE, and max model length. Only show GPU types available on the cluster (Step 0). Let user adjust.
+- [ ] **Access** — Internal-only or public? If public, construct URL from cluster base domains and confirm.
+- [ ] **Authentication** — Only ask if model is gated (e.g., Llama, Gemma). Check if user already has an HF token in TrueFoundry secrets.
+- [ ] **Environment variables & secrets** — Auto-detect needed vars (HF_TOKEN for gated models). Confirm, ask if any others needed.
+
+### Resource Suggestion Table
+
+Present GPU, resources, and scaling together based on the model size:
+
+```
+Based on your model ({model_name}, {param_count} params):
+
+| Resource       | Suggested      | Notes                                  |
+|----------------|----------------|----------------------------------------|
+| GPU            | {type} x {n}   | {vram_needed} VRAM needed for {dtype}  |
+| DTYPE          | {value}        | Based on GPU capability                |
+| CPU            | {value} cores  | {reasoning}                            |
+| Memory         | {value} MB     | 2-4x VRAM footprint for model loading  |
+| Shared memory  | {value} MB     | ~90% of memory (required for vLLM/TGI) |
+| Max model len  | {value}        | Default context window for this model  |
+| Replicas       | {value}        | 1 for dev, 2+ for production           |
+
+Use suggested values, or customize?
+```
+
+### Defaults Applied Silently (do not ask unless user raises)
+
+These use sensible defaults. Only surface if the user asks or the situation requires it:
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Framework | vLLM (recommended) | Only ask if user mentions TGI or NIM specifically |
+| DTYPE | auto (float16 for T4/A10, bfloat16 for A100/H100) | Only ask if user mentions quantization or specific dtype |
+| Max model length | Model's default context window | Only ask if user mentions custom context length |
+| Replicas | 1 (dev) or 2 (production) | Included in resource table |
+| Health probes | Auto-configured with LLM-tuned thresholds | Only ask if user mentions custom startup times |
+| Ephemeral storage | 50GB | Only ask if model is very large (70B+) |
+| Container image version | Latest stable from `references/container-versions.md` | Only ask if user mentions specific version |
 
 </instructions>
 

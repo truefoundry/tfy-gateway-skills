@@ -36,28 +36,26 @@ MCP servers typically communicate over stdio (standard input/output). TrueFoundr
 
 ## User Confirmation Checklist
 
-**Before deploying an MCP server, ALWAYS confirm these with the user:**
+**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
 
-### Basic Configuration
-- [ ] **Server name** — What to call this MCP server deployment
-- [ ] **MCP package** — Which MCP server package? (npm package name or Python/uvx package name)
-- [ ] **Package type** — npm (npx) or Python (uvx) or custom Dockerfile?
-- [ ] **Arguments** — Any arguments to pass to the MCP server? (optional)
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **MCP package** — Which MCP server to deploy? (npm package name, Python/uvx package name, or custom). Package type (npm vs Python) is auto-detected from the package name or registry.
+- [ ] **Server name** — Suggest based on package name (e.g., `notion-mcp`, `github-mcp`).
+- [ ] **Environment variables & secrets** — Ask what API keys/config the MCP server needs. Reference the MCP server's docs for required env vars (e.g., `NOTION_API_KEY`, `GITHUB_TOKEN`). Always use TrueFoundry secrets for sensitive values.
 
-### Resources
-- [ ] **CPU** — Request and limit
-- [ ] **Memory** — Request and limit in MB
-- [ ] **Storage** — Ephemeral storage request and limit in MB
+### Defaults Applied Silently (do not ask unless user raises)
 
-### Networking
-- [ ] **Expose** — Should the MCP server be publicly accessible?
-- [ ] **Port** — Port number (default: 8000)
+These use sensible defaults. Only surface if the user asks or the situation requires it:
 
-### Environment & Secrets
-- [ ] **Environment variables** — API keys and config the MCP server needs (e.g., NOTION_API_KEY, GITHUB_TOKEN)
-- [ ] **Secrets** — Use TrueFoundry secrets for sensitive values
-
-**Do NOT deploy with hardcoded defaults without asking. Every `<PLACEHOLDER>` in the templates below MUST be replaced with a value confirmed by the user. If unsure about any field, ask — never assume.**
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Port | 8000 | Never — mcp-proxy always uses 8000 |
+| CPU request/limit | 0.5 / 1.0 cores | Only ask if user mentions performance issues |
+| Memory request/limit | 512 / 1024 MB | Only ask if user mentions large payloads or OOM |
+| Ephemeral storage | 2 GB | Only ask if package has large dependencies |
+| Expose | false (internal) | Only ask if user mentions public access |
+| Base image | `node:24` (npm) or `python:3.11-slim` (uvx) | Auto-selected based on package type |
+| Arguments | None | Only ask if user mentions specific args to pass |
 
 ## Deploy npm-based MCP Server (npx)
 

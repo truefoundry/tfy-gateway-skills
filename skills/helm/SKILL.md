@@ -38,22 +38,51 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## User Confirmation Checklist
 
-**Before deploying a Helm chart, ALWAYS confirm these with the user:**
+**Confirm these with the user before deploying. Show defaults based on chart type, let user adjust.**
 
-- [ ] **Chart source** — Ask the user which chart and registry they want to use
-- [ ] **Chart registry** — What is the registry URL? (OCI registry, Helm repo, or Git repo)
-- [ ] **Chart version** — Specific version or latest?
-- [ ] **Release name** — What to call this deployment? (default: chart name + random suffix)
-- [ ] **Namespace/Workspace** — Which workspace FQN? (never auto-pick)
-- [ ] **Environment** — Is this for dev, staging, or production? (affects resource defaults)
-- [ ] **Configuration** — Critical values to set:
-  - **Passwords/credentials** — Use strong random values or reference TrueFoundry secrets
-  - **Storage size** — Persistent volume size (e.g., 10Gi, 20Gi)
-  - **Resources** — CPU/memory limits and requests
-  - **Replicas** — Number of instances (1 for dev, 3+ for prod)
-  - **Network** — Expose externally or internal-only?
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Chart source + version** — Which chart, registry URL, and version? Always ask — charts can't be auto-detected. Suggest searching https://artifacthub.io if user is unsure.
+- [ ] **Release name** — Suggest `{app-name}-{chart-type}` (e.g., `myapp-postgres`, `myapp-redis`).
+- [ ] **Configuration values** — Critical values that depend on chart type. Present as a focused checklist based on what the chart needs (see below).
 
-**Do NOT deploy with minimal defaults without asking.** Production databases need proper sizing, credentials, and persistence configuration.
+### Configuration by Chart Type
+
+Ask only the values relevant to the specific chart:
+
+**Databases (PostgreSQL, MySQL, MongoDB):**
+- Password (generate strong default, confirm)
+- Database name
+- Storage size (suggest: 10Gi dev, 50Gi+ prod)
+- Replicas (1 dev, 3 prod HA)
+
+**Caches (Redis, Memcached, Valkey):**
+- Password (generate strong default, confirm)
+- Storage size (suggest: 1Gi dev, 10Gi prod)
+- Memory limit
+
+**Queues (RabbitMQ, NATS, Kafka):**
+- Credentials
+- Persistence enabled? Storage size
+- Replicas
+
+**Vector DBs (Qdrant, Milvus, Elasticsearch):**
+- Storage size
+- Replicas
+- Resource limits
+
+**Other/custom charts:**
+- Ask user which values to set
+
+### Defaults Applied Silently (do not ask unless user raises)
+
+These use sensible defaults. Only surface if the user asks or the situation requires it:
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Resources (CPU/memory) | Chart defaults | Only ask for production or if chart has no defaults |
+| Network access | Internal-only | Only ask if user mentions external access |
+| Environment | Dev sizing | Only ask if user mentions production |
+| Storage class | Cluster default | Only ask if user mentions specific storage requirements |
 
 </context>
 

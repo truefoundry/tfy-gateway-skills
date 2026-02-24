@@ -34,50 +34,61 @@ Same as deploy skill: `TFY_BASE_URL`, `TFY_API_KEY`, `TFY_WORKSPACE_FQN` require
 
 <instructions>
 
-### Step 1: User Confirmation Checklist
+### Step 1: Auto-Detect Before Asking
 
-**Before writing any code, walk through this checklist with the user and confirm every value.**
+**Before asking the user anything**, scan the project to auto-detect as much as possible:
 
-### Basic Configuration
-- [ ] **Job name** — What to call this job
-- [ ] **Job type** — One-time (manual trigger) or scheduled (cron)?
-- [ ] **Environment** — Dev, staging, or production?
+1. **Image source** — Check for `deploy.py`, `Dockerfile`, `requirements.txt`, `setup.py`. Determine if PythonBuild, Dockerfile, or pre-built image.
+2. **Command** — Detect entrypoint from `Dockerfile` CMD/ENTRYPOINT, or infer from project structure (e.g., `python train.py`, `python main.py`).
+3. **Python version** — Detect from `.python-version`, `pyproject.toml`, `Dockerfile FROM` line, or `runtime.txt`.
+4. **Environment variables** — Scan `.env`, `config.py` for env var patterns.
+5. **GPU** — Only suggest if ML/GPU libraries detected (`torch`, `transformers`, `tensorflow`).
 
-### Image Source
-- [ ] **Image source** — Source code (local with PythonBuild), source code (Dockerfile), or pre-built Docker image?
-- [ ] **If PythonBuild:**
-  - [ ] **Command** — Entrypoint command (e.g., `python train.py`)
-  - [ ] **Python version** — Which Python version? (e.g., 3.11)
-  - [ ] **Requirements path** — Path to requirements.txt
-- [ ] **If Dockerfile:**
-  - [ ] **Dockerfile path** — Path to Dockerfile (e.g., `./Dockerfile`)
-  - [ ] **Command** — Entrypoint command
-  - [ ] **Build arguments** — Any Docker build args (optional)
-- [ ] **If Docker image:**
-  - [ ] **Image URI** — Full image URI (e.g., `registry/image:tag`)
-  - [ ] **Command** — Container entrypoint command
+Present auto-detected values as confirmations ("I detected X — correct?") rather than open-ended questions.
 
-### Resources
-- [ ] **Device type** — CPU only, or GPU? If GPU, which type?
-- [ ] **CPU** — Request and limit
-- [ ] **Memory** — Request and limit in MB
-- [ ] **Storage** — Ephemeral storage request and limit in MB
-- [ ] **Capacity type** — Any, Spot, or On Demand?
+### Step 1b: User Confirmation Checklist
 
-### Scheduling (if cron)
-- [ ] **Cron schedule** — Cron expression (minute hour day month weekday)
-- [ ] **Concurrency policy** — Forbid, Allow, or Replace if runs overlap?
+**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
 
-### Retry & Timeout
-- [ ] **Retries** — Number of retries on failure (default: 0)
-- [ ] **Timeout** — Max job duration in seconds (optional)
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Job name** — Suggest based on project directory or script name (e.g., `training-job`, `data-pipeline`).
+- [ ] **Image source + command** — Auto-detect from project (Dockerfile, PythonBuild, or pre-built image). Confirm with user.
+- [ ] **Schedule** — One-time (manual trigger) or cron? If cron, ask for schedule expression.
+- [ ] **Resources** — Present a suggestion table based on codebase analysis (see below). Include CPU, memory, storage, GPU (if detected). Let user adjust.
+- [ ] **Environment variables & secrets** — Auto-detect from `.env`/code. Confirm found vars, ask if any others needed.
 
-### Environment & Secrets
-- [ ] **Environment variables** — Key-value pairs
-- [ ] **Secrets** — TrueFoundry secret groups to mount
-- [ ] **Volume mounts** — Persistent volumes to attach (optional)
+### Resource Suggestion Table
 
-**Do NOT deploy with hardcoded defaults without asking. Every `<PLACEHOLDER>` in the templates below MUST be replaced with a value confirmed by the user. If unsure about any field, ask — never assume.**
+Present resources based on the job type:
+
+```
+Based on your job ({script}, {job_type}):
+
+| Resource       | Default    | Suggested  | Notes                          |
+|----------------|------------|------------|--------------------------------|
+| CPU request    | 0.5 cores  | {value}    | {reasoning}                    |
+| CPU limit      | 1.0 cores  | {value}    | {reasoning}                    |
+| Memory request | 512 MB     | {value}    | {reasoning}                    |
+| Memory limit   | 1024 MB    | {value}    | 1.5-2x request                 |
+| Storage        | 1000 MB    | {value}    | {reasoning}                    |
+| GPU            | None       | {value}    | Only if ML libs detected       |
+
+Use suggested values, or customize?
+```
+
+### Defaults Applied Silently (do not ask unless user raises)
+
+These use sensible defaults. Only surface if the user asks or the situation requires it:
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Retries | 0 | Only ask if user mentions retry or fault tolerance |
+| Timeout | None (no limit) | Only ask if user mentions max duration |
+| Concurrency policy | Forbid (skip if previous still running) | Only ask for cron jobs if user mentions overlap handling |
+| Capacity type | any | Only ask if user mentions spot/cost optimization |
+| Volume mounts | None | Only ask if user mentions persistent data or shared storage |
+| Python version (PythonBuild) | 3.11 | Only ask if user mentions specific version |
+| Requirements path | `requirements.txt` | Only confirm if auto-detected path differs |
 
 ### Step 2: Create deploy.py
 
@@ -94,22 +105,22 @@ from truefoundry.deploy import Build, Job, PythonBuild, Resources, LocalSource, 
 
 # Option A: From local code with PythonBuild
 job = Job(
-    name="<JOB_NAME>",                              # ← ask user
+    name="<JOB_NAME>",                              # ← confirmed with user
     image=Build(
         build_source=LocalSource(local_build=False),
         build_spec=PythonBuild(
-            command="<COMMAND>",                     # ← ask user (e.g., "python train.py")
-            python_version="<PYTHON_VERSION>",       # ← ask user (e.g., "3.11")
-            requirements_path="<REQUIREMENTS_PATH>", # ← ask user (e.g., "requirements.txt")
+            command="<COMMAND>",                     # ← auto-detected, confirmed
+            python_version="<PYTHON_VERSION>",       # ← default 3.11
+            requirements_path="<REQUIREMENTS_PATH>", # ← auto-detected
         ),
     ),
     resources=Resources(
-        cpu_request=<CPU_REQUEST>,                   # ← ask user
-        cpu_limit=<CPU_LIMIT>,                       # ← ask user
-        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
-        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
-        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user (MB)
-        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user (MB)
+        cpu_request=<CPU_REQUEST>,                   # ← from resource suggestion table
+        cpu_limit=<CPU_LIMIT>,                       # ← from resource suggestion table
+        memory_request=<MEMORY_REQUEST>,             # ← from resource suggestion table
+        memory_limit=<MEMORY_LIMIT>,                 # ← from resource suggestion table
+        ephemeral_storage_request=<STORAGE_REQUEST>, # ← from resource suggestion table
+        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← from resource suggestion table
     ),
     env={
         # ← ask user for environment variables
@@ -118,39 +129,39 @@ job = Job(
 
 # Option B: From Dockerfile
 job = Job(
-    name="<JOB_NAME>",                              # ← ask user
+    name="<JOB_NAME>",                              # ← confirmed with user
     image=Build(
         build_spec=DockerFileBuild(
-            dockerfile_path="<DOCKERFILE_PATH>",     # ← ask user
-            command="<COMMAND>",                      # ← ask user
+            dockerfile_path="<DOCKERFILE_PATH>",     # ← auto-detected, confirmed
+            command="<COMMAND>",                      # ← auto-detected, confirmed
         ),
         build_source=LocalSource(local_build=False),
     ),
     resources=Resources(
-        cpu_request=<CPU_REQUEST>,                   # ← ask user
-        cpu_limit=<CPU_LIMIT>,                       # ← ask user
-        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
-        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
-        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user (MB)
-        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user (MB)
+        cpu_request=<CPU_REQUEST>,                   # ← from resource suggestion table
+        cpu_limit=<CPU_LIMIT>,                       # ← from resource suggestion table
+        memory_request=<MEMORY_REQUEST>,             # ← from resource suggestion table
+        memory_limit=<MEMORY_LIMIT>,                 # ← from resource suggestion table
+        ephemeral_storage_request=<STORAGE_REQUEST>, # ← from resource suggestion table
+        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← from resource suggestion table
     ),
 )
 
 # Option C: Pre-built image
 from truefoundry.deploy import Image
 job = Job(
-    name="<JOB_NAME>",                              # ← ask user
+    name="<JOB_NAME>",                              # ← confirmed with user
     image=Image(
-        image_uri="<IMAGE_URI>",                     # ← ask user
-        command="<COMMAND>",                          # ← ask user
+        image_uri="<IMAGE_URI>",                     # ← confirmed with user
+        command="<COMMAND>",                          # ← auto-detected, confirmed
     ),
     resources=Resources(
-        cpu_request=<CPU_REQUEST>,                   # ← ask user
-        cpu_limit=<CPU_LIMIT>,                       # ← ask user
-        memory_request=<MEMORY_REQUEST>,             # ← ask user (MB)
-        memory_limit=<MEMORY_LIMIT>,                 # ← ask user (MB)
-        ephemeral_storage_request=<STORAGE_REQUEST>, # ← ask user (MB)
-        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← ask user (MB)
+        cpu_request=<CPU_REQUEST>,                   # ← from resource suggestion table
+        cpu_limit=<CPU_LIMIT>,                       # ← from resource suggestion table
+        memory_request=<MEMORY_REQUEST>,             # ← from resource suggestion table
+        memory_limit=<MEMORY_LIMIT>,                 # ← from resource suggestion table
+        ephemeral_storage_request=<STORAGE_REQUEST>, # ← from resource suggestion table
+        ephemeral_storage_limit=<STORAGE_LIMIT>,     # ← from resource suggestion table
     ),
 )
 

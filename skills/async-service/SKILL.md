@@ -100,61 +100,67 @@ TrueFoundry provides an open-source Python library that integrates directly with
 
 <instructions>
 
+## Step 0: Auto-Detect Before Asking
+
+**Before asking the user anything**, scan the project to auto-detect as much as possible:
+
+1. **Pattern** — Default to sidecar. Only suggest Python library if: Python project + processing time signals > 1 min (e.g., ML inference, video processing, large file transforms).
+2. **Image source** — Check `git remote -v` for repo URL, look for `Dockerfile`, detect framework from dependency files.
+3. **Build details** — Auto-detect Dockerfile path (`./Dockerfile`), build context (`./`), branch (`main`). Only confirm with user, don't ask each sub-field.
+4. **Port** — Detect from code: `uvicorn --port`, `app.listen(`, `EXPOSE` in Dockerfile, `gunicorn -b 0.0.0.0:`.
+5. **Endpoint path** — Scan for POST handler routes (e.g., `@app.post("/process")`, `router.post("/predict")`).
+6. **Environment variables** — Scan `.env`, `config.py`, `docker-compose.yml` for env var patterns.
+7. **GPU** — Only suggest if ML/GPU libraries detected (`torch`, `transformers`, `tensorflow`, `opencv-python`).
+
+Present auto-detected values as confirmations ("I detected X — correct?") rather than open-ended questions.
+
 ## User Confirmation Checklist
 
-**Before deploying an Async Service, ALWAYS confirm these with the user:**
+**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
 
-### Basic Configuration
-- [ ] **Service name** — What to call this deployment
-- [ ] **Pattern** — Sidecar or Python library?
-- [ ] **Environment** — Dev, staging, or production?
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Service name** — Suggest project directory name or repo name.
+- [ ] **Image source** — Auto-detect (Git repo + Dockerfile, pre-built image, etc.). Confirm with user.
+- [ ] **Queue type + connection details** — SQS, NATS, Kafka, or Google AMQP? Queue URL, credentials, and queue-specific fields (region for SQS, stream/subject for NATS, topic/consumer group for Kafka). Ask as one question. See `references/async-queue-configs.md` for required fields per queue type.
+- [ ] **Port + endpoint path** — Auto-detect from code. Confirm: "Sidecar will forward to `http://0.0.0.0:{port}/{path}` — correct?"
+- [ ] **Resources + scaling** — Present a suggestion table based on codebase analysis (see below). Include CPU, memory, storage, GPU (if detected), concurrent workers (default 1), and min/max replicas. Let user adjust.
+- [ ] **Environment variables & secrets** — Auto-detect from `.env`/code. Confirm found vars, ask if any others needed.
 
-### Image Source
-- [ ] **Image source** — Source code (build from repo) or pre-built Docker image?
-- [ ] **If source code:**
-  - [ ] **Repo URL** — Git repository URL
-  - [ ] **Branch / SHA / Tag** — Which branch, commit SHA, or tag to build from (optional, defaults to main)
-  - [ ] **Build method** — Dockerfile or Buildpack (Python code without Dockerfile)?
-  - [ ] **Dockerfile path** — Path to Dockerfile (default: `./Dockerfile`)
-  - [ ] **Build context path** — Path to build context (default: `./`)
-  - [ ] **Build arguments** — Any Docker build args to pass (optional)
-  - [ ] **Build secrets** — Any secrets needed during build (optional)
-- [ ] **If Docker image:**
-  - [ ] **Image URI** — Full image URI (e.g., `registry/image:tag`)
-  - [ ] **Command** — Container entrypoint command
+### Resource Suggestion Table
 
-### Ports & Networking (Sidecar Pattern)
-- [ ] **Port** — What port the HTTP service listens on
-- [ ] **Protocol** — HTTP or TCP (default: HTTP)
-- [ ] **Expose** — Should the port be publicly accessible? (default: no)
-- [ ] **Enable authentication** — Require TrueFoundry auth on the exposed endpoint? (only if exposed)
-- [ ] **Path suffix rewriting** — Enable rewriting to the path suffix? (optional)
-- [ ] **Endpoint path** — The POST endpoint path the sidecar forwards to (e.g., `/predict`, `/process`)
+Present resources and scaling together based on the app type and environment:
 
-### Worker Config
-- [ ] **Queue type** — SQS, NATS, Kafka, or Google AMQP?
-- [ ] **Queue details** — Queue URL/topic name, credentials
-- [ ] **Region name** — Queue region (required for SQS)
-- [ ] **Visibility timeout** — Seconds before an unacknowledged message is redelivered (required for SQS)
-- [ ] **Worker auth** — Authentication for the queue connection (optional)
-- [ ] **Output queue** — Is an output queue needed? If yes, which queue type and details?
-- [ ] **Concurrent workers** — Number of concurrent workers processing messages (default: 1)
+```
+Based on your app ({framework}, {app_type}):
 
-### Resources
-- [ ] **Device type** — CPU only, or GPU? If GPU, which type? (T4, A10 4GB/8GB/12GB/24GB, H100)
-- [ ] **CPU** — Request and limit (e.g., request: 0.2, limit: 0.5)
-- [ ] **Memory** — Request and limit in MB (e.g., request: 200, limit: 500)
-- [ ] **Storage** — Ephemeral storage request and limit in MB (e.g., request: 1000, limit: 2000)
-- [ ] **Capacity type** — Any, Spot, or On Demand? (default: Any)
+| Resource           | Default    | Suggested  | Notes                          |
+|--------------------|------------|------------|--------------------------------|
+| CPU request        | 0.2 cores  | {value}    | {reasoning}                    |
+| CPU limit          | 0.5 cores  | {value}    | {reasoning}                    |
+| Memory request     | 200 MB     | {value}    | {reasoning}                    |
+| Memory limit       | 500 MB     | {value}    | 1.5-2x request                 |
+| Storage            | 1000 MB    | {value}    | {reasoning}                    |
+| GPU                | None       | {value}    | Only if ML libs detected       |
+| Concurrent workers | 1          | {value}    | Messages processed in parallel |
+| Replicas (min)     | 0          | {value}    | 0 = scale-to-zero              |
+| Replicas (max)     | 2          | {value}    | Based on expected load         |
 
-### Scaling
-- [ ] **Autoscaling** — Min/max replicas, scale-to-zero? (min=0 enables scale-to-zero)
+Use suggested values, or customize?
+```
 
-### Environment & Secrets
-- [ ] **Environment variables** — Queue credentials, app-specific config (key-value pairs or raw JSON)
-- [ ] **Secrets** — Whether to mount TrueFoundry secret groups
+### Defaults Applied Silently (do not ask unless user raises)
 
-**Do NOT deploy with hardcoded defaults without asking. Every `<PLACEHOLDER>` in the templates below MUST be replaced with a value confirmed by the user. If unsure about any field, ask — never assume.**
+These use sensible defaults. Only surface if the user asks or the situation requires it:
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Pattern | Sidecar | Only ask if Python + long-running processing detected |
+| Protocol | HTTP | Only ask if user mentions TCP/gRPC |
+| Expose | false | Only ask if user mentions public access |
+| Capacity type | any | Only ask if user mentions spot/cost optimization |
+| Output queue | None | Only ask if user mentions output/results queue |
+| Visibility timeout (SQS) | 30s | Only ask if user mentions redelivery or timeout concerns |
+| Build args / secrets | None | Only ask if Dockerfile has ARG directives or build needs secrets |
 
 ## Queue Configuration
 
@@ -197,42 +203,42 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 ```
 tfy_applications_create_deployment(
     manifest={
-        "name": "<SERVICE_NAME>",                    # ← ask user
+        "name": "<SERVICE_NAME>",                    # ← confirmed with user
         "type": "async-service",
         "image": {
             "type": "build",
             "build_source": {"type": "local", "project_root_path": "."},
             "build_spec": {
                 "type": "dockerfile",
-                "dockerfile_path": "<DOCKERFILE_PATH>",    # ← ask user
-                "build_context_path": "<BUILD_CONTEXT>",   # ← ask user
-                "build_args": {},                          # ← ask user if needed
-                "build_secrets": {}                        # ← ask user if needed
+                "dockerfile_path": "<DOCKERFILE_PATH>",    # ← auto-detect, confirm
+                "build_context_path": "<BUILD_CONTEXT>",   # ← auto-detect, default "./"
+                "build_args": {},                          # ← only if Dockerfile has ARG
+                "build_secrets": {}                        # ← only if build needs secrets
             }
         },
         "resources": {
-            "cpu_request": <CPU_REQUEST>,             # ← ask user
-            "cpu_limit": <CPU_LIMIT>,                 # ← ask user
-            "memory_request": <MEMORY_REQUEST>,       # ← ask user (MB)
-            "memory_limit": <MEMORY_LIMIT>,           # ← ask user (MB)
-            "ephemeral_storage_request": <STORAGE_REQUEST>,  # ← ask user (MB)
-            "ephemeral_storage_limit": <STORAGE_LIMIT>       # ← ask user (MB)
-            # "devices": [{"type": "nvidia_gpu", "name": "<GPU_TYPE>", "count": <COUNT>}]  # ← ask user if GPU needed
-            # "node": {"capacity_type": "<CAPACITY_TYPE>"}  # ← ask user: "any" | "spot" | "on_demand" | "spot_fallback_on_demand"
+            "cpu_request": <CPU_REQUEST>,             # ← from resource suggestion table
+            "cpu_limit": <CPU_LIMIT>,                 # ← from resource suggestion table
+            "memory_request": <MEMORY_REQUEST>,       # ← from resource suggestion table (MB)
+            "memory_limit": <MEMORY_LIMIT>,           # ← from resource suggestion table (MB)
+            "ephemeral_storage_request": <STORAGE_REQUEST>,  # ← from resource suggestion table (MB)
+            "ephemeral_storage_limit": <STORAGE_LIMIT>       # ← from resource suggestion table (MB)
+            # "devices": [{"type": "nvidia_gpu", "name": "<GPU_TYPE>", "count": <COUNT>}]  # ← only if ML libs detected
+            # "node": {"capacity_type": "any"}       # ← default "any", only ask if user mentions spot
         },
-        "ports": [{"port": <PORT>, "protocol": "<PROTOCOL>", "expose": <EXPOSE>, "app_protocol": "http"}],
-        "replicas": {"min": <MIN_REPLICAS>, "max": <MAX_REPLICAS>},
+        "ports": [{"port": <PORT>, "protocol": "HTTP", "expose": false, "app_protocol": "http"}],  # ← port auto-detected; protocol default HTTP; expose default false
+        "replicas": {"min": <MIN_REPLICAS>, "max": <MAX_REPLICAS>},  # ← from resource suggestion table
         "sidecar": {
-            "destination_url": "http://0.0.0.0:<PORT>/<ENDPOINT_PATH>"  # ← ask user
+            "destination_url": "http://0.0.0.0:<PORT>/<ENDPOINT_PATH>"  # ← auto-detect from code, confirm
         },
         "worker_config": {
-            "concurrent_workers": <CONCURRENT_WORKERS>  # ← ask user
+            "concurrent_workers": <CONCURRENT_WORKERS>  # ← default 1, shown in resource table
         },
         "input_queue": {
             "type": "<QUEUE_TYPE>",                  # ← ask user: "sqs" | "nats" | "kafka" | "google_amqp"
             "queue_url": "<QUEUE_URL>",              # ← ask user
             "aws_region": "<REGION>",                # ← ask user (SQS only)
-            "visibility_timeout": <VISIBILITY_TIMEOUT>  # ← ask user (SQS only, seconds)
+            "visibility_timeout": 30                 # ← default 30s (SQS only), ask if user mentions timeout
         },
         "workspace_fqn": "<WORKSPACE_FQN>"           # ← ask user, never auto-pick
     },
@@ -263,7 +269,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
       "build_spec": {
         "type": "dockerfile",
         "dockerfile_path": "<DOCKERFILE_PATH>",
-        "build_context_path": "<BUILD_CONTEXT>",
+        "build_context_path": "./",
         "build_args": {},
         "build_secrets": {}
       }
@@ -276,19 +282,19 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
       "ephemeral_storage_request": <STORAGE_REQUEST>,
       "ephemeral_storage_limit": <STORAGE_LIMIT>
     },
-    "ports": [{"port": <PORT>, "protocol": "<PROTOCOL>", "expose": <EXPOSE>, "app_protocol": "http"}],
+    "ports": [{"port": <PORT>, "protocol": "HTTP", "expose": false, "app_protocol": "http"}],
     "replicas": {"min": <MIN_REPLICAS>, "max": <MAX_REPLICAS>},
     "sidecar": {
       "destination_url": "http://0.0.0.0:<PORT>/<ENDPOINT_PATH>"
     },
     "worker_config": {
-      "concurrent_workers": <CONCURRENT_WORKERS>
+      "concurrent_workers": 1
     },
     "input_queue": {
       "type": "<QUEUE_TYPE>",
       "queue_url": "<QUEUE_URL>",
       "aws_region": "<REGION>",
-      "visibility_timeout": <VISIBILITY_TIMEOUT>
+      "visibility_timeout": 30
     },
     "workspace_fqn": "<WORKSPACE_FQN>"
   },

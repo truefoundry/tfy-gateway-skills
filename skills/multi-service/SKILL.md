@@ -52,6 +52,62 @@ Same as other deploy skills:
 
 <instructions>
 
+## Step 0: Auto-Detect Before Asking
+
+**The multi-service skill is heavily auto-detected.** The agent proactively scans the project to discover services, build the dependency graph, classify components, detect ports, env vars, and wiring — all before asking the user anything.
+
+The user's role is to **confirm the plan**, not answer individual questions per service.
+
+## User Confirmation Checklist
+
+**Confirm these with the user before deploying. Almost everything is auto-detected from the project.**
+
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Discovered services** — Present auto-detected services with their types (Helm/Service/LLM). Let user confirm or correct.
+- [ ] **Dependency graph + deploy order** — Show the DAG and topological deploy order. Let user confirm.
+- [ ] **Helm chart sources** — For infrastructure (DB, cache, queue): ask the user which chart registry and version to use. Cannot auto-detect — always ask.
+- [ ] **Public URLs** — Which services need public access? (typically frontend only). Construct URLs from cluster base domains and confirm.
+- [ ] **Credentials** — Generate strong passwords for infra (DB, Redis, etc.) and confirm. Store in TrueFoundry secrets.
+
+### Per-Service Details (auto-detected, confirm in plan)
+
+These are auto-detected from docker-compose or project structure and included in the plan. Do not ask each one individually — show them in the plan table and let the user adjust:
+
+| Field | Auto-Detected From |
+|-------|-------------------|
+| Service names | Compose service names or directory names |
+| Ports | Compose `ports:`, Dockerfile `EXPOSE`, code detection |
+| Environment variables | Compose `environment:`, `.env` files, code patterns |
+| Build context / Dockerfile | Compose `build:`, project Dockerfiles |
+| Resources (CPU/memory) | Sensible defaults per service type (see below) |
+| Replicas | 1 per service (dev default) |
+| Health probes | Auto-configured per framework |
+
+### Default Resources by Service Type
+
+Apply these defaults silently. Show in the plan table, let user adjust:
+
+| Service Type | CPU req/lim | Memory req/lim | Storage |
+|---|---|---|---|
+| Database (Helm) | Chart defaults | Chart defaults | 10Gi (dev), 50Gi (prod) |
+| Cache (Helm) | Chart defaults | Chart defaults | 1Gi |
+| Queue (Helm) | Chart defaults | Chart defaults | 5Gi |
+| Backend API | 0.5 / 1.0 | 512 / 1024 MB | 1 GB |
+| Frontend | 0.25 / 0.5 | 256 / 512 MB | 1 GB |
+| Worker | 0.5 / 1.0 | 512 / 1024 MB | 2 GB |
+| LLM | Per `llm-deploy` skill | Per `llm-deploy` skill | 50 GB |
+
+### Defaults Applied Silently (do not ask unless user raises)
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Per-service resources | Defaults from table above | Only if user mentions sizing or production |
+| Replicas | 1 per service | Only if user mentions HA or production |
+| Health probes | Auto-configured per framework | Only if user mentions custom probes |
+| Rollout strategy | Zero-downtime (`max_surge: 25%, max_unavailable: 0%`) | Never for multi-service |
+| Capacity type | any | Only if user mentions spot/cost |
+| Network protocol | HTTP | Only if user mentions TCP/gRPC |
+
 ## Step 1: Discover Services
 
 **Proactively scan the project** to find all deployable components. Do NOT wait for the user to list them.
@@ -97,15 +153,49 @@ Construct a directed acyclic graph (DAG) of service dependencies. For dependency
 
 **ALWAYS present the discovered architecture and ask the user to confirm before deploying.**
 
-Show:
-1. What services were found (and how — compose file, directory scan, etc.)
-2. The dependency graph
-3. The deploy order
-4. What will be deployed as Helm vs. Service vs. LLM
+Present a single comprehensive plan that covers the User Confirmation Checklist. The plan should include:
 
-The plan should include: dependency graph (tree format), deploy order with levels, environment wiring (which env vars connect which services), and questions about workspace, public URLs, and secrets. Always end with "Shall I proceed with this plan?"
+```
+## Deployment Plan for {project-name}
 
-**Do NOT deploy until the user confirms.**
+### Discovered Services
+| Service    | Type       | Deploy As    | Port | Image/Build          |
+|------------|------------|--------------|------|----------------------|
+| db         | Database   | Helm chart   | 5432 | PostgreSQL           |
+| redis      | Cache      | Helm chart   | 6379 | Redis                |
+| backend    | App        | Service      | 8000 | Git + Dockerfile     |
+| frontend   | App        | Service      | 3000 | Git + Dockerfile     |
+
+### Dependency Graph
+  frontend → backend → db, redis
+
+### Deploy Order
+  Level 0: db, redis (parallel)
+  Level 1: backend (after infra healthy)
+  Level 2: frontend (after backend healthy)
+
+### Environment Wiring
+  backend.DATABASE_URL → db (PostgreSQL DNS)
+  backend.REDIS_URL → redis (Redis DNS)
+  frontend.API_URL → backend (public URL or internal DNS)
+
+### Resources (defaults — adjust as needed)
+| Service  | CPU req/lim | Memory req/lim | GPU  | Replicas |
+|----------|-------------|----------------|------|----------|
+| db       | chart       | chart          | —    | 1        |
+| redis    | chart       | chart          | —    | 1        |
+| backend  | 0.5/1.0     | 512/1024 MB    | —    | 1        |
+| frontend | 0.25/0.5    | 256/512 MB     | —    | 1        |
+
+### Questions
+1. **Helm chart sources** — Which registry/version for PostgreSQL and Redis?
+2. **Public URLs** — Frontend public? Backend internal or public?
+3. **Credentials** — I'll generate strong passwords for DB and Redis. OK?
+
+Shall I proceed with this plan?
+```
+
+**Do NOT deploy until the user confirms.** The plan is the user's single point of review — all auto-detected values, resources, wiring, and questions are presented together.
 
 ## Step 4: Resolve Namespace and DNS
 

@@ -125,9 +125,23 @@ From the cluster response, extract:
 
 **Always discover before asking.** This prevents wasted round-trips with the user.
 
-## Step 2: Analyze Application & Suggest Resources
+## Step 2: Auto-Detect Before Asking
 
-**Before asking about CPU/memory/GPU**, analyze the user's codebase and ask about expected load. This produces informed resource suggestions instead of arbitrary defaults.
+**Before asking the user anything**, scan the project to auto-detect as much as possible:
+
+1. **Image source** — Auto-detect deployment path (see "Choose Deployment Path" above). Only confirm with user, don't ask from scratch.
+2. **Framework & app type** — Detect from dependency files (`requirements.txt`, `package.json`, `go.mod`, `Dockerfile`). Categorize as web API, ML inference, worker, frontend, or data pipeline.
+3. **Port** — Detect from code: `uvicorn --port`, `app.listen(`, `EXPOSE` in Dockerfile, `gunicorn -b 0.0.0.0:`, `server.port` in config.
+4. **Build details** — Auto-detect Dockerfile path, build context, Git repo URL + branch. Only confirm, don't ask each sub-field.
+5. **Environment variables** — Scan `.env`, `config.py`, `docker-compose.yml` for env var patterns.
+6. **GPU** — Only suggest if ML/GPU libraries detected (`torch`, `transformers`, `tensorflow`, `opencv-python`).
+7. **Health endpoint** — Look for `/health`, `/healthz`, `/ping` routes in the code.
+
+Present auto-detected values as confirmations ("I detected X — correct?") rather than open-ended questions.
+
+## Step 3: Analyze Application & Suggest Resources
+
+**Before asking about CPU/memory/GPU**, analyze the user's codebase. This produces informed resource suggestions instead of arbitrary defaults.
 
 For the full codebase analysis flow (framework detection, app categorization, load questions by app type, and resource suggestion table format), see [references/codebase-analysis.md](references/codebase-analysis.md).
 
@@ -185,22 +199,9 @@ Use this when the user already has a deploy.py or explicitly wants SDK.
 
 2. **ANALYZE & ASK THE USER** — Before creating deploy.py:
 
-   **First**, run the codebase analysis (Step 2a) to identify framework, app type, and compute indicators.
+   **First**, run auto-detection (Step 2) and codebase analysis (Step 3) to identify framework, app type, port, and compute indicators.
 
-   **Then**, gather this information from the user:
-   - **Service name**: What should this service be called? (suggest project directory name if unclear)
-   - **Port**: What port does your app listen on? (detect from code if possible — look for `uvicorn`, `app.listen`, `EXPOSE` in Dockerfile)
-   - **Expected load**: Ask targeted load questions based on app type (Step 2b) — TPS, concurrent users, environment
-   - **Resources**: Present the resource suggestion table (Step 2c) showing defaults vs suggested values based on load analysis. Let the user confirm or adjust.
-   - **GPU**: Does your app require GPU acceleration? If yes, present only available GPU types from Step 1. Suggest GPU size based on model parameters.
-   - **Environment variables**:
-     - Check if project has `.env` file or `config.py` with env var patterns
-     - List any found and ask: "Do you need these as environment variables?"
-     - Ask: "Are there any other env vars your app needs?"
-   - **Public URL**: Should this service be publicly accessible on the internet, or internal-only?
-     - **If public**: Look up the cluster's base domains and suggest a host like `{service-name}-{workspace-name}.{base_domain}`. Show the constructed URL and confirm with the user.
-     - **If internal**: Set `expose=False` and no `host` — the service is only reachable inside the cluster.
-   - **Secrets**: Does your app need access to secrets from TrueFoundry secret groups? (e.g., API keys, database passwords)
+   **Then**, confirm with the user per the User Confirmation Checklist below. Most values should already be auto-detected — present them for confirmation rather than asking from scratch.
 
 3. Create `deploy.py` from the template using confirmed values. Copy from `references/deploy-template.py` and adapt.
 
@@ -223,25 +224,54 @@ Use this when the user already has a deploy.py or explicitly wants SDK.
 
 ## User Confirmation Checklist
 
-**Before deploying (either path), confirm these with the user:**
+**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
 
-- [ ] **Service name** — what to call this deployment
-- [ ] **Image source** — pre-built image, Git repo + Dockerfile, Git repo + PythonBuild, or SDK local build?
-- [ ] **Port** — what port the application listens on
-- [ ] **Expected load** — TPS, concurrent users, environment (dev/staging/prod) → use Step 2 analysis
-- [ ] **CPU/Memory** — show resource suggestion table from Step 2 (defaults vs suggested values)
-- [ ] **GPU** — whether GPU is needed (only offer available types from Step 1)
-- [ ] **Replicas** — min/max for autoscaling (suggest based on load analysis)
-- [ ] **Environment variables** — check `.env`, `config.py`, or ask directly
-- [ ] **Health probes** — configure startup/readiness/liveness probes (recommended for production)
-- [ ] **Public URL** — internal-only or public? If public, look up cluster base domains and confirm the host
-- [ ] **Secrets** — whether to mount TrueFoundry secret groups
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Service name** — Suggest project directory name or repo name.
+- [ ] **Image source** — Auto-detect deployment path (Git repo + Dockerfile, pre-built image, SDK local build, etc.). Confirm with user.
+- [ ] **Port** — Auto-detect from code. Confirm: "I detected port {port} — correct?"
+- [ ] **Resources + scaling** — Present a suggestion table based on codebase analysis (see below). Include CPU, memory, storage, GPU (if detected), and min/max replicas. Let user adjust.
+- [ ] **Public URL** — Internal-only or public? If public, construct URL from cluster base domains and confirm.
+- [ ] **Environment variables & secrets** — Auto-detect from `.env`/code. Confirm found vars, ask if any others needed.
 
-**Do NOT deploy with hardcoded defaults without asking.** Analyze the app (Step 2), suggest appropriate values, and let the user confirm or adjust.
+### Resource Suggestion Table
+
+Present resources and scaling together based on the app type and environment:
+
+```
+Based on your app ({framework}, {app_type}):
+
+| Resource       | Default    | Suggested  | Notes                          |
+|----------------|------------|------------|--------------------------------|
+| CPU request    | 0.25 cores | {value}    | {reasoning}                    |
+| CPU limit      | 0.5 cores  | {value}    | {reasoning}                    |
+| Memory request | 256 MB     | {value}    | {reasoning}                    |
+| Memory limit   | 512 MB     | {value}    | 1.5-2x request                 |
+| GPU            | None       | {value}    | Only if ML libs detected       |
+| Replicas (min) | 1          | {value}    | Based on environment           |
+| Replicas (max) | 1          | {value}    | Based on expected load         |
+
+Use suggested values, or customize?
+```
+
+For detailed estimation rules, see `references/resource-estimation.md` and `references/codebase-analysis.md`.
+
+### Defaults Applied Silently (do not ask unless user raises)
+
+These use sensible defaults. Only surface if the user asks or the situation requires it:
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Health probes | Auto-configured based on framework (liveness + readiness) | Only ask if user mentions custom health endpoints or slow startup |
+| Protocol | HTTP | Only ask if user mentions TCP/gRPC |
+| Expose | false | Already covered by Public URL question |
+| Rollout strategy | `max_surge: 25%, max_unavailable: 0%` (zero-downtime) | Only ask if user mentions rolling updates or canary deploys |
+| Build details (Dockerfile path, context, args) | Auto-detected from project | Only confirm if auto-detection finds multiple Dockerfiles or non-standard paths |
+| Capacity type | any | Only ask if user mentions spot/cost optimization |
 
 ## Health Probes
 
-**Always configure health probes for production services.** Without them, Kubernetes may route traffic to unready pods or fail to restart crashed ones.
+**Auto-configure health probes for all services.** Do not ask the user about probes unless they mention custom health endpoints or slow startup. Without probes, Kubernetes may route traffic to unready pods or fail to restart crashed ones.
 
 | Probe | Purpose | When to Use |
 |-------|---------|-------------|

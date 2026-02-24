@@ -39,31 +39,43 @@ Launch, configure, or connect to SSH-based remote development environments on Tr
 
 ## User Confirmation Checklist
 
-**Before launching an SSH server, ALWAYS confirm these with the user:**
+**Confirm these with the user before launching. Show defaults, let user adjust.**
 
-### Basic Configuration
-- [ ] **Server name** — What to call this SSH server
-- [ ] **SSH public key** — User's SSH public key (required for access)
-- [ ] **Environment** — Dev, prototyping, or long-running?
+- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
+- [ ] **Server name** — Suggest a descriptive name (e.g., `dev-server`, `gpu-dev-box`).
+- [ ] **SSH public key** — Required. Auto-detect from `~/.ssh/id_rsa.pub` or `~/.ssh/id_ed25519.pub`. If not found, guide user to generate one.
+- [ ] **GPU needed?** — Ask if they need GPU access. If yes, discover available types from cluster and present options.
+- [ ] **Resources** — Present a suggestion table based on use case (see below). Include CPU, memory, storage, home directory size, and auto-shutdown timeout. Let user adjust.
 
-### Resources
-- [ ] **Device type** — CPU only, or GPU? If GPU, which type?
-- [ ] **CPU** — Request and limit
-- [ ] **Memory** — Request and limit in MB
-- [ ] **Storage** — Ephemeral storage request and limit in MB
+### Resource Suggestion Table
 
-### Storage & Lifecycle
-- [ ] **Home directory size** — Persistent storage in MB for /home/jovyan/
-- [ ] **Auto-shutdown timeout** — Seconds of inactivity before auto-stop (e.g., 3600 = 1 hour)
+Present resources based on the use case:
 
-### Image
-- [ ] **Custom image** — Need pre-installed packages? (custom Dockerfile or build script)
+```
+| Resource         | Light Dev  | ML Dev     | Heavy Compute |
+|------------------|------------|------------|---------------|
+| CPU request      | 2 cores    | 4 cores    | 8 cores       |
+| CPU limit        | 4 cores    | 8 cores    | 16 cores      |
+| Memory request   | 4 GB       | 16 GB      | 32 GB         |
+| Memory limit     | 8 GB       | 32 GB      | 64 GB         |
+| Home dir storage | 20 GB      | 50 GB      | 100 GB        |
+| Auto-shutdown    | 1 hour     | 2 hours    | 4 hours       |
+| GPU              | None       | T4/A10     | A100/H100     |
 
-### Environment & Secrets
-- [ ] **Environment variables** — Cloud credentials, API keys, etc. (optional)
-- [ ] **Volume mounts** — Persistent volumes to attach (optional)
+Which profile fits your use case, or customize?
+```
 
-**Do NOT launch with hardcoded defaults without asking. Every `<PLACEHOLDER>` in the templates below MUST be replaced with a value confirmed by the user. If unsure about any field, ask — never assume.**
+### Defaults Applied Silently (do not ask unless user raises)
+
+These use sensible defaults. Only surface if the user asks or the situation requires it:
+
+| Field | Default | When to Ask |
+|-------|---------|-------------|
+| Image | `public.ecr.aws/truefoundrycloud/ssh-server:latest` | Only ask if user needs custom pre-installed packages |
+| Ephemeral storage | 5 GB | Only ask if user mentions large temporary files |
+| Environment variables | None | Only ask if user mentions cloud credentials or API keys |
+| Volume mounts | None | Only ask if user mentions shared data or persistent volumes |
+| Custom image / build script | None | Only ask if user mentions pre-installed system packages (apt) |
 
 ## Launch SSH Server via API
 
