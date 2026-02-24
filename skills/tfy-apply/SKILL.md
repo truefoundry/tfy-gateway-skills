@@ -1,8 +1,12 @@
 ---
 name: tfy-apply
-description: This skill should be used when the user says "tfy apply", "apply manifest", "deploy from yaml", "declarative deployment", "apply yaml to truefoundry", "gitops deploy", "apply tfy manifest", or wants to create/update TrueFoundry resources from YAML manifest files using the tfy CLI.
+description: This skill should be used when the user says "tfy apply", "apply manifest", "deploy from yaml", "declarative deployment", "apply yaml to truefoundry", "gitops deploy", "apply tfy manifest", "deploy from manifest file", "apply config file", "reconcile manifest", "tfy apply dry run", "preview manifest changes", or wants to create/update TrueFoundry resources from YAML manifest files using the tfy CLI.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 ---
+
+<objective>
 
 # TFY Apply — Declarative Resource Management
 
@@ -24,6 +28,10 @@ Create or update TrueFoundry resources from YAML manifest files using `tfy apply
 - User wants to deploy a Helm chart interactively → use `helm` skill
 - User wants to list or inspect existing deployments → use `applications` skill
 - User wants to check connection/credentials → use `status` skill
+
+</objective>
+
+<context>
 
 ## Prerequisites
 
@@ -57,6 +65,10 @@ pip install truefoundry
 tfy login --host "$TFY_BASE_URL"
 ```
 
+</context>
+
+<instructions>
+
 ## Basic Usage
 
 ```bash
@@ -88,7 +100,7 @@ ports:
     protocol: TCP
     expose: true
     app_protocol: http
-    host: my-api-service-my-ws.example.truefoundry.cloud
+    host: my-api-service-my-workspace.example.truefoundry.cloud
 resources:
   cpu_request: 0.5
   cpu_limit: 1.0
@@ -354,6 +366,21 @@ tfy apply -f manifest-resolved.yaml
 rm -f manifest-resolved.yaml
 ```
 
+</instructions>
+
+<success_criteria>
+
+- The agent has verified the tfy CLI is installed and credentials are configured
+- The user has a valid YAML manifest with name, type, and workspace_fqn fields
+- The agent has run a dry-run preview and shown the diff to the user before applying
+- The manifest was successfully applied and the resource was created or updated
+- The user can verify the deployed resource using the applications skill
+- The agent has recommended CI/CD integration if the user's workflow involves repeated deployments
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Check credentials first**: Use `status` skill to verify TrueFoundry connectivity
@@ -363,6 +390,10 @@ rm -f manifest-resolved.yaml
 - **Manage secrets**: Use `secrets` skill to create secret groups referenced in manifests
 - **Deploy Helm charts**: The `helm` skill provides interactive Helm chart deployment; use `tfy-apply` when you have the manifest ready
 - **Deploy with SDK**: The `deploy` skill deploys local code with auto-build; use `tfy-apply` for pre-built images and declarative configs
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -428,3 +459,5 @@ Check:
 - GPU type is available on the cluster (use deploy skill's Step 0 to check)
 - Reduce resource requests or contact cluster admin
 ```
+
+</troubleshooting>

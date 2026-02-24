@@ -1,8 +1,12 @@
 ---
 name: jobs
-description: This skill should be used when the user asks "deploy a job", "create a job", "run a batch task", "schedule a job", "show job runs", "list runs", "job status", "is my job running", or wants to deploy or monitor TrueFoundry job executions. For listing job applications, use applications skill.
+description: This skill should be used when the user asks "deploy a job", "create a job", "run a batch task", "schedule a job", "show job runs", "list runs", "job status", "is my job running", "run a batch job", "execute a task", "cron job", "one-time job", "trigger a run", "check job run", "failed job", or wants to deploy or monitor TrueFoundry job executions. For listing job applications, use applications skill.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 ---
+
+<objective>
 
 # Jobs
 
@@ -21,11 +25,19 @@ Deploy, schedule, and monitor TrueFoundry job runs.
 
 - User wants to list job *applications* → use `applications` skill with `application_type: "job"`
 
+</objective>
+
+<context>
+
 ## Job Deployment
 
 ### Prerequisites
 
 Same as deploy skill: `TFY_BASE_URL`, `TFY_API_KEY`, `TFY_WORKSPACE_FQN` required. Run `pip install truefoundry`.
+
+</context>
+
+<instructions>
 
 ### Step 1: Analyze the Job
 
@@ -35,6 +47,12 @@ Same as deploy skill: `TFY_BASE_URL`, `TFY_API_KEY`, `TFY_WORKSPACE_FQN` require
 - Expected duration
 
 ### Step 2: Create deploy.py
+
+> **SDK v0.13.x breaking changes** (tested 2026-02-14):
+> - `ManualTrigger` is now `Manual` — use `from truefoundry.deploy import Manual`
+> - `CronTrigger` is now `Cron` — use `from truefoundry.deploy import Cron`
+> - Job `image` with `DockerFileBuild` requires explicit `command` field (e.g., `command="python job.py"`)
+> - Use Python 3.12 venv — 3.13+ / 3.14 are incompatible with the SDK
 
 Provide SDK template:
 
@@ -310,7 +328,7 @@ $TFY_API_SH GET '/api/svc/v1/jobs/JOB_ID/runs?sortBy=createdAt&searchPrefix=my-r
 | `sort_by` | `sortBy` | Sort field (e.g. `createdAt`) |
 | `triggered_by` | `triggeredBy` | Filter by who triggered |
 
-## Presenting Job Runs
+### Presenting Job Runs
 
 ```
 Job Runs for data-pipeline:
@@ -321,12 +339,32 @@ Job Runs for data-pipeline:
 | run-20260210-3 | RUNNING   | 2026-02-10 11:00   | —       |
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The job has been deployed to the target workspace and the user can see it in the TrueFoundry dashboard
+- The user has been provided the job ID and knows how to trigger runs (manually or via cron schedule)
+- The agent has reported the deployment status including job name, workspace, and trigger type
+- Job logs are accessible for monitoring via the `logs` skill or the dashboard
+- For scheduled jobs, the cron expression is confirmed and the user knows when the next run will execute
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Schedule jobs**: Use cron trigger for automated scheduling
 - **Monitor runs**: Use the job runs monitoring sections below
 - **Find job first**: Use `applications` skill with `application_type: "job"` to get job app ID
 - **Check logs**: Use `logs` skill with `job_run_name` to see run output
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -340,3 +378,5 @@ tfy_applications_list(filters={"application_type": "job"})
 ```
 No runs found for this job. The job may not have been triggered yet.
 ```
+
+</troubleshooting>

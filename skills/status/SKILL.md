@@ -1,8 +1,12 @@
 ---
 name: status
-description: This skill should be used when the user asks "is truefoundry connected", "check my truefoundry config", "truefoundry status", "am I authenticated", or wants to verify credentials before any TrueFoundry operation.
+description: This skill should be used when the user asks "is truefoundry connected", "check my truefoundry config", "truefoundry status", "am I authenticated", "test my TFY connection", "verify API key", "check TFY credentials", "is my TFY setup working", "TrueFoundry health check", "can I reach truefoundry", or wants to verify credentials, diagnose authentication issues, or confirm connectivity before any TrueFoundry operation.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # TrueFoundry Status
 
@@ -20,6 +24,22 @@ Check TrueFoundry connection and verify credentials are configured.
 - User wants to list workspaces → use `workspaces` skill
 - User wants to deploy → use `deploy` skill
 - User wants to see running apps → use `applications` skill
+
+</objective>
+
+<context>
+
+## Required Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TFY_BASE_URL` | TrueFoundry platform URL | `https://your-org.truefoundry.cloud` |
+| `TFY_API_KEY` | API key (raw, no Bearer prefix) | `tfy-...` |
+| `TFY_CLUSTER_ID` | (optional) Default cluster ID | `my-cluster` |
+
+</context>
+
+<instructions>
 
 ## Check Credentials
 
@@ -59,7 +79,7 @@ If env vars are not set, check for a `.env` file:
 
 ```
 TrueFoundry Status:
-- Base URL: https://tfy-eo.truefoundry.cloud ✓
+- Base URL: https://your-org.truefoundry.cloud ✓
 - API Key: configured ✓
 - Connection: OK (listed 1 workspace)
 ```
@@ -75,13 +95,19 @@ Set TFY_BASE_URL and TFY_API_KEY in your environment or .env file.
 Get an API key: https://docs.truefoundry.com/docs/generating-truefoundry-api-keys
 ```
 
-## Required Environment Variables
+</instructions>
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `TFY_BASE_URL` | TrueFoundry platform URL | `https://tfy-eo.truefoundry.cloud` |
-| `TFY_API_KEY` | API key (raw, no Bearer prefix) | `tfy-...` |
-| `TFY_CLUSTER_ID` | (optional) Default cluster ID | `tfy-ea-dev-eo-az` |
+<success_criteria>
+
+- The user can confirm whether TFY_BASE_URL and TFY_API_KEY are correctly set
+- The agent has tested the API connection with a lightweight call and reported the result
+- The user can see a clear status summary showing which components are configured and which are missing
+- The agent has provided actionable next steps if any credential or connectivity issue was found
+- The user knows which skill to use next based on their goal (deploy, list workspaces, etc.)
+
+</success_criteria>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -104,8 +130,14 @@ TFY_BASE_URL and TFY_API_KEY are required.
 Set them via environment variables or add to .env in project root.
 ```
 
+</troubleshooting>
+
+<references>
+
 ## Composability
 
 - **After status OK**: Use any other skill (workspaces, applications, deploy, etc.)
 - **To set credentials**: Export env vars or create .env file
 - **If using MCP**: Use `tfy_config_set` to persist credentials
+
+</references>

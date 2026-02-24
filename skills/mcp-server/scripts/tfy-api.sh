@@ -4,7 +4,7 @@
 #
 # Examples:
 #   tfy-api.sh GET /api/svc/v1/workspaces
-#   tfy-api.sh GET '/api/svc/v1/apps?workspaceFqn=my-ws'
+#   tfy-api.sh GET '/api/svc/v1/apps?workspaceFqn=my-workspace'
 #   tfy-api.sh POST /api/svc/v1/secret-groups '{"name":"my-group"}'
 #   tfy-api.sh PUT  /api/svc/v1/apps '{"manifest":{...}}'
 #
@@ -12,12 +12,25 @@
 
 set -euo pipefail
 
-# Load .env if present
+# Load .env if present (safe line-by-line parser — never `source` .env)
 if [[ -f ".env" ]]; then
-  set -a
-  # shellcheck source=/dev/null
-  source .env
-  set +a
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    # Skip empty lines and comments
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    # Strip optional 'export ' prefix
+    line="${line#export }"
+    # Only process lines matching KEY=VALUE (alphanumeric/underscore keys only)
+    if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      key="${line%%=*}"
+      value="${line#*=}"
+      # Strip surrounding quotes if present
+      value="${value#\"}" && value="${value%\"}"
+      value="${value#\'}" && value="${value%\'}"
+      # Strip inline comments (space + #)
+      value="${value%%[[:space:]]#*}"
+      export "$key=$value"
+    fi
+  done < .env
 fi
 
 if [[ -z "${TFY_BASE_URL:-}" ]]; then

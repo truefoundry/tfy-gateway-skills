@@ -1,0 +1,7 @@
+# Default owners for the repository
+* @truefoundry/agent-skills
+
+# Shared files require extra review
+skills/_shared/ @truefoundry/agent-skills
+scripts/ @truefoundry/agent-skills
+hooks/ @truefoundry/agent-skills

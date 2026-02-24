@@ -1,8 +1,12 @@
 ---
 name: applications
-description: This skill should be used when the user asks "what's deployed", "list my apps", "show services", "deployment status", "is my app running", or wants to inspect application deployments on TrueFoundry. NOT for deploying local code — use deploy skill for that.
+description: This skill should be used when the user asks "what's deployed", "list my apps", "show services", "deployment status", "is my app running", "what services are running", "check my deployments", "show running apps", "app health", "list deployments", "show my workloads", or wants to inspect, list, or manage application deployments on TrueFoundry. NOT for deploying local code — use deploy skill for that.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Applications
 
@@ -21,6 +25,10 @@ List, inspect, and manage applications and deployments on TrueFoundry.
 - User wants to deploy local code → use `deploy` skill
 - User wants workspace/cluster info → use `workspaces` skill
 
+</objective>
+
+<instructions>
+
 ## List Applications
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
@@ -29,7 +37,7 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 
 ```
 tfy_applications_list()
-tfy_applications_list(filters={"workspace_fqn": "tfy-ea-dev-eo-az:my-ws"})
+tfy_applications_list(filters={"workspace_fqn": "my-cluster:my-workspace"})
 tfy_applications_list(filters={"application_name": "my-app"})
 tfy_applications_list(app_id="app-id-here")
 ```
@@ -44,7 +52,7 @@ TFY_API_SH=~/.claude/skills/truefoundry-applications/scripts/tfy-api.sh
 $TFY_API_SH GET /api/svc/v1/apps
 
 # Filter by workspace
-$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=tfy-ea-dev-eo-az:my-ws'
+$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=my-cluster:my-workspace'
 
 # Filter by name
 $TFY_API_SH GET '/api/svc/v1/apps?applicationName=my-app'
@@ -68,7 +76,7 @@ $TFY_API_SH GET /api/svc/v1/apps/APP_ID
 Show as a table. Use `updatedAt` from the API response for "Last Deployed" (ISO 8601 timestamp — format as date/time for readability). Use `kind` for Type and `status` for Status.
 
 ```
-Applications in tfy-ea-dev-eo-az:my-ws:
+Applications in my-cluster:my-workspace:
 | Name           | Type    | Status   | Last Deployed      |
 |----------------|---------|----------|--------------------|
 | tfy-mcp-server | service | RUNNING  | 2026-02-10 14:30   |
@@ -211,8 +219,8 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 The `host` must match one of the cluster's `base_domains`. Look up base domains first:
 ```bash
 $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-# → look for base_domains, pick the wildcard one (e.g., "*.ml.tfy-eo.truefoundry.cloud")
-# → strip "*." to get the base domain: "ml.tfy-eo.truefoundry.cloud"
+# → look for base_domains, pick the wildcard one (e.g., "*.ml.your-org.truefoundry.cloud")
+# → strip "*." to get the base domain: "ml.your-org.truefoundry.cloud"
 # → construct host: "{service-name}-{workspace-name}.{base_domain}"
 ```
 
@@ -222,7 +230,7 @@ $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
     "port": 8080,
     "protocol": "TCP",
     "expose": true,
-    "host": "my-app-dev-ws.ml.tfy-eo.truefoundry.cloud",
+    "host": "my-app-dev-ws.ml.your-org.truefoundry.cloud",
     "app_protocol": "http"
   }],
   "replicas": {"min": 2, "max": 5}
@@ -251,12 +259,32 @@ $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
 }
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user can see the status of their deployed applications in a clear, formatted table
+- Unhealthy or stopped deployments are identified with actionable next steps (check logs, redeploy)
+- The agent has filtered results by the correct workspace when the user specified one
+- The user can find a specific application by name, ID, or workspace
+- Deployment details (replicas, resources, image, ports) are surfaced when the user asks for more info
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **After listing apps**: Use `logs` skill to check logs, `deploy` skill to redeploy
 - **After deploy**: Use this skill to verify the deployment succeeded
 - **Check jobs**: Use `jobs` skill for job-specific run details
 - **Find workspace first**: Use `workspaces` skill to get workspace FQN for filtering
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -277,3 +305,5 @@ Application ID not found. List apps first to find the correct ID.
 ```
 Cannot access this application. Check your API key permissions.
 ```
+
+</troubleshooting>

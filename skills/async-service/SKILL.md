@@ -1,9 +1,14 @@
 ---
 name: async-service
-description: This skill should be used when the user asks "deploy async service", "queue-based service", "async worker", "message queue processing", "deploy SQS consumer", "deploy Kafka consumer", "deploy NATS consumer", "scale to zero", "async processing", or wants to deploy a TrueFoundry Async Service that processes messages from queues. NOT for regular HTTP services — use deploy skill for that.
-disable-model-invocation: true
+description: This skill should be used when the user asks "deploy async service", "queue-based service", "async worker", "message queue processing", "deploy SQS consumer", "deploy Kafka consumer", "deploy NATS consumer", "scale to zero", "async processing", "background job processor", "event-driven service", "queue consumer", or wants to deploy a TrueFoundry Async Service that processes messages from queues with scale-to-zero support. NOT for regular HTTP services — use deploy skill for that.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
+metadata:
+  disable-model-invocation: "true"
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Async Service Deployment
 
@@ -27,6 +32,10 @@ Deploy an Async Service to TrueFoundry — a queue-based processing service that
 - User wants to deploy an LLM → use `llm-deploy` skill
 - User wants to deploy infrastructure (database, queue broker) → use `helm` skill
 - User wants to run a one-off batch job → use `deploy` skill with job type
+
+</objective>
+
+<context>
 
 ## Async Service vs Regular Service
 
@@ -95,6 +104,10 @@ TrueFoundry provides an open-source Python library that integrates directly with
 - You want direct control over queue consumption logic
 - You need custom acknowledgment patterns
 
+</context>
+
+<instructions>
+
 ## User Confirmation Checklist
 
 **Before deploying an Async Service, ALWAYS confirm these with the user:**
@@ -116,89 +129,7 @@ TrueFoundry provides an open-source Python library that integrates directly with
 
 ## Queue Configuration
 
-### AWS SQS
-
-```json
-{
-  "type": "sqs",
-  "queue_url": "https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue",
-  "aws_access_key_id": "AKIA...",
-  "aws_secret_access_key": "...",
-  "aws_region": "us-east-1"
-}
-```
-
-**Sending messages to SQS:**
-
-```python
-import boto3, json
-
-sqs = boto3.client("sqs", region_name="us-east-1")
-sqs.send_message(
-    QueueUrl="https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue",
-    MessageBody=json.dumps({
-        "request_id": "unique-id-123",
-        "body": {"data": "your payload here"}
-    })
-)
-```
-
-### NATS
-
-```json
-{
-  "type": "nats",
-  "nats_url": "nats://nats.NAMESPACE.svc.cluster.local:4222",
-  "subject": "my-input-subject",
-  "stream": "my-stream",
-  "consumer": "my-consumer"
-}
-```
-
-To deploy NATS on your cluster, use the `helm` skill:
-
-```json
-{
-  "manifest": {
-    "name": "nats",
-    "type": "helm",
-    "source": {
-      "type": "oci-repo",
-      "version": "latest",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/nats"
-    },
-    "values": {
-      "jetstream": {"enabled": true}
-    },
-    "workspace_fqn": "cluster-id:workspace-name"
-  },
-  "workspaceId": "WORKSPACE_ID"
-}
-```
-
-### Kafka
-
-```json
-{
-  "type": "kafka",
-  "broker_url": "kafka.NAMESPACE.svc.cluster.local:9092",
-  "topic": "my-input-topic",
-  "consumer_group": "my-consumer-group"
-}
-```
-
-To deploy Kafka on your cluster, use the `helm` skill with the Bitnami Kafka chart (`oci://registry-1.docker.io/bitnamicharts/kafka`).
-
-### Google AMQP
-
-```json
-{
-  "type": "google_amqp",
-  "project_id": "my-gcp-project",
-  "subscription": "my-subscription",
-  "credentials_json": "..."
-}
-```
+For queue-specific connection JSON (SQS, NATS, Kafka, Google AMQP), message-sending examples, and Helm deploy snippets for self-hosted queues, see `references/async-queue-configs.md`.
 
 ## Deploying with the Sidecar Pattern
 
@@ -458,74 +389,7 @@ async_service = AsyncService(
 
 ## Deploying Queue Infrastructure
 
-If the user does not have a queue provisioned, use the `helm` skill to deploy one on the cluster.
-
-### Common Queue Charts
-
-| Queue | Chart | OCI URL | Default Port |
-|-------|-------|---------|-------------|
-| NATS | `nats` | `oci://registry-1.docker.io/bitnamicharts/nats` | 4222 |
-| Kafka | `kafka` | `oci://registry-1.docker.io/bitnamicharts/kafka` | 9092 |
-| RabbitMQ | `rabbitmq` | `oci://registry-1.docker.io/bitnamicharts/rabbitmq` | 5672 |
-
-**For AWS SQS or Google AMQP**, the queue is a managed cloud service — no Helm deployment needed. The user provides the queue URL and credentials.
-
-**Workflow:**
-
-1. Ask the user which queue type they want
-2. If self-hosted (NATS, Kafka, RabbitMQ): use the `helm` skill to deploy first
-3. Collect the queue connection details (URL, topic/subject, credentials)
-4. Then deploy the Async Service pointing to that queue
-
-## Error Handling
-
-### TFY_WORKSPACE_FQN Not Set
-```
-TFY_WORKSPACE_FQN is required. Get it from:
-- TrueFoundry dashboard -> Workspaces
-- Or use: workspaces skill to list available workspaces
-Do not auto-pick a workspace.
-```
-
-### Queue Connection Failed
-```
-Async Service cannot connect to the queue.
-Check:
-1. Queue URL/host is correct and reachable from the cluster
-2. Credentials (access key, secret, token) are valid
-3. For self-hosted queues: verify the queue pod is running (use `applications` skill)
-4. For SQS: verify IAM permissions allow sqs:ReceiveMessage, sqs:DeleteMessage
-5. Network: ensure the cluster can reach the queue endpoint
-```
-
-### Sidecar Cannot Reach HTTP Service
-```
-The tfy-async-sidecar cannot POST to your service.
-Check:
-1. destination_url is correct (e.g., http://0.0.0.0:8000/process)
-2. Your service is listening on the correct port
-3. The POST endpoint exists and accepts JSON
-4. Your service health check is passing
-```
-
-### Messages Not Being Processed
-```
-Messages are queuing up but not being processed.
-Check:
-1. Replicas: Is min=0 and the service scaled to zero? Increase min or check autoscaling.
-2. Processing errors: Use `logs` skill to check for application errors.
-3. Message format: Ensure messages match the expected payload format.
-4. Acknowledgment: Messages are only acked after successful processing. Repeated failures cause redelivery.
-```
-
-### Scale-to-Zero Not Working
-```
-Service is not scaling to zero when queue is empty.
-Check:
-1. replicas.min must be 0 for scale-to-zero
-2. Queue metrics must be accessible to the autoscaler
-3. Cooldown period: there may be a delay before scaling to zero (typically 5-10 minutes)
-```
+If the user does not have a queue provisioned, use the `helm` skill to deploy one on the cluster. For Helm chart references (NATS, Kafka, RabbitMQ) and the full provisioning workflow, see `references/async-queue-configs.md`.
 
 ## After Deploy
 
@@ -540,12 +404,41 @@ Next steps:
 5. Adjust autoscaling based on observed throughput
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user's async service is deployed and connected to the specified input queue
+- The agent has confirmed the queue type, credentials, and endpoint path with the user before deploying
+- Messages sent to the input queue are consumed and processed by the service
+- Scale-to-zero is configured correctly if the user requested it (min replicas = 0)
+- The user can verify processing by sending a test message and checking logs
+- Output queue is configured and receiving results if the user specified one
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Find workspace first**: Use `workspaces` skill to get workspace FQN
+- **Save workspace for next time**: Use `preferences` skill to remember default workspace
 - **Deploy queue infrastructure**: Use `helm` skill to deploy NATS, Kafka, or RabbitMQ
 - **Check what's deployed**: Use `applications` skill to list deployments
+- **Test deployed service**: Use `service-test` skill to validate async endpoints
 - **View processing logs**: Use `logs` skill with the application ID
 - **Manage queue credentials**: Use `secrets` skill to store queue access keys
 - **Regular HTTP service instead**: Use `deploy` skill for synchronous services
 - **Check cluster status**: Use `status` skill for preflight checks
+
+</references>
+
+<troubleshooting>
+
+## Error Handling
+
+For troubleshooting queue connection failures, sidecar communication issues, message processing problems, and scale-to-zero issues, see `references/async-errors.md`.
+
+</troubleshooting>

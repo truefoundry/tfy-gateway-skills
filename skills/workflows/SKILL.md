@@ -1,8 +1,12 @@
 ---
 name: workflows
-description: This skill should be used when the user asks "create a workflow", "deploy a workflow", "run a pipeline", "schedule a workflow", "cron workflow", "TrueFoundry workflow", or wants to build data processing or ML training pipelines using TrueFoundry Workflows (built on Flyte).
+description: This skill should be used when the user asks "create a workflow", "deploy a workflow", "run a pipeline", "schedule a workflow", "cron workflow", "TrueFoundry workflow", "build a DAG", "orchestrate tasks", "create an ML pipeline", "Flyte workflow", "batch pipeline", "ETL pipeline on truefoundry", or wants to build data processing or ML training pipelines using TrueFoundry Workflows (built on Flyte).
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(python*) Bash(pip*)
 ---
+
+<objective>
 
 # TrueFoundry Workflows
 
@@ -23,6 +27,10 @@ Create, configure, and deploy workflows on TrueFoundry. Workflows are built on [
 - User wants to check running applications -> use `applications` skill
 - User wants to monitor job runs -> use `jobs` skill
 - User wants to serve an ML model behind an endpoint -> use `llm-deploy` or `deploy` skill
+
+</objective>
+
+<context>
 
 ## Prerequisites
 
@@ -47,6 +55,10 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 - **Execution Config** -- Controls scheduling (cron), launch plans, and runtime parameters.
 
 **Critical rule:** The workflow function must contain **only task calls and control flow**. Do not put business logic directly in the workflow function -- all computation must live inside `@task` functions.
+
+</context>
+
+<instructions>
 
 ## Basic Workflow Example
 
@@ -364,6 +376,21 @@ After deployment, monitor runs through:
 | TIMED_OUT | Run exceeded its timeout |
 | ABORTED | Run was manually cancelled |
 
+</instructions>
+
+<success_criteria>
+
+- The agent has verified that the TrueFoundry SDK with workflow extras is installed
+- The user has a workflow file with properly decorated @task and @workflow functions
+- The agent has confirmed that all @task functions include truefoundry[workflow] in their pip_packages
+- The workflow was successfully deployed to the specified workspace
+- The user can monitor workflow runs via the dashboard or applications skill
+- The agent has set up a cron schedule if the user requested recurring execution
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Check credentials first**: Use `status` skill to verify TrueFoundry connection
@@ -372,6 +399,10 @@ After deployment, monitor runs through:
 - **Monitor runs**: Use `jobs` skill to check run status and history
 - **View logs**: Use `logs` skill to inspect task-level logs
 - **Manage secrets**: Use `secrets` skill to set up secret groups for workflow tasks that need API keys or credentials
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -437,3 +468,5 @@ Cron schedules use UTC timezone. Verify your cron expression accounts for
 UTC offset from your local timezone.
 Use https://crontab.guru to validate your cron expression.
 ```
+
+</troubleshooting>

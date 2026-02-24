@@ -1,8 +1,12 @@
 ---
 name: llm-finetuning
-description: This skill should be used when the user asks "finetune a model", "fine-tune LLM", "train a model", "LoRA finetuning", "QLoRA finetuning", "full finetuning", "fine-tune on my data", "customize a model", "adapt a model", or wants to fine-tune a large language model on TrueFoundry.
+description: This skill should be used when the user asks "finetune a model", "fine-tune LLM", "train a model", "LoRA finetuning", "QLoRA finetuning", "full finetuning", "fine-tune on my data", "customize a model", "adapt a model", "retrain a language model", "train on my dataset", "custom model training", or wants to fine-tune, adapt, or retrain a large language model on their own data using TrueFoundry.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # LLM Fine-Tuning
 
@@ -23,6 +27,10 @@ Fine-tune large language models on TrueFoundry using QLoRA, LoRA, or full fine-t
 - User wants to run a generic batch job → use `deploy` skill with job type
 - User wants prompt engineering without training → use `prompts` skill
 - User wants to check training job status → use `jobs` skill (after the job is launched)
+
+</objective>
+
+<context>
 
 ## Prerequisites
 
@@ -60,6 +68,10 @@ Best-effort support:
 - Falcon
 - MPT
 - GPT-BigCode (StarCoder)
+
+</context>
+
+<instructions>
 
 ## Step 0: Discover Cluster Capabilities
 
@@ -99,107 +111,12 @@ I'll help you fine-tune an LLM. Let me gather a few details:
 
 ## Step 2: Data Preparation
 
-Training data must be in **JSONL format** (one JSON object per line). Two formats are supported:
+Training data must be in **JSONL format**. Two formats are supported:
 
-### Chat Format (Recommended for Instruction-Tuned Models)
+- **Chat format** (recommended for instruction-tuned models): each line has a `messages` array with `role`/`content` fields
+- **Completion format** (for text completion): each line has `prompt` and `completion` keys
 
-Each line contains a `messages` array with conversation turns:
-
-```jsonl
-{"messages": [{"role": "system", "content": "You are a helpful medical assistant."}, {"role": "user", "content": "What are the symptoms of flu?"}, {"role": "assistant", "content": "Common flu symptoms include fever, cough, sore throat, body aches, and fatigue."}]}
-{"messages": [{"role": "user", "content": "Explain photosynthesis"}, {"role": "assistant", "content": "Photosynthesis is the process by which plants convert sunlight, water, and CO2 into glucose and oxygen."}]}
-```
-
-- `role` must be one of: `system`, `user`, `assistant`
-- `system` message is optional but recommended for setting behavior
-- Each line must be a complete conversation (can have multiple turns)
-- Multi-turn conversations: alternate `user` and `assistant` messages
-
-### Completion Format (For Text Completion Tasks)
-
-Each line has `prompt` and `completion` keys:
-
-```jsonl
-{"prompt": "What is the capital of France?", "completion": "The capital of France is Paris."}
-{"prompt": "Summarize: The quick brown fox...", "completion": "A fox jumped over a lazy dog."}
-```
-
-### Data Validation Checklist
-
-Before launching training, verify:
-
-- [ ] File is valid JSONL (one JSON object per line, no trailing commas)
-- [ ] Chat format: each line has a `messages` array with `role` and `content` fields
-- [ ] Completion format: each line has `prompt` and `completion` keys
-- [ ] No empty `content` or `completion` values
-- [ ] Dataset has at least 10 examples (50+ recommended for meaningful fine-tuning)
-- [ ] Examples are representative of the target task
-- [ ] Total tokens per example do not exceed the model's context window
-
-### Data Validation Script
-
-```python
-import json
-import sys
-
-def validate_jsonl(filepath):
-    errors = []
-    line_count = 0
-    with open(filepath, 'r') as f:
-        for i, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            line_count += 1
-            try:
-                obj = json.loads(line)
-            except json.JSONDecodeError as e:
-                errors.append(f"Line {i}: Invalid JSON — {e}")
-                continue
-
-            # Chat format
-            if "messages" in obj:
-                if not isinstance(obj["messages"], list) or len(obj["messages"]) == 0:
-                    errors.append(f"Line {i}: 'messages' must be a non-empty list")
-                    continue
-                for j, msg in enumerate(obj["messages"]):
-                    if "role" not in msg or "content" not in msg:
-                        errors.append(f"Line {i}, message {j}: missing 'role' or 'content'")
-                    elif msg["role"] not in ("system", "user", "assistant"):
-                        errors.append(f"Line {i}, message {j}: invalid role '{msg['role']}'")
-                    elif not msg["content"].strip():
-                        errors.append(f"Line {i}, message {j}: empty content")
-            # Completion format
-            elif "prompt" in obj and "completion" in obj:
-                if not obj["prompt"].strip():
-                    errors.append(f"Line {i}: empty prompt")
-                if not obj["completion"].strip():
-                    errors.append(f"Line {i}: empty completion")
-            else:
-                errors.append(f"Line {i}: must have 'messages' (chat) or 'prompt'+'completion' (completion)")
-
-    if errors:
-        print(f"Found {len(errors)} error(s):")
-        for e in errors[:20]:
-            print(f"  {e}")
-        if len(errors) > 20:
-            print(f"  ... and {len(errors) - 20} more")
-        return False
-    else:
-        print(f"Valid JSONL with {line_count} examples.")
-        return True
-
-if __name__ == "__main__":
-    validate_jsonl(sys.argv[1])
-```
-
-### Data Storage Options
-
-| Storage | How to Reference | Notes |
-|---------|-----------------|-------|
-| **Local file** | Upload as TrueFoundry Artifact first | Recommended for reproducibility |
-| **TrueFoundry Artifact** | Artifact FQN | Best option — versioned, tracked |
-| **S3 / GCS / Azure Blob** | Pre-signed URL | Use for large datasets already in cloud |
+For detailed format examples, validation checklist, validation script, and data storage options, see `references/finetuning-data-validation.md`.
 
 ## Step 3: Select GPU & Resources
 
@@ -255,53 +172,9 @@ Fine-tuning needs more resources than inference because:
 
 ## Step 4: Configure Hyperparameters
 
-### Key Hyperparameters
+Key parameters to set: `epochs` (default 3), `learning_rate` (default 2e-4), `batch_size` (default 4), `max_length` (default 2048), `lora_r` (default 16), `lora_alpha` (default 32).
 
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| **epochs** | 3 | 1–10 | Number of passes over the full dataset. More epochs = better learning but risk of overfitting. |
-| **learning_rate** | 2e-4 | 1e-5 to 5e-4 | Step size for weight updates. Start small and increase if training loss plateaus. |
-| **batch_size** | 4 | 1–32 | Samples processed before a parameter update. Larger = smoother gradients but more VRAM. |
-| **max_length** | 2048 | 512–8192 | Maximum sequence length. Longer = more context but more VRAM and slower training. |
-| **lora_r** | 16 | 4–64 | LoRA rank — controls adapter capacity. Higher = more expressive but more parameters. |
-| **lora_alpha** | 32 | 8–128 | LoRA scaling factor. Common rule: `lora_alpha = 2 * lora_r`. |
-| **warmup_ratio** | 0.1 | 0.0–0.2 | Fraction of steps with linearly increasing learning rate. Helps stabilize early training. |
-| **weight_decay** | 0.01 | 0.0–0.1 | Regularization to prevent overfitting. |
-| **gradient_accumulation_steps** | 4 | 1–16 | Simulates larger batch sizes without more VRAM. Effective batch = batch_size x grad_accum. |
-
-### Hyperparameter Recommendations by Use Case
-
-**Quick experiment (small dataset, < 1000 examples):**
-```
-epochs: 3–5
-learning_rate: 2e-4
-batch_size: 4
-lora_r: 8
-lora_alpha: 16
-max_length: 1024
-```
-
-**Production training (large dataset, 1000+ examples):**
-```
-epochs: 2–3
-learning_rate: 1e-4
-batch_size: 8
-lora_r: 16
-lora_alpha: 32
-max_length: 2048
-gradient_accumulation_steps: 4
-```
-
-**Domain adaptation (specialized vocabulary/knowledge):**
-```
-epochs: 5–10
-learning_rate: 5e-5
-batch_size: 4
-lora_r: 32
-lora_alpha: 64
-max_length: 4096
-weight_decay: 0.05
-```
+For the full hyperparameter table, recommended values by use case (quick experiment, production, domain adaptation), and the complete YAML configuration template, see `references/finetuning-config.md`.
 
 ## Step 5: Launch Fine-Tuning
 
@@ -471,45 +344,24 @@ Deploy directly using the `llm-deploy` skill. The fine-tuned model is a complete
 
 ## Configuration Reference
 
-### Full Configuration Template
+For the full YAML configuration template (model, data, training, LoRA, QLoRA, and output settings), see `references/finetuning-config.md`.
 
-```yaml
-# Fine-tuning configuration
-base_model: meta-llama/Llama-3.1-8B-Instruct
-method: qlora                    # qlora | lora | full
+</instructions>
 
-# Data
-dataset_path: /data/train.jsonl  # Path to JSONL training data
-dataset_format: chat             # chat | completion
-validation_split: 0.1            # Fraction of data for validation
+<success_criteria>
 
-# Training hyperparameters
-epochs: 3
-learning_rate: 2e-4
-batch_size: 4
-gradient_accumulation_steps: 4
-max_length: 2048
-warmup_ratio: 0.1
-weight_decay: 0.01
-lr_scheduler: cosine             # cosine | linear | constant
+## Success Criteria
 
-# LoRA configuration (for qlora/lora methods)
-lora_r: 16
-lora_alpha: 32
-lora_dropout: 0.05
-lora_target_modules: auto        # auto | q_proj,v_proj,k_proj,o_proj,...
+- The fine-tuning job is submitted and running on the correct GPU in the user's chosen workspace
+- The training data has been validated as correct JSONL format before job launch
+- The user can monitor training loss and validation loss via logs or experiment tracking
+- The training job completes without OOM errors, NaN loss, or crash-loops
+- The fine-tuned model or LoRA adapter is saved as a TrueFoundry Artifact
+- The user has clear next steps to deploy the fine-tuned model using the `llm-deploy` skill
 
-# QLoRA-specific
-quantization_bits: 4             # 4 | 8 (only for qlora)
-bnb_4bit_compute_dtype: bfloat16 # bfloat16 | float16 (for A100/H100 use bfloat16)
-bnb_4bit_quant_type: nf4         # nf4 | fp4
+</success_criteria>
 
-# Output
-output_dir: /output
-save_strategy: epoch             # epoch | steps
-save_steps: 500                  # if save_strategy is steps
-push_to_hub: false
-```
+<references>
 
 ## Composability
 
@@ -533,86 +385,12 @@ push_to_hub: false
 7. applications → verify the deployed model is healthy
 ```
 
+</references>
+
+<troubleshooting>
+
 ## Error Handling
 
-### CUDA Out of Memory During Training
-```
-CUDA out of memory during training.
-Fine-tuning uses more VRAM than inference due to gradients and optimizer states.
-Fix:
-- Reduce batch_size (e.g., from 4 to 2 or 1)
-- Reduce max_length (e.g., from 2048 to 1024)
-- Switch from LoRA to QLoRA (4-bit quantization)
-- Reduce lora_r (e.g., from 16 to 8)
-- Use gradient_accumulation_steps to compensate for smaller batch size
-- Use a GPU with more VRAM
-```
+For detailed error diagnosis and fixes (OOM, NaN loss, training loss plateau, model download failures, GPU pending, overfitting, checkpoint save failures, HuggingFace token issues), see `references/finetuning-errors.md`.
 
-### Training Loss Not Decreasing
-```
-Training loss is flat or not decreasing.
-Possible causes:
-- Learning rate too low → increase by 2-5x
-- Data quality issues → check for empty/corrupt examples
-- Dataset too small → need more diverse training examples
-- Wrong data format → verify JSONL format matches expected schema
-```
-
-### NaN Loss
-```
-Training loss became NaN.
-Fix:
-- Reduce learning_rate by 10x (e.g., from 2e-4 to 2e-5)
-- Check for corrupt data (empty strings, invalid characters)
-- Ensure max_length is not larger than model's native context window
-- Try a different random seed
-```
-
-### Model Download Failed
-```
-Base model download failed.
-Check:
-- HF_TOKEN is set correctly for gated models (Llama, Gemma, etc.)
-- Model ID is correct and case-sensitive
-- You have accepted the model's license on HuggingFace
-- Network access to huggingface.co from the cluster
-```
-
-### GPU Node Not Available
-```
-Job stuck in Pending — GPU node scaling up.
-This can take 5-15 minutes if a new GPU node needs provisioning.
-If it stays Pending for 15+ minutes:
-- The cluster may not have the requested GPU type
-- Check available GPUs via cluster API
-- Try a different GPU type
-```
-
-### Overfitting (Validation Loss Increasing)
-```
-Validation loss increasing while training loss decreases — model is overfitting.
-Fix:
-- Reduce number of epochs
-- Increase weight_decay (e.g., from 0.01 to 0.05)
-- Add more diverse training data
-- Reduce lora_r to limit model capacity
-- Increase lora_dropout (e.g., from 0.05 to 0.1)
-```
-
-### Checkpoint Save Failed
-```
-Failed to save checkpoint — disk full.
-Fix:
-- Increase ephemeral_storage_limit
-- Reduce save frequency (save_strategy: epoch instead of steps)
-- Clean up old checkpoints by setting save_total_limit
-```
-
-### HuggingFace Token Permission Denied
-```
-Access denied for gated model.
-Fix:
-- Accept the model license at https://huggingface.co/{model-id}
-- Verify HF_TOKEN has read access to the model
-- Use secrets skill to check the token is correctly stored in TrueFoundry
-```
+</troubleshooting>

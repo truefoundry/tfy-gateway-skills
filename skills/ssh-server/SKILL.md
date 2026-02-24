@@ -1,8 +1,12 @@
 ---
 name: ssh-server
-description: This skill should be used when the user asks "launch ssh server", "deploy ssh server", "remote development", "VS Code remote", "SSH access", or wants a remote development environment with SSH access on TrueFoundry.
+description: This skill should be used when the user asks "launch ssh server", "deploy ssh server", "remote development", "VS Code remote", "SSH access", "start dev environment", "cloud development machine", "GPU dev box", "remote coding setup", "SSH into server", "set up remote workspace", or wants a remote development environment with SSH access on TrueFoundry.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # SSH Server
 
@@ -21,12 +25,20 @@ Launch an SSH server on TrueFoundry for remote development. Connect with VS Code
 - User wants to deploy a service → use `deploy` skill
 - User wants to deploy a model → use `llm-deploy` skill
 
+</objective>
+
+<context>
+
 ## Launch SSH Server via UI
 
 1. Go to **Deployments → New Deployment → SSH Server**
 2. Add your SSH public key
 3. Select workspace and configure resources
 4. Click Deploy
+
+</context>
+
+<instructions>
 
 ## Launch SSH Server via API
 
@@ -228,6 +240,23 @@ conda activate ml-env
 pip install torch transformers
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user can launch an SSH server on a specified TrueFoundry workspace
+- The user can connect to the server via VS Code Remote-SSH or a standard SSH client
+- The agent has configured SSH keys and verified connectivity
+- The user can transfer files to and from the remote server
+- The agent has set up auto-shutdown to avoid unnecessary costs
+- The user can access GPU resources from the remote environment if requested
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Need workspace**: Use `workspaces` skill to find target workspace
@@ -235,6 +264,10 @@ pip install torch transformers
 - **Need persistent volumes**: Use `volumes` skill to create and mount storage
 - **Deploy after development**: Use `deploy` or `llm-deploy` skill
 - **Check status**: Use `applications` skill to see SSH server status
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -264,3 +297,5 @@ SSH server stopped. Possible causes:
 - Increase wait_time for longer sessions
 - Resource limits exceeded (increase memory/CPU)
 ```
+
+</troubleshooting>

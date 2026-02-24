@@ -9,10 +9,14 @@ set -e
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 
-# Approve only if the command starts with our tfy-api.sh or tfy-version.sh scripts.
-# Anchored match prevents approving e.g. "echo tfy-api.sh; curl evil.com".
-if [[ "$COMMAND" =~ ^[[:space:]]*(bash[[:space:]]+)?(\.?\.?/?)*scripts/tfy-(api|version)\.sh ]] || \
-   [[ "$COMMAND" =~ ^[[:space:]]*(bash[[:space:]]+)?(\.?\.?/?)*truefoundry-[^/]*/scripts/tfy-(api|version)\.sh ]]; then
+# Approve only if the command is a tfy-api.sh or tfy-version.sh call with no shell metacharacters.
+# Rejects command chaining (;, &&, ||, |) and subshells ($(), ``) to prevent injection.
+# Regex stored in variables so shellcheck doesn't try to parse them (SC1073).
+# shellcheck disable=SC2016
+_SAFE_ARGS='[^;&|$()'\''`]*'
+_RE_DIRECT="^[[:space:]]*(bash[[:space:]]+)?(\\.?\\.?/?)*scripts/tfy-(api|version)\\.sh([[:space:]]+${_SAFE_ARGS})?$"
+_RE_INSTALLED="^[[:space:]]*(bash[[:space:]]+)?(\\.?\\.?/?)*truefoundry-[^/]*/scripts/tfy-(api|version)\\.sh([[:space:]]+${_SAFE_ARGS})?$"
+if [[ "$COMMAND" =~ $_RE_DIRECT ]] || [[ "$COMMAND" =~ $_RE_INSTALLED ]]; then
   echo '{"decision": "approve"}'
   exit 0
 fi

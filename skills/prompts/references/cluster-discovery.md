@@ -4,7 +4,7 @@
 
 The cluster ID is the part before the colon in a workspace FQN:
 
-- `tfy-ea-dev-eo-az:sai-ws` → cluster ID is `tfy-ea-dev-eo-az`
+- `my-cluster:my-workspace` → cluster ID is `my-cluster`
 - Or use `TFY_CLUSTER_ID` from environment if set
 
 ## Fetching Cluster Details
@@ -23,7 +23,7 @@ $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
 2. Pick the wildcard entry (starts with `*.`)
 3. Strip `*.` to get the base domain
 4. Construct host: `{service-name}-{workspace-name}.{base_domain}`
-5. Example: `my-app-dev-ws.ml.tfy-eo.truefoundry.cloud`
+5. Example: `my-app-dev-ws.ml.your-org.truefoundry.cloud`
 
 **Why this matters:** Deploying with the wrong base domain results in a "Provided host is not configured in cluster" error.
 

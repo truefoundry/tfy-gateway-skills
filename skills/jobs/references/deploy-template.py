@@ -34,8 +34,11 @@ from truefoundry.deploy import (
     # SecretMount,  # uncomment if using TrueFoundry secret groups
 )
 
-import truefoundry
-print(f"TrueFoundry SDK version: {truefoundry.__version__}")
+try:
+    import truefoundry
+    print(f"TrueFoundry SDK version: {getattr(truefoundry, '__version__', 'unknown')}")
+except ImportError:
+    raise SystemExit("TrueFoundry SDK not installed. Run: pip install truefoundry python-dotenv")
 
 PROJECT_ROOT = str(Path(__file__).resolve().parent)
 if not Path(PROJECT_ROOT).exists():
@@ -60,7 +63,7 @@ service = Service(
              # Public URL: set expose=True + host matching a cluster base domain.
              # Get base domains: GET /api/svc/v1/clusters/{cluster_id} → base_domains
              # Host convention: {service}-{workspace}.{base_domain}
-             # Example: "my-app-dev-ws.ml.tfy-eo.truefoundry.cloud"
+             # Example: "my-app-dev-ws.ml.your-org.truefoundry.cloud"
              # Internal only: expose=False, no host (default).
              expose=bool(os.environ.get("TFY_DEPLOY_HOST")),
              host=os.environ.get("TFY_DEPLOY_HOST") or None,

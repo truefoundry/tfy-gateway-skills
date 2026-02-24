@@ -1,8 +1,12 @@
 ---
 name: docs
-description: This skill should be used when the user asks about TrueFoundry documentation, "how do I do X on TrueFoundry", "TrueFoundry docs", or needs reference material for TrueFoundry features, API, or deployment configuration.
+description: This skill should be used when the user asks about TrueFoundry documentation, "how do I do X on TrueFoundry", "TrueFoundry docs", "show me the guide for", "where is the API reference", "help with TrueFoundry config", "TrueFoundry tutorial", "explain TrueFoundry feature", "find docs about", or needs reference material for TrueFoundry features, API, or deployment configuration.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(curl *)
 ---
+
+<objective>
 
 # TrueFoundry Documentation
 
@@ -14,6 +18,10 @@ Fetch up-to-date TrueFoundry documentation for features, API reference, and depl
 - User needs deployment configuration guidance
 - User asks about TrueFoundry features or pricing
 - Troubleshooting TrueFoundry-specific issues
+
+</objective>
+
+<instructions>
 
 ## Documentation Sources
 
@@ -79,8 +87,25 @@ curl -sL "https://truefoundry.com/docs/deploy-first-service" | head -200
 
 Or use WebFetch if available in the agent.
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user has received the relevant documentation content or URL for their question
+- The agent has fetched and summarized the specific docs page rather than just linking to it
+- The user understands the next steps based on the documentation provided
+- If the docs page was unavailable, the agent has suggested alternative resources or related skills
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Before deploy**: Fetch deploy guides for the specific app type
 - **For API usage**: Reference `references/api-endpoints.md` in _shared
 - **For troubleshooting**: Fetch relevant docs page and summarize
+
+</references>

@@ -1,8 +1,12 @@
 ---
 name: llm-benchmarking
-description: This skill should be used when the user asks "benchmark model", "test LLM performance", "load test model", "inference benchmark", "measure latency", "test throughput", "benchmark deployed model", "stress test LLM", or wants to evaluate the performance of a deployed LLM on TrueFoundry.
+description: This skill should be used when the user asks "benchmark model", "test LLM performance", "load test model", "inference benchmark", "measure latency", "test throughput", "benchmark deployed model", "stress test LLM", "how fast is my model", "check model speed", "tokens per second", "measure TTFT", "concurrency test", "performance test LLM", or wants to evaluate the performance of a deployed LLM on TrueFoundry.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # LLM Benchmarking on TrueFoundry
 
@@ -25,6 +29,10 @@ Benchmark deployed LLMs on TrueFoundry to measure latency, throughput, time to f
 - User wants to fine-tune or train a model → not covered by this skill
 - User wants to evaluate model quality (accuracy, BLEU, etc.) → not covered; this skill measures inference performance only
 
+</objective>
+
+<context>
+
 ## Prerequisites
 
 **Before benchmarking:**
@@ -34,6 +42,10 @@ Benchmark deployed LLMs on TrueFoundry to measure latency, throughput, time to f
 3. **Model endpoint** — The deployed model's host URL (OpenAI-compatible `v1/chat/completions` endpoint)
 
 For credential check commands and .env setup, see `references/prerequisites.md`. Use the `status` skill to verify connection. Use the `applications` skill to find the deployed model's endpoint URL.
+
+</context>
+
+<instructions>
 
 ## Key Metrics
 
@@ -362,26 +374,13 @@ If benchmarking a model served through TrueFoundry's AI Gateway:
 
 ### Common Patterns
 
-**Pattern: Healthy scaling**
-- TPS increases linearly with concurrency
-- TTFT stays relatively flat
-- No errors
+**Healthy scaling** — TPS increases linearly with concurrency, TTFT stays flat, no errors.
 
-**Pattern: GPU saturation**
-- TPS plateaus despite increasing concurrency
-- TTFT and response time increase sharply
-- Errors may start appearing (timeouts, OOM)
-- Action: Add more replicas or use a larger GPU
+**GPU saturation** — TPS plateaus despite increasing concurrency, TTFT spikes, errors appear. Action: Add replicas or use a larger GPU.
 
-**Pattern: Memory pressure**
-- OOM errors or request failures at higher concurrency
-- TTFT spikes erratically
-- Action: Increase GPU memory utilization limit, reduce max_model_len, or use a GPU with more VRAM
+**Memory pressure** — OOM errors at higher concurrency, TTFT spikes erratically. Action: Increase GPU memory limit, reduce max_model_len, or use more VRAM.
 
-**Pattern: Network bottleneck**
-- High TTFT even at low concurrency
-- Consistent across concurrency levels
-- Action: Check network path, consider co-locating client and model
+**Network bottleneck** — High TTFT even at low concurrency, consistent across levels. Action: Check network path, co-locate client and model.
 
 ### Optimization Actions Based on Results
 
@@ -395,14 +394,30 @@ If benchmarking a model served through TrueFoundry's AI Gateway:
 
 ## Best Practices
 
-1. **Use representative prompts** — Benchmark with prompts that match your production workload in length and complexity
-2. **Test incrementally** — Start at concurrency 1 and increase gradually to find the saturation point
-3. **Run enough requests** — Use at least 10-50 requests per concurrency level for stable measurements
-4. **Warm up the model** — Send a few requests before the benchmark to warm caches and JIT compilation
-5. **Test different configurations** — Compare GPU types, model quantization levels, and vLLM flags
-6. **Monitor GPU utilization** — Check GPU memory and compute usage alongside benchmark metrics
-7. **Benchmark after changes** — Re-run benchmarks whenever you change the model, GPU, or vLLM configuration
-8. **Record results** — Save benchmark outputs for historical comparison
+1. **Use representative prompts** — Match production workload in length and complexity
+2. **Test incrementally** — Start at concurrency 1, increase gradually to find saturation
+3. **Run enough requests** — At least 10-50 per concurrency level for stable measurements
+4. **Warm up first** — Send a few requests before benchmarking to warm caches
+5. **Compare configurations** — Test different GPU types, quantization levels, and vLLM flags
+6. **Monitor GPU utilization** — Check GPU memory and compute usage alongside metrics
+7. **Re-benchmark after changes** — Re-run whenever you change model, GPU, or config
+8. **Record results** — Save outputs for historical comparison
+
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The benchmark has completed successfully across multiple concurrency levels
+- The agent has presented a results table showing RPS, TPS, TTFT, and response time at each concurrency level
+- The user can identify the saturation point where performance degrades
+- The agent has provided actionable optimization recommendations based on the results
+- The user knows whether to scale horizontally (more replicas) or vertically (larger GPU) based on the benchmark data
+
+</success_criteria>
+
+<references>
 
 ## Composability
 
@@ -411,6 +426,10 @@ If benchmarking a model served through TrueFoundry's AI Gateway:
 - **Check deployment health**: Use `applications` skill to verify the model is running before benchmarking
 - **View model logs**: Use `logs` skill to check for errors during benchmark
 - **Verify connection**: Use `status` skill to confirm TrueFoundry credentials
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -472,3 +491,5 @@ Fix:
 - Run 3+ benchmark passes and average the results
 - Use dedicated GPU nodes if available
 ```
+
+</troubleshooting>

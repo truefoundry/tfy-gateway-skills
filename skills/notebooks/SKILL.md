@@ -1,8 +1,12 @@
 ---
 name: notebooks
-description: This skill should be used when the user asks "launch a notebook", "deploy jupyter", "start a notebook", "jupyter notebook", "create notebook", "notebook for development", or wants to run Jupyter notebooks on TrueFoundry infrastructure.
+description: This skill should be used when the user asks "launch a notebook", "deploy jupyter", "start a notebook", "jupyter notebook", "create notebook", "notebook for development", "start jupyterlab", "GPU notebook", "notebook with GPU", "data exploration environment", "ML development environment", "run jupyter on cloud", or wants to run Jupyter notebooks on TrueFoundry infrastructure.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Jupyter Notebooks
 
@@ -20,6 +24,10 @@ Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, au
 - User wants to deploy a production service → use `deploy` skill
 - User wants to deploy a model → use `llm-deploy` skill
 - User wants an SSH server → use `ssh-server` skill
+
+</objective>
+
+<instructions>
 
 ## Launch Notebook via UI
 
@@ -217,13 +225,34 @@ Notebooks:
 | data-analysis | Stopped | py3.11        | None | 20 GB   |
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The notebook is launched and accessible via its URL in the TrueFoundry dashboard
+- GPU resources are allocated as requested and visible inside the notebook (e.g., `nvidia-smi` works)
+- Persistent storage is configured so the user's files survive restarts
+- Auto-shutdown is enabled to prevent unnecessary cost from idle notebooks
+- The user can install packages and access their data (cloud storage, volumes, or local upload)
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Need workspace**: Use `workspaces` skill to find target workspace
+- **Save workspace for next time**: Use `preferences` skill to remember default workspace
 - **Need GPU info**: Use `workspaces` skill to check available GPU types on cluster
 - **Need volumes**: Use `volumes` skill to create persistent storage, then mount
 - **Deploy model after prototyping**: Use `deploy` or `llm-deploy` skill
 - **Check status**: Use `applications` skill to see notebook status
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -250,3 +279,5 @@ Notebook storage full. Options:
 - Increase storage allocation
 - Mount an external volume for large datasets
 ```
+
+</troubleshooting>

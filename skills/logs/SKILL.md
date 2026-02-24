@@ -1,8 +1,12 @@
 ---
 name: logs
-description: This skill should be used when the user asks "show logs", "view logs", "what are the logs", "download logs", "debug my app", or wants to see application/job logs from TrueFoundry.
+description: This skill should be used when the user asks "show logs", "view logs", "what are the logs", "download logs", "debug my app", "why is my app failing", "check application output", "tail logs", "stream logs", "search logs for errors", "get logs for my service", or wants to see, download, search, or debug application and job logs from TrueFoundry.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Logs
 
@@ -15,6 +19,10 @@ View and download application and job logs from TrueFoundry.
 - User says "what went wrong", "why did it fail"
 - User asks to download logs for a time range
 - After a deploy, to check if the app started correctly
+
+</objective>
+
+<instructions>
 
 ## Download Logs
 
@@ -70,12 +78,32 @@ Logs for tfy-mcp-server (last 20 lines):
 2026-02-10 14:30:05 INFO  Health check: OK
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user can see recent logs for their application or job in chronological order
+- Error patterns in the logs are identified and highlighted with suggested fixes
+- The agent has filtered logs by the correct time range, application, and search terms
+- The user understands why their application failed or what its current behavior is
+- Log output is presented concisely, summarizing long output rather than dumping raw text
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Find app first**: Use `applications` skill to get app ID or FQN
 - **Find workspace**: Use `workspaces` skill to get workspace ID
 - **After deploy**: Check logs to verify the app started
 - **Debug failures**: Download logs with `searchString=error`
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -97,3 +125,5 @@ No logs found for the given filters. Check:
 ```
 Cannot access logs. Check your API key permissions for this workspace.
 ```
+
+</troubleshooting>

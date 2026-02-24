@@ -159,7 +159,7 @@ Port(
     port=8000,
     protocol="TCP",
     expose=True,
-    host="my-app-dev-ws.ml.tfy-eo.truefoundry.cloud",
+    host="my-app-dev-ws.ml.your-org.truefoundry.cloud",
     app_protocol="http",
 )
 

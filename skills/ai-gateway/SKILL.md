@@ -1,8 +1,12 @@
 ---
 name: ai-gateway
-description: This skill should be used when the user asks "use AI gateway", "call LLM through gateway", "gateway API", "unified LLM API", "route LLM requests", "rate limit LLM", "LLM proxy", "model routing", or wants to use TrueFoundry's AI Gateway to access LLMs through a unified API.
+description: This skill should be used when the user asks "use AI gateway", "call LLM through gateway", "gateway API", "unified LLM API", "route LLM requests", "rate limit LLM", "LLM proxy", "model routing", "access LLMs", "single API for all models", "configure model gateway", "set up LLM endpoint", or wants to use TrueFoundry's AI Gateway to access LLMs through a unified API, manage virtual access tokens, or configure load balancing and budget controls for LLM usage.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl*) Bash(python*)
 ---
+
+<objective>
 
 # AI Gateway
 
@@ -22,6 +26,10 @@ Use TrueFoundry's AI Gateway to access 1000+ LLMs through a unified OpenAI-compa
 - User wants to deploy a self-hosted model → use `llm-deploy` skill (then connect to gateway)
 - User wants to deploy MCP servers → use `mcp-server` skill
 - User wants to manage TrueFoundry platform credentials → use `status` skill
+
+</objective>
+
+<context>
 
 ## Overview
 
@@ -50,7 +58,7 @@ The gateway base URL is your TrueFoundry platform URL + `/api/llm`:
 {TFY_BASE_URL}/api/llm
 ```
 
-Example: `https://tfy-eo.truefoundry.cloud/api/llm`
+Example: `https://your-org.truefoundry.cloud/api/llm`
 
 ## Authentication
 
@@ -75,6 +83,10 @@ For production applications (recommended):
 - Not tied to a specific user (survives team changes)
 - Support granular model access control
 - Better for tracking per-application usage
+
+</context>
+
+<instructions>
 
 ## Calling Models
 
@@ -361,7 +373,7 @@ When the user asks about gateway configuration:
 
 ```
 AI Gateway:
-  Endpoint: https://tfy-eo.truefoundry.cloud/api/llm
+  Endpoint: https://your-org.truefoundry.cloud/api/llm
   Auth:     Personal Access Token (PAT) or Virtual Access Token (VAT)
 
 Available Models (check dashboard for current list):
@@ -372,10 +384,27 @@ Available Models (check dashboard for current list):
 | anthropic/claude   | Anthropic   | Cloud       |
 
 Usage:
-  export OPENAI_BASE_URL="https://tfy-eo.truefoundry.cloud/api/llm"
+  export OPENAI_BASE_URL="https://your-org.truefoundry.cloud/api/llm"
   export OPENAI_API_KEY="your-token"
   # Then use any OpenAI-compatible SDK
 ```
+
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user can call LLMs through the gateway endpoint using an OpenAI-compatible SDK or cURL
+- The user has a valid authentication token (PAT or VAT) configured for gateway access
+- The agent has confirmed the target model name is available in the user's gateway configuration
+- The user can verify successful responses from the gateway with correct model output
+- The agent has provided working code snippets tailored to the user's language and framework
+- Rate limiting, budget controls, or routing are configured if the user requested them
+
+</success_criteria>
+
+<references>
 
 ## Composability
 
@@ -386,6 +415,10 @@ Usage:
 - **MCP servers**: Use `mcp-server` skill to deploy tool servers, register in gateway
 - **Check deployed models**: Use `applications` skill to see running model services
 - **Benchmark through gateway**: Use `llm-benchmarking` skill to test gateway performance
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -427,3 +460,5 @@ Model name not found in gateway. Check:
 - Provider account is active and model is enabled
 - Your token has access to this model
 ```
+
+</troubleshooting>

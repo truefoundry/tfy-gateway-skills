@@ -1,6 +1,6 @@
 # TrueFoundry API Endpoints Reference
 
-Base URL: `$TFY_BASE_URL` (e.g. `https://tfy-eo.truefoundry.cloud`)
+Base URL: `$TFY_BASE_URL` (e.g. `https://your-org.truefoundry.cloud`)
 Auth: `Authorization: Bearer $TFY_API_KEY`
 
 ## Applications

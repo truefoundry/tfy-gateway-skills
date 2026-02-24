@@ -1,8 +1,12 @@
 ---
 name: gitops
-description: This skill should be used when the user asks "setup gitops", "CI/CD pipeline", "deploy on push", "github actions truefoundry", "gitlab CI truefoundry", "gitops deployment", "tfy apply", "deploy from git", or wants to set up automated deployments from a Git repository.
+description: This skill should be used when the user asks "setup gitops", "CI/CD pipeline", "deploy on push", "github actions truefoundry", "gitlab CI truefoundry", "gitops deployment", "tfy apply", "deploy from git", "automate deployments", "infrastructure as code", "continuous deployment", "deploy on merge", "bitbucket pipeline truefoundry", "auto deploy from repo", or wants to set up automated deployments from a Git repository.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # GitOps with TrueFoundry
 
@@ -25,6 +29,10 @@ Set up GitOps-style deployments with TrueFoundry. Store deployment configuration
 - User wants to deploy a Helm chart → use `helm` skill
 - User just wants to check TrueFoundry connection → use `status` skill
 
+</objective>
+
+<context>
+
 ## Prerequisites
 
 **Always verify before setting up GitOps:**
@@ -34,6 +42,10 @@ Set up GitOps-style deployments with TrueFoundry. Store deployment configuration
 3. **Git repository** — A Git repo to store deployment specs
 
 For credential check commands and .env setup, see `references/prerequisites.md`. Use the `status` skill to verify connection before proceeding.
+
+</context>
+
+<instructions>
 
 ## How GitOps Works with TrueFoundry
 
@@ -300,7 +312,7 @@ Set these in your repository settings (Settings -> Secrets and variables -> Acti
 
 | Secret | Description | Example |
 |--------|-------------|---------|
-| `TFY_HOST` | TrueFoundry platform URL | `https://tfy-eo.truefoundry.cloud` |
+| `TFY_HOST` | TrueFoundry platform URL | `https://your-org.truefoundry.cloud` |
 | `TFY_API_KEY` | TrueFoundry API key | `tfy-...` |
 
 ## CI/CD Integration: GitLab CI
@@ -394,7 +406,7 @@ pipelines:
 
 Set `TFY_HOST` and `TFY_API_KEY` as repository variables in Bitbucket.
 
-## Step-by-Step: Setting Up GitOps
+## Step-by-Step: Setting Up GitOps (Summary)
 
 1. **Verify TrueFoundry connection** — Use the `status` skill to confirm credentials
 2. **Create the repo structure** — Set up directories for your resource types (clusters, gateway, etc.)
@@ -404,6 +416,23 @@ Set `TFY_HOST` and `TFY_API_KEY` as repository variables in Bitbucket.
 6. **Test with a dry run** — Open a PR with a small change to verify the validation pipeline works
 7. **Merge and deploy** — Merge the PR and confirm the apply pipeline deploys successfully
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user has a Git repository with TrueFoundry YAML specs organized by environment (dev/staging/prod)
+- The CI/CD pipeline validates specs on pull requests using `tfy apply --dry-run`
+- The CI/CD pipeline auto-deploys specs on merge to the default branch using `tfy apply`
+- The agent has provided the user with the correct CI workflow files for their CI provider (GitHub Actions, GitLab CI, or Bitbucket Pipelines)
+- Repository secrets (`TFY_HOST`, `TFY_API_KEY`) are configured in the CI provider
+- The user can verify the pipeline works by opening a PR with a small YAML change and seeing validation pass
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Verify connection first**: Use `status` skill to check TrueFoundry credentials
@@ -412,6 +441,10 @@ Set `TFY_HOST` and `TFY_API_KEY` as repository variables in Bitbucket.
 - **Deploy LLM models via GitOps**: Use `llm-deploy` skill to generate the manifest YAML, then store it in Git
 - **Manage secrets**: Use `secrets` skill to set up secret groups referenced in your specs
 - **View deployment logs**: Use `logs` skill to debug deployments after apply
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -431,7 +464,7 @@ Run: tfy apply --file spec.yaml --dry-run
 ```
 401 Unauthorized from tfy apply.
 Check:
-- TFY_HOST is set correctly (the platform URL, e.g., https://tfy-eo.truefoundry.cloud)
+- TFY_HOST is set correctly (the platform URL, e.g., https://your-org.truefoundry.cloud)
 - TFY_API_KEY is valid and not expired
 - Secrets are configured correctly in your CI provider
 ```
@@ -462,3 +495,5 @@ The YAML filename should match the 'name' field inside the spec.
 Example: my-service.yaml should contain name: my-service
 This is a convention for clarity — tfy apply uses the internal name, not the filename.
 ```
+
+</troubleshooting>

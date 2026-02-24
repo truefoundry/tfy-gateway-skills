@@ -28,8 +28,10 @@ Available skills in this repo:
 - `mcp-server`
 - `multi-service`
 - `notebooks`
+- `preferences`
 - `prompts`
 - `secrets`
+- `service-test`
 - `ssh-server`
 - `status`
 - `tfy-apply`

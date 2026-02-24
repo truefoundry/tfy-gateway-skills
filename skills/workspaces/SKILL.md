@@ -1,8 +1,12 @@
 ---
 name: workspaces
-description: This skill should be used when the user asks "list workspaces", "show clusters", "what workspaces are available", "which workspace", or needs a workspace FQN for deployment or filtering.
+description: This skill should be used when the user asks "list workspaces", "show clusters", "what workspaces are available", "which workspace", "find my workspace FQN", "show GPU types", "what GPUs are available", "cluster base domain", "workspace for deployment", "get cluster info", "list environments", or needs a workspace FQN for deployment or filtering.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Workspaces & Clusters
 
@@ -14,6 +18,10 @@ List TrueFoundry workspaces and clusters. Workspaces are the deploy targets; clu
 - User needs a `workspace_fqn` for deploy or filtering
 - User asks "list clusters", "show clusters", "cluster status"
 - Before deploying, to confirm target workspace
+
+</objective>
+
+<instructions>
 
 ## List Workspaces
 
@@ -38,7 +46,7 @@ $TFY_API_SH GET '/api/svc/v1/workspaces?clusterId=CLUSTER_ID'
 $TFY_API_SH GET '/api/svc/v1/workspaces?name=my-workspace'
 
 # Filter by FQN
-$TFY_API_SH GET '/api/svc/v1/workspaces?fqn=tfy-ea-dev-eo-az:my-ws'
+$TFY_API_SH GET '/api/svc/v1/workspaces?fqn=my-cluster:my-workspace'
 ```
 
 ### Get Specific Workspace
@@ -59,8 +67,8 @@ Show as a table:
 Workspaces:
 | Name       | FQN                        | Cluster          |
 |------------|----------------------------|------------------|
-| dev-ws     | tfy-ea-dev-eo-az:dev-ws    | tfy-ea-dev-eo-az |
-| staging-ws | tfy-ea-dev-eo-az:staging   | tfy-ea-dev-eo-az |
+| dev-ws     | my-cluster:dev-ws    | my-cluster |
+| staging-ws | my-cluster:staging   | my-cluster |
 ```
 
 **Key field**: `fqn` — this is what `TFY_WORKSPACE_FQN` needs for deploy.
@@ -92,7 +100,7 @@ $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID/get-addons
 Clusters:
 | Name             | ID               | Connected |
 |------------------|------------------|-----------|
-| tfy-ea-dev-eo-az | tfy-ea-dev-eo-az | Yes ✓     |
+| my-cluster | my-cluster | Yes ✓     |
 ```
 
 ## Cluster Base Domains (for Public URLs)
@@ -121,11 +129,29 @@ If you deploy with an unsupported GPU type, the error message lists all valid on
 
 For the full GPU type reference table and SDK usage examples, see `references/gpu-reference.md`.
 
+</instructions>
+
+<success_criteria>
+
+- The user can see a formatted table of available workspaces with their FQNs
+- The agent has identified the correct workspace FQN for the user's intended deployment target
+- The user can see cluster connectivity status and available infrastructure
+- The agent has discovered and presented available GPU types if the user needs GPU resources
+- The user has the cluster base domain if they need to expose a service publicly
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Need workspace for deploy**: Use this skill first, then `deploy` skill with the `fqn`
 - **Need cluster for filtering**: Pass `cluster_id` to workspaces or applications
 - **Check infra status**: Get cluster + addons for monitoring
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -140,3 +166,5 @@ No workspaces found. Check:
 ```
 Cannot list workspaces. Your API key may lack workspace permissions.
 ```
+
+</troubleshooting>

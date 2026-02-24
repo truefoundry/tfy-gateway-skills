@@ -1,8 +1,12 @@
 ---
 name: volumes
-description: This skill should be used when the user asks "create a volume", "list volumes", "persistent storage", "mount a volume", "attach storage", "shared storage for pods", or wants to manage TrueFoundry persistent volumes. NOT for blob storage (S3/GCS) questions.
+description: This skill should be used when the user asks "create a volume", "list volumes", "persistent storage", "mount a volume", "attach storage", "shared storage for pods", "add disk to service", "volume sizing", "storage class options", "expand volume", "attach PVC", "mount shared data", or wants to manage TrueFoundry persistent volumes. NOT for blob storage (S3/GCS) questions.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Volumes
 
@@ -24,6 +28,10 @@ Create and manage persistent volumes on TrueFoundry. Volumes provide shared, low
 - User wants ephemeral scratch space -> use `ephemeral_storage` in resource config
 - User wants to deploy an app -> use `deploy` skill
 - User wants to manage secrets -> use `secrets` skill
+
+</objective>
+
+<context>
 
 ## Volumes vs Blob Storage
 
@@ -117,6 +125,10 @@ tfy_clusters_list(cluster_id="CLUSTER_ID")
 $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
 ```
 
+</context>
+
+<instructions>
+
 ## Creating a Volume
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
@@ -137,7 +149,7 @@ Volume to create:
   Name:          training-data
   Size:          100Gi
   Storage class: efs-sc
-  Workspace:     tfy-ea-dev-eo-az:my-ws
+  Workspace:     my-cluster:my-workspace
 
 Note: Size can be expanded later but not reduced.
 Proceed?
@@ -201,14 +213,14 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 ### Via MCP
 
 ```
-tfy_applications_list(filters={"workspace_fqn": "tfy-ea-dev-eo-az:my-ws", "application_type": "volume"})
+tfy_applications_list(filters={"workspace_fqn": "my-cluster:my-workspace", "application_type": "volume"})
 ```
 
 ### Via Direct API
 
 ```bash
 # List volumes in a workspace
-$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=tfy-ea-dev-eo-az:my-ws&applicationType=volume'
+$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=my-cluster:my-workspace&applicationType=volume'
 
 # Get a specific volume by ID
 $TFY_API_SH GET /api/svc/v1/apps/VOLUME_APP_ID
@@ -217,7 +229,7 @@ $TFY_API_SH GET /api/svc/v1/apps/VOLUME_APP_ID
 ### Presenting Volumes
 
 ```
-Volumes in tfy-ea-dev-eo-az:my-ws:
+Volumes in my-cluster:my-workspace:
 | Name           | Size   | Storage Class | Status   | Created            |
 |----------------|--------|---------------|----------|--------------------|
 | training-data  | 100Gi  | efs-sc        | RUNNING  | 2026-02-10 14:30   |
@@ -239,7 +251,7 @@ service = Service(
     mounts=[
         VolumeMount(
             mount_path="/data",
-            volume_fqn="tfy-ea-dev-eo-az:my-ws:my-volume",
+            volume_fqn="my-cluster:my-workspace:my-volume",
         ),
     ],
 )
@@ -257,7 +269,7 @@ service = Service(
       {
         "type": "volume",
         "mount_path": "/data",
-        "volume_fqn": "tfy-ea-dev-eo-az:my-ws:my-volume"
+        "volume_fqn": "my-cluster:my-workspace:my-volume"
       }
     ],
     "resources": {
@@ -281,12 +293,12 @@ service = Service(
       {
         "type": "volume",
         "mount_path": "/data",
-        "volume_fqn": "tfy-ea-dev-eo-az:my-ws:training-data"
+        "volume_fqn": "my-cluster:my-workspace:training-data"
       },
       {
         "type": "volume",
         "mount_path": "/checkpoints",
-        "volume_fqn": "tfy-ea-dev-eo-az:my-ws:checkpoint-vol"
+        "volume_fqn": "my-cluster:my-workspace:checkpoint-vol"
       }
     ],
     "resources": {
@@ -302,7 +314,7 @@ service = Service(
 
 The volume FQN follows the pattern: `{cluster}:{workspace}:{volume-name}`
 
-Example: `tfy-ea-dev-eo-az:my-ws:training-data`
+Example: `my-cluster:my-workspace:training-data`
 
 ## LLM Cache Volumes
 
@@ -369,6 +381,21 @@ For mounting pre-existing cloud storage as Kubernetes PersistentVolumes.
 
 TrueFoundry provides an optional Volume Browser UI for managing files in a volume without SSH. When creating a volume, this can be enabled by setting a password-protected secret for access.
 
+</instructions>
+
+<success_criteria>
+
+- The user can list all volumes in their target workspace
+- The agent has confirmed volume name, size, storage class, and workspace with the user before creating
+- The volume was successfully created and is in RUNNING status
+- The user can attach the volume to a service or job using the correct volume FQN
+- The agent has advised on appropriate sizing based on the user's use case
+- The user understands the difference between volumes and blob storage for their scenario
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Before deploying with volumes**: Use `workspaces` skill to get workspace FQN, then create the volume in the same workspace
@@ -377,6 +404,10 @@ TrueFoundry provides an optional Volume Browser UI for managing files in a volum
 - **With jobs skill**: Mount volumes to training jobs for checkpointing and shared data access
 - **With applications skill**: List volumes alongside other application types to see what storage exists
 - **After creating**: Use `applications` skill to verify the volume was created successfully
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -406,8 +437,8 @@ To use less storage, create a new smaller volume and migrate data.
 ### Workspace Mismatch
 ```
 Volume and application must be in the same workspace.
-Volume workspace: tfy-ea-dev-eo-az:ws-a
-Application workspace: tfy-ea-dev-eo-az:ws-b
+Volume workspace: my-cluster:ws-a
+Application workspace: my-cluster:ws-b
 Create the volume in the same workspace as your application, or redeploy the application to the volume's workspace.
 ```
 
@@ -429,3 +460,5 @@ Multiple pods writing to the same file path can cause data corruption.
 Ensure each pod writes to a unique sub-directory, or use a single-writer pattern.
 Example: /data/pod-{POD_NAME}/ for per-pod directories.
 ```
+
+</troubleshooting>

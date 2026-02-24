@@ -1,8 +1,12 @@
 ---
 name: prompts
-description: This skill should be used when the user asks "list prompts", "show my prompts", "get prompt version", or wants to manage TrueFoundry prompt registry prompts and their versions.
+description: This skill should be used when the user asks "list prompts", "show my prompts", "get prompt version", "show prompt registry", "what prompts do I have", "find prompt", "prompt versions", "view prompt template", "browse prompts", "check prompt history", or wants to manage TrueFoundry prompt registry prompts and their versions.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Prompts
 
@@ -14,6 +18,10 @@ List and inspect TrueFoundry prompt registry prompts and versions.
 - User wants to get a specific prompt and its versions
 - User asks for a specific prompt version
 - Working with LLM prompt management
+
+</objective>
+
+<instructions>
 
 ## List Prompts
 
@@ -56,10 +64,29 @@ Prompts:
 | summarize-text    | p-def    | 3        | v3     |
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user can see a formatted table of all prompts in the registry
+- The user can retrieve a specific prompt by ID and view its versions
+- The user can inspect the content of a specific prompt version
+- The agent has presented prompts in a clear, tabular format
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **With deployments**: Use `applications` skill to check deployed services that consume prompts
 - **For versioning**: List prompt versions to track changes
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -67,3 +94,5 @@ Prompts:
 ```
 Prompt ID not found. List prompts first to find the correct ID.
 ```
+
+</troubleshooting>

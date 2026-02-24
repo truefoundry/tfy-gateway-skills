@@ -1,8 +1,12 @@
 ---
 name: mcp-server
-description: This skill should be used when the user asks "deploy MCP server", "host MCP server", "MCP deployment", "deploy tool server", "model context protocol", or wants to deploy an MCP server on TrueFoundry as a hosted HTTP service.
+description: This skill should be used when the user asks "deploy MCP server", "host MCP server", "MCP deployment", "deploy tool server", "model context protocol", "deploy stdio server as HTTP", "host my tools remotely", "deploy npx MCP package", "deploy uvx MCP package", "run MCP server in cloud", "MCP gateway setup", or wants to deploy an MCP server on TrueFoundry as a hosted HTTP service.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 ---
+
+<objective>
 
 # MCP Server Deployment
 
@@ -28,6 +32,10 @@ MCP servers typically communicate over stdio (standard input/output). TrueFoundr
 ```
 [MCP Client] → HTTP → [mcp-proxy :8000] → stdio → [MCP Server (npx/uvx)]
 ```
+
+</objective>
+
+<instructions>
 
 ## Deploy npm-based MCP Server (npx)
 
@@ -270,6 +278,22 @@ The MCP Gateway provides:
 - Environment isolation (dev/staging/prod)
 - Discovery for AI agents
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The MCP server is deployed and running on TrueFoundry with a reachable HTTP endpoint
+- The mcp-proxy wrapper correctly bridges stdio to HTTP on port 8000
+- All required environment variables and API keys are configured via TrueFoundry secrets
+- The agent has verified the endpoint responds to MCP protocol requests
+- The user has the public URL or internal DNS address to connect MCP clients to the server
+
+</success_criteria>
+
+<troubleshooting>
+
 ## Troubleshooting
 
 ### Slow Startup
@@ -290,6 +314,10 @@ Verify environment variables match the MCP server's documentation. Use `secrets`
 
 Confirm the package exists on npm (npmjs.com) or PyPI (pypi.org). Check exact package name spelling.
 
+</troubleshooting>
+
+<references>
+
 ## Composability
 
 - **Need workspace**: Use `workspaces` skill to find target workspace
@@ -297,3 +325,5 @@ Confirm the package exists on npm (npmjs.com) or PyPI (pypi.org). Check exact pa
 - **Check status**: Use `applications` skill to see MCP server status
 - **View logs**: Use `logs` skill if MCP server isn't responding
 - **Public URL**: Configure host in ports using cluster base domain (see `workspaces` skill)
+
+</references>

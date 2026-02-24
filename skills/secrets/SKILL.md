@@ -1,8 +1,12 @@
 ---
 name: secrets
-description: This skill should be used when the user asks "list secrets", "show secret groups", "create a secret", "add secret", "what secrets do I have", or wants to manage TrueFoundry secret groups and individual secrets.
+description: This skill should be used when the user asks "list secrets", "show secret groups", "create a secret", "add secret", "what secrets do I have", "manage secrets", "delete secret group", "view secret value", "secret group details", "set up secrets for deployment", "configure environment variables", or wants to manage TrueFoundry secret groups and individual secrets.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+<objective>
 
 # Secrets
 
@@ -15,6 +19,10 @@ Manage TrueFoundry secret groups and secrets. Secret groups organize secrets; in
 - User asks "what secrets are in this group"
 - User wants to get a specific secret value
 - Setting up secrets before a deploy
+
+</objective>
+
+<instructions>
 
 ## List Secret Groups
 
@@ -75,11 +83,31 @@ tfy_secret_groups_create(payload={"name": "my-secrets", ...})
 $TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets"}'
 ```
 
+</instructions>
+
+<success_criteria>
+
+## Success Criteria
+
+- The user can list all secret groups and see their contents in a formatted table
+- The user can create a new secret group with a specified name
+- The agent has never displayed full secret values — only masked or "(set)" indicators
+- The user can inspect individual secrets within a group by ID
+- The agent has confirmed any create/delete operations before executing
+
+</success_criteria>
+
+<references>
+
 ## Composability
 
 - **Before deploy**: Create secret groups, then reference in deployment config
 - **After listing**: Get individual secrets by ID for inspection
 - **With applications**: Reference secret groups in application env vars
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
@@ -97,3 +125,5 @@ Cannot access secrets. Check your API key permissions.
 ```
 Secret group with this name already exists. Use a different name.
 ```
+
+</troubleshooting>

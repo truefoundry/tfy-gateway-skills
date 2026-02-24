@@ -1,13 +1,18 @@
 ---
 name: multi-service
-description: This skill should be used when the user asks "deploy my full app", "deploy frontend and backend", "multi-service deployment", "deploy all services", "microservices deployment", or has a project with multiple interconnected services that need coordinated deployment on TrueFoundry.
-disable-model-invocation: true
+description: This skill should be used when the user asks "deploy my full app", "deploy frontend and backend", "multi-service deployment", "deploy all services", "microservices deployment", "deploy my docker-compose app", "deploy my monorepo", "deploy multiple containers", "deploy full stack", "deploy interconnected services", "orchestrate service deployment", or has a project with multiple interconnected services that need coordinated deployment on TrueFoundry.
+license: MIT
+compatibility: Requires Bash, curl, and access to a TrueFoundry instance
+metadata:
+  disable-model-invocation: "true"
 allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 ---
 
+<objective>
+
 # Multi-Service Application Deployment
 
-Orchestrate the deployment of complex applications with multiple interconnected services on TrueFoundry. This skill coordinates deploying infrastructure (databases, caches), backend services, and frontends in the correct order with proper wiring.
+Orchestrate the deployment of complex applications with multiple interconnected services on TrueFoundry. This skill builds a dependency graph, deploys services in the correct order, and wires them together so the full application works end-to-end.
 
 ## When to Use
 
@@ -26,506 +31,427 @@ Orchestrate the deployment of complex applications with multiple interconnected 
 
 ## CRITICAL: Service Wiring is MANDATORY
 
-**When deploying multiple services, you MUST wire them together.** Deploying services in isolation without connecting them is pointless — a frontend that can't reach its backend, or a backend that can't reach its database, is a broken deployment.
+**When deploying multiple services, you MUST wire them together.** Deploying services in isolation without connecting them is useless — a frontend that can't reach its backend, or a backend that can't reach its database, is a broken deployment.
 
 **The agent MUST:**
-1. Identify ALL dependencies between services (which service needs to talk to which)
+1. Build a dependency graph of all services
 2. Configure environment variables so each service knows how to reach its dependencies
-3. Deploy in the correct order (infrastructure → backends → frontends)
+3. Deploy in topologically sorted order
 4. Verify connectivity between services after deployment
 5. Return ALL deployment URLs and internal DNS addresses in the final summary
 
 **If the user deploys a frontend + backend + database, the frontend MUST work end-to-end.** Not just individually deployed services.
+
+</objective>
+
+<context>
 
 ## Prerequisites
 
 Same as other deploy skills:
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set
-2. **Workspace** — `TFY_WORKSPACE_FQN` is required. Never auto-pick.
+2. **Workspace** — `TFY_WORKSPACE_FQN` is required. **Never auto-pick — always ask the user.**
 
-## Step 1: Analyze Project Architecture
+</context>
 
-Scan the user's project to identify all deployable components:
+<instructions>
 
-### What to Look For
+## Step 1: Discover Services
 
-1. **Project structure** — Look for multiple service directories:
-   ```
-   my-app/
-   ├── frontend/          # React/Next.js app
-   ├── backend/           # API server
-   ├── worker/            # Background processor
-   ├── docker-compose.yml # Service definitions
-   └── ...
-   ```
+**Proactively scan the project** to find all deployable components. Do NOT wait for the user to list them.
 
-2. **docker-compose.yml** — If present, this is a goldmine. Parse it to identify:
-   - Services and their images/build contexts
+### Scan Order (check all of these)
+
+1. **`docker-compose.yml` / `docker-compose.yaml` / `compose.yml` / `compose.yaml`**
+   If any of these exist, this is the primary source of truth. Parse it to extract:
+   - All services (names, images, build contexts)
    - Port mappings
-   - Environment variables and secrets
-   - Dependencies (`depends_on`)
-   - Volumes and storage needs
-   - Network configuration
+   - Environment variables (including cross-service references like `db:5432`)
+   - `depends_on` relationships
+   - Volume mounts
+   - Health checks
 
-3. **Kubernetes manifests** — Check for `k8s/`, `manifests/`, `deploy/` directories with YAML files
+2. **Multiple Dockerfiles** — Look for `Dockerfile`, `Dockerfile.*`, `*/Dockerfile` across the project
 
-4. **Package files** — Multiple `package.json`, `requirements.txt`, `go.mod` in different directories
+3. **Service directories** — Directories with their own `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`
 
-5. **Dockerfiles** — Multiple Dockerfiles or `Dockerfile.*` variants
+4. **Kubernetes manifests** — Check `k8s/`, `manifests/`, `deploy/` directories
 
-### Categorize Components
+5. **Monorepo patterns** — `services/`, `apps/`, `packages/` with subdirectories
 
-Group discovered components into deployment tiers:
+### Classify Each Service
 
-| Tier | Type | Examples | Deploy Order |
-|------|------|----------|-------------|
-| **1. Infrastructure** | Databases, caches, queues | PostgreSQL, Redis, RabbitMQ, MongoDB | First (others depend on these) |
-| **2. Backend services** | APIs, workers, processors | FastAPI, Express, Go services, Celery workers | After infrastructure |
-| **3. Frontend** | Web UIs, static sites | React, Next.js, Vue | After backends |
-| **4. Supporting** | Monitoring, logging | Prometheus, Grafana | Any time |
+For each discovered service, determine its **type**:
 
-## Step 2: Present Architecture Plan
+| Type | How to Detect | Deploy Method |
+|------|--------------|---------------|
+| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (Bitnami) |
+| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (Bitnami) |
+| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (Bitnami) |
+| **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service |
+| **LLM** | Image contains `vllm`, `tgi`, `triton`, `ollama` | `llm-deploy` skill |
+| **MCP Server** | Exposes `/mcp` endpoint, uses MCP protocol | `mcp-server` skill |
+| **Application** | Has `build:` context or custom image with code | Service deployment |
 
-Show the user what you found and confirm the deployment plan:
+## Step 2: Build Dependency Graph
 
-```
-I've analyzed your project and found these components:
+Construct a directed acyclic graph (DAG) of service dependencies.
 
-Architecture:
-┌─────────────────────────────────────────────┐
-│                  Frontend                    │
-│              (Next.js, port 3000)            │
-│                     │                        │
-│                     ▼                        │
-│              Backend API                     │
-│            (FastAPI, port 8000)              │
-│              │           │                   │
-│              ▼           ▼                   │
-│         PostgreSQL    Redis                  │
-│         (port 5432)  (port 6379)             │
-└─────────────────────────────────────────────┘
+### Sources of Dependency Information
 
-Deployment plan (in order):
-1. PostgreSQL (Helm) — database for backend
-2. Redis (Helm) — cache/session store
-3. Backend API (Service) — depends on PostgreSQL + Redis
-4. Frontend (Service) — depends on Backend API
-
-Each component will be deployed to workspace: {workspace}
-
-Shall I proceed with this plan? Any changes needed?
+**From docker-compose.yml:**
+```yaml
+services:
+  backend:
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # ← "db" is a dependency
+      - REDIS_URL=redis://redis:6379                           # ← "redis" is a dependency
+      - FRONTEND_ORIGIN=http://frontend:3000                   # ← NOT a dependency (frontend depends on backend, not the reverse)
 ```
 
-## Step 3: Gather Configuration Per Component
+**From environment variables:**
+Scan env var values for references to other service names. A hostname in a connection string (`@db:5432`, `redis:6379`) implies a dependency.
 
-For each component, ask targeted questions based on its type:
+**From code analysis (if no compose file):**
+Look at code for connection patterns:
+- `DATABASE_URL`, `MONGO_URI` → depends on database
+- `REDIS_URL`, `CACHE_URL` → depends on cache
+- `BROKER_URL`, `AMQP_URL` → depends on message queue
+- `API_URL`, `BACKEND_URL` → depends on another service
 
-### Infrastructure (Helm Charts)
-- Use the `helm` skill's configuration approach
-- Ask about: storage size, replicas, passwords, environment (dev/staging/prod)
-- Generate credentials (or reference TrueFoundry secrets)
+### Dependency Rules
 
-### Backend Services
-- Use the `deploy` skill's analysis approach
-- Ask about: resources (use Step 1 resource advisor from deploy skill), public/internal access, env vars
-- **Identify cross-service connections** — these become env vars:
-  ```
-  DATABASE_URL=postgresql://user:pass@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/mydb
-  REDIS_URL=redis://:{password}@{redis-name}-redis-master.{namespace}.svc.cluster.local:6379/0
-  ```
+1. **Infrastructure has no dependencies** — databases, caches, queues are leaf nodes
+2. **Backend services depend on infrastructure** — and potentially on other backends
+3. **Frontends depend on backends** — never on infrastructure directly
+4. **Workers depend on queues + databases** — same tier as backends
+5. **If A's env vars reference B's hostname → A depends on B**
+6. **`depends_on` in compose is explicit** — always respect it
 
-### Frontend
-- Ask about: public URL, backend API URL, resources
-- The API URL is typically the backend's internal DNS or public URL
+### Detect Circular Dependencies
 
-## Step 4: Wire Services Together
+If the graph has a cycle, **stop and tell the user:**
 
-**This is the critical step that makes multi-service deployments work.**
+```
+Detected circular dependency: service-a → service-b → service-a
 
-### Internal Service DNS
+This cannot be deployed in sequence. Options:
+1. Break the cycle by making one service start without the other (add retry logic)
+2. Use async communication (message queue) instead of direct HTTP calls
+3. Merge the tightly coupled services
+```
 
-Services within the same cluster communicate via Kubernetes DNS:
+### CRITICAL: Poll Infrastructure Readiness Before Next Tier
+
+> **Tested 2026-02-14**: `DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
+
+**Between each deployment tier, poll the actual pods for readiness:**
+
+1. After deploying Helm infra (DB, Redis, etc.), poll the application status API repeatedly (every 15s, up to 5 min)
+2. Check `applicationComponentStatuses` for pod readiness, not just deployment status
+3. For databases: attempt a TCP connection to the service DNS + port before deploying dependent services
+4. **Have fallback logic**: If infra isn't ready after 5 min, warn the user rather than deploying dependent services that will crash-loop
+
+```bash
+# Example: poll PostgreSQL readiness
+for i in $(seq 1 20); do
+  # Check if pods are actually responding (from within cluster or via API)
+  $TFY_API_SH GET '/api/svc/v1/apps/APP_ID' | jq '.applicationComponentStatuses[0].status'
+  sleep 15
+done
+```
+
+### Compute Deploy Order
+
+Topologically sort the DAG. Services with no dependencies deploy first. Services at the same level in the graph can deploy in parallel.
+
+**Example:**
+```
+Graph:
+  frontend → backend
+  backend  → db, redis, worker
+  worker   → db, redis, rabbitmq
+  db       → (none)
+  redis    → (none)
+  rabbitmq → (none)
+
+Deploy order:
+  Level 0: db, redis, rabbitmq     (parallel — no dependencies)
+  Level 1: backend, worker         (parallel — both depend only on level 0)
+  Level 2: frontend                (depends on backend from level 1)
+```
+
+## Step 3: Present Plan and Ask User
+
+**ALWAYS present the discovered architecture and ask the user to confirm before deploying.**
+
+Show:
+1. What services were found (and how — compose file, directory scan, etc.)
+2. The dependency graph
+3. The deploy order
+4. What will be deployed as Helm vs. Service vs. LLM
+
+The plan should include: dependency graph (tree format), deploy order with levels, environment wiring (which env vars connect which services), and questions about workspace, public URLs, and secrets. Always end with "Shall I proceed with this plan?"
+
+**Do NOT deploy until the user confirms.**
+
+## Step 4: Resolve Namespace and DNS
+
+Before deploying, resolve the Kubernetes namespace for the target workspace. This is needed for internal service DNS.
+
+### Get Workspace Details
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-multi-service/scripts/tfy-api.sh
+
+# Get workspace details to find the namespace
+$TFY_API_SH GET '/api/svc/v1/workspace?workspaceFqn=WORKSPACE_FQN'
+```
+
+From the response, extract:
+- `id` → workspace ID (needed for deployment API calls)
+- `clusterId` → cluster ID (needed for base domain lookup)
+- The namespace is typically the workspace name portion of the FQN
+
+### Get Base Domain (for public URLs)
+
+```bash
+$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
+```
+
+From the response, extract `base_domains`. Pick the wildcard domain (e.g., `*.ml.your-org.truefoundry.cloud`) and strip `*.` to get the base domain.
+
+Public URL pattern: `{service-name}-{workspace-name}.{base_domain}`
+
+### Internal DNS Pattern
+
+All services in the same workspace share a namespace:
 ```
 {service-name}.{namespace}.svc.cluster.local:{port}
 ```
 
-For TrueFoundry deployments, the namespace is derived from the workspace. The service name matches the deployment name.
-
-### Connection Patterns
-
-#### Backend → Database (Helm)
-```python
-env = {
-    "DATABASE_URL": "postgresql://postgres:{password}@{helm-release-name}-postgresql.{namespace}.svc.cluster.local:5432/{db_name}",
-}
+For Helm-deployed infrastructure, the DNS includes the chart name:
+```
+{release-name}-postgresql.{namespace}.svc.cluster.local:5432
+{release-name}-redis-master.{namespace}.svc.cluster.local:6379
+{release-name}-rabbitmq.{namespace}.svc.cluster.local:5672
 ```
 
-#### Backend → Cache (Helm)
-```python
-env = {
-    "REDIS_URL": "redis://:{password}@{helm-release-name}-redis-master.{namespace}.svc.cluster.local:6379/0",
-}
+## Step 5: Deploy in Graph Order
+
+Walk the dependency graph level by level. **Wait for each level to be healthy before proceeding to the next.**
+
+### For Infrastructure (Helm Charts)
+
+Use the `helm` skill approach. All charts use `PUT /api/svc/v1/apps` with `kind: HelmChart` and `source.repo_url: https://charts.bitnami.com/bitnami`. Common charts:
+
+| Service | `chart_name` | Key Values |
+|---------|-------------|------------|
+| PostgreSQL | `postgresql` (v16.4.1) | `auth.postgresPassword`, `auth.database`, `primary.persistence.size: "10Gi"` |
+| Redis | `redis` (v20.6.2) | `auth.password`, `architecture: "standalone"` |
+| RabbitMQ | `rabbitmq` (v15.1.2) | `auth.username`, `auth.password` |
+| MongoDB | `mongodb` | `auth.rootUser`, `auth.rootPassword` |
+
+Name each chart `APP_NAME-{service}` (e.g., `myapp-db`, `myapp-redis`). See the `helm` skill for full manifest examples.
+
+### Verify Infrastructure is Running
+
+Before deploying dependent services, poll until infrastructure is healthy:
+
+```bash
+$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=APP_NAME-db'
+# Check status == "RUNNING"
 ```
 
-#### Backend → Message Queue (Helm)
-```python
-env = {
-    "RABBITMQ_URL": "amqp://admin:{password}@{helm-release-name}-rabbitmq.{namespace}.svc.cluster.local:5672/",
-}
+### For Application Services
+
+Deploy using the Service manifest with wired env vars:
+
+```bash
+$TFY_API_SH PUT /api/svc/v1/apps '{
+  "manifest": {
+    "kind": "Service",
+    "name": "APP_NAME-backend",
+    "image": {
+      "type": "image",
+      "image_uri": "PREBUILT_IMAGE_OR_REGISTRY_IMAGE",
+      "command": "uvicorn main:app --host 0.0.0.0 --port 8000"
+    },
+    "ports": [
+      {
+        "port": 8000,
+        "protocol": "TCP",
+        "expose": true,
+        "host": "APP_NAME-backend-WS.BASE_DOMAIN",
+        "app_protocol": "http"
+      }
+    ],
+    "resources": {
+      "cpu_request": 0.5,
+      "cpu_limit": 1.0,
+      "memory_request": 512,
+      "memory_limit": 1024
+    },
+    "env": {
+      "DATABASE_URL": "postgresql://postgres:PASSWORD@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/DB_NAME",
+      "REDIS_URL": "redis://:PASSWORD@APP_NAME-redis-redis-master.NAMESPACE.svc.cluster.local:6379/0"
+    },
+    "replicas": { "min": 1, "max": 1 }
+  },
+  "workspaceId": "WORKSPACE_ID"
+}'
 ```
 
-#### Frontend → Backend
-```python
-# If backend is internal-only:
-env = {
-    "API_URL": "http://{backend-service-name}.{namespace}.svc.cluster.local:8000",
-}
+**If the service has a `build:` context (docker-compose) or a Dockerfile**, use the `deploy` skill's build approach instead of a pre-built image. Create a `deploy.py` per service.
 
-# If backend has a public URL:
-env = {
-    "NEXT_PUBLIC_API_URL": "https://{backend-host}",
-}
+### For LLM Services
+
+If the dependency graph includes an LLM, use the `llm-deploy` skill's approach with GPU allocation.
+
+## Step 6: Wire Environment Variables
+
+**This is the most critical step.** Every cross-service reference must be translated from compose service names to Kubernetes DNS.
+
+### Translation Rule
+
+In docker-compose, services reference each other by service name:
+```yaml
+DATABASE_URL=postgresql://postgres:pass@db:5432/myapp
 ```
 
-#### Service → Service (internal)
-```python
-env = {
-    "AUTH_SERVICE_URL": "http://auth-service.{namespace}.svc.cluster.local:8000",
-    "NOTIFICATION_SERVICE_URL": "http://notifications.{namespace}.svc.cluster.local:8000",
-}
+In TrueFoundry, replace the service name with Kubernetes DNS:
+```
+DATABASE_URL=postgresql://postgres:pass@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/myapp
 ```
 
-### Secrets Wiring
+### Common Wiring Patterns
 
-For credentials shared between infrastructure and services:
+| Compose Env Var | TrueFoundry Env Var |
+|----------------|---------------------|
+| `@db:5432` | `@{name}-db-postgresql.{ns}.svc.cluster.local:5432` |
+| `@redis:6379` | `@{name}-redis-redis-master.{ns}.svc.cluster.local:6379` |
+| `@rabbitmq:5672` | `@{name}-rabbitmq-rabbitmq.{ns}.svc.cluster.local:5672` |
+| `@mongo:27017` | `@{name}-mongo-mongodb.{ns}.svc.cluster.local:27017` |
+| `http://backend:8000` | `http://{name}-backend.{ns}.svc.cluster.local:8000` |
+| `http://frontend:3000` | `https://{name}-frontend-{ws}.{base_domain}` (if public) |
 
-1. **Generate passwords** during infrastructure deployment
-2. **Store in TrueFoundry secrets** using the `secrets` skill
-3. **Reference in service env vars** using `tfy-secret://` URIs:
+### Secrets for Credentials
+
+For passwords shared between infrastructure and services:
+
+1. **Generate strong passwords** — `openssl rand -base64 24` for each
+2. **Store in TrueFoundry secrets** (using `secrets` skill):
+   ```bash
+   $TFY_API_SH POST /api/svc/v1/secret-groups '{
+     "name": "APP_NAME-secrets",
+     "secrets": [
+       {"key": "db-password", "value": "GENERATED_PASSWORD"},
+       {"key": "redis-password", "value": "GENERATED_PASSWORD"}
+     ]
+   }'
+   ```
+3. **Reference in env vars**:
    ```python
    env = {
-       "DATABASE_URL": "postgresql://postgres:$(DB_PASSWORD)@postgres.ns.svc.cluster.local:5432/mydb",
-       "DB_PASSWORD": "tfy-secret://tfy-eo:my-app-secrets:db-password",
+       "DB_PASSWORD": "tfy-secret://DOMAIN:APP_NAME-secrets:db-password",
    }
    ```
 
-## Step 5: Deploy in Order
+## Step 7: Verify Connectivity
 
-Execute deployments tier by tier. **Wait for each tier to be ready before proceeding to the next.**
+After all services are deployed and running, verify they can reach each other.
 
-### Tier 1: Infrastructure
-
-Deploy databases, caches, and queues first using the `helm` skill approach:
+### Check Deployment Status
 
 ```bash
-# Deploy PostgreSQL
-$TFY_API_SH PUT /api/svc/v1/apps '{...postgres manifest...}'
-
-# Deploy Redis (can be parallel with PostgreSQL)
-$TFY_API_SH PUT /api/svc/v1/apps '{...redis manifest...}'
+# Check all services are RUNNING
+for app in APP_NAME-db APP_NAME-redis APP_NAME-backend APP_NAME-frontend; do
+  $TFY_API_SH GET "/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=$app"
+done
 ```
 
-**Verify infrastructure is running** before proceeding:
-```bash
-$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE&applicationName=postgres-name'
-```
+### Check Logs for Connection Errors
 
-### Tier 2: Backend Services
-
-Deploy backend services with environment variables pointing to infrastructure:
+For each application service, download recent logs and search for connection errors:
 
 ```bash
-# Deploy backend API
-$TFY_API_SH PUT /api/svc/v1/apps '{...backend manifest with DATABASE_URL, REDIS_URL...}'
-
-# Deploy workers (can be parallel with API if they share the same deps)
-$TFY_API_SH PUT /api/svc/v1/apps '{...worker manifest...}'
+$TFY_API_SH GET '/api/svc/v1/logs/WORKSPACE_ID/download?applicationFqn=APP_FQN&startTs=DEPLOY_TIME&searchString=error&searchType=contains'
 ```
 
-### Tier 3: Frontend
+Look for:
+- `Connection refused` → dependency not reachable (wrong DNS or not running)
+- `Authentication failed` → password mismatch between infra and service
+- `Name resolution failed` → wrong service name in DNS
+- `Timeout` → service is starting slowly (check health probes)
 
-Deploy frontend with the backend API URL:
+### Hit Service Endpoints
+
+If services have public URLs, test them:
 
 ```bash
-$TFY_API_SH PUT /api/svc/v1/apps '{...frontend manifest with API_URL...}'
+# Backend health
+curl -s -o /dev/null -w '%{http_code}' "https://APP_NAME-backend-WS.BASE_DOMAIN/health"
+
+# Frontend
+curl -s -o /dev/null -w '%{http_code}' "https://APP_NAME-frontend-WS.BASE_DOMAIN/"
 ```
 
-## Step 6: Report Deployment Summary
+Use the `service-test` skill for deeper validation.
 
-**CRITICAL: Always provide a comprehensive deployment summary with ALL URLs and wiring details.**
+## Step 8: Report Deployment Summary
 
-After all components are deployed, present this summary:
+**CRITICAL: Always provide a comprehensive summary with ALL URLs and wiring.**
 
-```
-Multi-service deployment complete!
+The summary must include:
+1. **Component table** — each service with its type (Helm/Service), status, and URL or internal DNS
+2. **Wiring map** — which env vars connect which services (mask passwords with `***`)
+3. **Access URLs** — public URLs for frontend and API docs
+4. **Next steps** — open frontend, use `logs` skill if broken, use `service-test` skill to validate
 
-Workspace: {workspace-fqn}
-
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Component    │ Type     │ Status  │ URL / DNS                            │
-│──────────────│──────────│─────────│──────────────────────────────────────│
-│ PostgreSQL   │ Helm     │ Running │ postgres.ns.svc.cluster.local:5432   │
-│ Redis        │ Helm     │ Running │ redis-master.ns.svc.cluster.local:6379│
-│ LLM (vLLM)  │ Service  │ Running │ https://llm-ws.ml.tfy.cloud          │
-│ Backend API  │ Service  │ Running │ https://api-ws.ml.tfy.cloud          │
-│ Frontend     │ Service  │ Running │ https://app-ws.ml.tfy.cloud          │
-└──────────────────────────────────────────────────────────────────────────┘
-
-Service Wiring:
-  Frontend → Backend API:  NEXT_PUBLIC_API_URL=https://api-ws.ml.tfy.cloud
-  Backend  → PostgreSQL:   DATABASE_URL=postgresql://...
-  Backend  → Redis:        REDIS_URL=redis://...
-  Backend  → LLM:          LLM_BASE_URL=http://llm.ns.svc.cluster.local:8000/v1
-
-Access your app:
-  Frontend: https://app-ws.ml.tfy.cloud
-  API:      https://api-ws.ml.tfy.cloud/docs  (FastAPI Swagger)
-  LLM:     https://llm-ws.ml.tfy.cloud/v1/chat/completions
-
-Next steps:
-  1. Open the frontend URL in your browser to verify end-to-end
-  2. Check logs for any connection issues: Use `logs` skill
-  3. Monitor services: Use `applications` skill
-```
-
-**The user should be able to copy-paste the frontend URL and see a working app.** If they can't, the deployment is not done.
+**The user should be able to open the frontend URL and see a working app.** If they can't, the deployment is not done.
 
 ## docker-compose.yml Translation
 
-Many users have existing `docker-compose.yml` files. Here's how to translate common patterns:
+See `references/compose-translation.md` for the full translation reference. Key points:
 
-### Service → TrueFoundry Service
-```yaml
-# docker-compose.yml
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp
-    depends_on:
-      - db
-```
+- **Always scan for compose files first** before asking the user about architecture
+- `build:` services -> TrueFoundry Service with `DockerFileBuild`
+- `image:` services (custom) -> TrueFoundry Service with pre-built image
+- `image:` services (postgres, redis, etc.) -> Helm charts (Bitnami)
+- `depends_on` -> deploy order in the dependency graph
+- `healthcheck` -> TrueFoundry liveness/readiness probes
+- `volumes` -> Helm persistence or TrueFoundry Volumes
+- `networks` -> ignored (all services share a K8s namespace)
+- `env_file` / `secrets` -> read values, create TrueFoundry secrets as needed
 
-Translates to a TrueFoundry Service deployment:
-- `build: ./backend` → `DockerFileBuild` with the backend Dockerfile
-- `ports: "8000:8000"` → `Port(port=8000, ...)`
-- `environment` → `env` dict (replace `db` hostname with Kubernetes DNS)
-- `depends_on: db` → Deploy `db` first (Tier 1), then this service (Tier 2)
+## Compound AI & Monorepo Patterns
 
-### Database Service → Helm Chart
-```yaml
-# docker-compose.yml
-services:
-  db:
-    image: postgres:16
-    environment:
-      - POSTGRES_PASSWORD=mypass
-      - POSTGRES_DB=myapp
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-```
+See `references/multi-service-patterns.md` for ready-made dependency graphs and deploy orders for:
+- **RAG applications** (LLM + vector DB + API + frontend)
+- **AI Agent with tools** (LLM + MCP server + DB)
+- **Full-Stack SaaS with AI** (frontend + backend + workers + infra + LLM)
+- **Monorepo support** (detecting structure, shared code, build contexts)
 
-Translates to a TrueFoundry Helm chart deployment:
-- `image: postgres:16` → Bitnami PostgreSQL chart (not a raw image)
-- `POSTGRES_PASSWORD` → `values.auth.postgresPassword`
-- `POSTGRES_DB` → `values.auth.database`
-- `volumes: pgdata` → `values.primary.persistence.enabled: true` + `size`
+</instructions>
 
-### Redis/Cache → Helm Chart
-```yaml
-services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-```
+<success_criteria>
 
-Translates to Bitnami Redis Helm chart.
+## Success Criteria
 
-### Key Translation Rules
+- The agent has discovered all services in the project and built an accurate dependency graph
+- All infrastructure (databases, caches, queues) is deployed and healthy before dependent services
+- Environment variables are correctly wired so every service can reach its dependencies via Kubernetes DNS
+- All services are running and the user has a comprehensive summary with public URLs and internal DNS addresses
+- The user can open the frontend URL and interact with a fully working end-to-end application
+- Credentials are stored securely in TrueFoundry secrets, not hardcoded in manifests
 
-| docker-compose | TrueFoundry |
-|----------------|-------------|
-| `build: ./dir` | `deploy` skill with DockerFileBuild |
-| `image: postgres:16` | `helm` skill with Bitnami chart |
-| `image: redis:7` | `helm` skill with Bitnami chart |
-| `image: custom:tag` | `deploy` skill or `applications` skill with pre-built image |
-| `ports: "8000:8000"` | `Port(port=8000)` in service manifest |
-| `environment:` | `env` dict in service manifest |
-| `depends_on:` | Deploy order (infrastructure first) |
-| `volumes:` | Persistence in Helm values, or ephemeral storage in service resources |
-| Service name (e.g., `db`) | `{name}.{namespace}.svc.cluster.local` in Kubernetes DNS |
-| `networks:` | Not needed — all services in same workspace share a namespace |
+</success_criteria>
 
-## Compound AI Application Patterns
-
-For AI-powered applications with multiple components (LLM + vector DB + API + frontend), follow these patterns:
-
-### RAG Application (Retrieval-Augmented Generation)
-
-```
-Architecture:
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (Next.js)                     │
-│                         │                                │
-│                         ▼                                │
-│                   Backend API (FastAPI)                   │
-│                    │            │                         │
-│                    ▼            ▼                         │
-│              LLM Service    Vector DB                    │
-│              (vLLM)         (Qdrant/Weaviate)            │
-│                                │                         │
-│                                ▼                         │
-│                          PostgreSQL                       │
-│                     (metadata storage)                    │
-└─────────────────────────────────────────────────────────┘
-
-Deployment order:
-1. PostgreSQL (Helm) — metadata storage
-2. Qdrant/Vector DB (Helm) — embedding storage
-3. LLM Service (llm-deploy skill) — inference endpoint
-4. Backend API (deploy skill) — orchestration layer
-5. Frontend (deploy skill) — user interface
-```
-
-**Backend API env wiring:**
-```python
-env = {
-    # Database
-    "DATABASE_URL": "postgresql://postgres:{password}@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/ragdb",
-    # Vector DB
-    "QDRANT_URL": "http://{qdrant-name}-qdrant.{namespace}.svc.cluster.local:6333",
-    # LLM
-    "LLM_BASE_URL": "http://{llm-service-name}.{namespace}.svc.cluster.local:8000/v1",
-    "LLM_MODEL_NAME": "{served-model-name}",
-    # Or use AI Gateway for LLM access:
-    # "LLM_BASE_URL": "https://{gateway-url}/api/llm",
-    # "LLM_API_KEY": "tfy-secret://{domain}:{group}:{key}",
-}
-```
-
-**Frontend env wiring:**
-```python
-env = {
-    "NEXT_PUBLIC_API_URL": "https://{backend-host}",  # if backend is public
-    # OR internal:
-    # "API_URL": "http://{backend-name}.{namespace}.svc.cluster.local:8000",
-}
-```
-
-### AI Agent with Tools
-
-```
-Architecture:
-┌─────────────────────────────────────────────────────────┐
-│                   Agent API (FastAPI)                     │
-│                    │      │       │                       │
-│                    ▼      ▼       ▼                       │
-│               LLM     MCP Server  Database               │
-│              (vLLM)   (tools)     (PostgreSQL)           │
-└─────────────────────────────────────────────────────────┘
-
-Deployment order:
-1. PostgreSQL (Helm)
-2. MCP Server (mcp-server skill) — tool execution
-3. LLM Service (llm-deploy skill) — reasoning
-4. Agent API (deploy skill) — orchestration
-```
-
-**Agent API env wiring:**
-```python
-env = {
-    "DATABASE_URL": "postgresql://postgres:{password}@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/agentdb",
-    "LLM_BASE_URL": "http://{llm-service-name}.{namespace}.svc.cluster.local:8000/v1",
-    "LLM_MODEL_NAME": "{served-model-name}",
-    "MCP_SERVER_URL": "http://{mcp-server-name}.{namespace}.svc.cluster.local:8000",
-}
-```
-
-### Full-Stack SaaS with AI
-
-```
-Architecture:
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (Next.js)                     │
-│                         │                                │
-│                         ▼                                │
-│                   Backend API (FastAPI)                   │
-│               │        │        │         │              │
-│               ▼        ▼        ▼         ▼              │
-│          PostgreSQL  Redis    LLM      Worker            │
-│          (primary)  (cache)  (vLLM)   (Celery)          │
-│                                          │               │
-│                                     RabbitMQ             │
-└─────────────────────────────────────────────────────────┘
-
-Deployment order:
-1. PostgreSQL, Redis, RabbitMQ (Helm — all infrastructure, can be parallel)
-2. LLM Service (llm-deploy skill)
-3. Celery Worker (deploy skill — connects to RabbitMQ, PostgreSQL, LLM)
-4. Backend API (deploy skill — connects to everything)
-5. Frontend (deploy skill — connects to Backend API)
-```
-
-**Backend API env wiring:**
-```python
-env = {
-    "DATABASE_URL": "postgresql://postgres:{password}@{postgres-name}-postgresql.{namespace}.svc.cluster.local:5432/appdb",
-    "REDIS_URL": "redis://:{password}@{redis-name}-redis-master.{namespace}.svc.cluster.local:6379/0",
-    "CELERY_BROKER_URL": "amqp://admin:{password}@{rabbitmq-name}-rabbitmq.{namespace}.svc.cluster.local:5672/",
-    "LLM_BASE_URL": "http://{llm-service-name}.{namespace}.svc.cluster.local:8000/v1",
-    "LLM_MODEL_NAME": "{served-model-name}",
-}
-```
-
-### Wiring Verification Checklist
-
-**After deploying all components, verify:**
-
-- [ ] Each service can reach its dependencies (check logs for connection errors)
-- [ ] Database connections are established (no "connection refused" in backend logs)
-- [ ] LLM endpoint responds to health checks from the backend
-- [ ] Frontend can call backend API endpoints
-- [ ] Environment variables are correctly set (no placeholder values)
-- [ ] Secrets are properly mounted (no authentication errors)
-- [ ] All URLs use correct port numbers
-
-**If any connection fails, check:**
-1. Service name matches what was deployed (case-sensitive)
-2. Namespace is correct (derived from workspace)
-3. Port number matches the service's configured port
-4. Credentials match between infrastructure and service env vars
-
-## Monorepo Support
-
-For monorepos with multiple services:
-
-1. **Detect structure** — Look for directories with their own Dockerfile, package.json, or requirements.txt
-2. **Each service gets its own deployment** — Separate deploy.py or API manifest per service
-3. **Shared code** — If services share code, each Dockerfile should COPY the shared directory
-4. **Build context** — Set `build_context_path` to the repo root if services reference parent directories
-
-```
-monorepo/
-├── services/
-│   ├── api/
-│   │   ├── Dockerfile
-│   │   └── main.py
-│   ├── worker/
-│   │   ├── Dockerfile
-│   │   └── worker.py
-│   └── frontend/
-│       ├── Dockerfile
-│       └── package.json
-├── shared/
-│   └── models.py
-└── docker-compose.yml
-```
-
-Each service gets deployed independently but wired together via env vars.
+<references>
 
 ## Composability
 
@@ -534,39 +460,21 @@ This skill orchestrates other skills:
 - **Infrastructure**: Uses `helm` skill patterns for databases, caches, queues
 - **Services**: Uses `deploy` skill patterns for application services
 - **LLMs**: Uses `llm-deploy` skill patterns if the app includes model serving
+- **MCP Servers**: Uses `mcp-server` skill if the app includes MCP servers
 - **Secrets**: Uses `secrets` skill to create shared credential groups
-- **Workspaces**: Uses `workspaces` skill to confirm target workspace
-- **Status**: Uses `applications` skill to verify deployments
+- **Workspaces**: Uses `workspaces` skill to get workspace FQN and namespace
+- **Verification**: Uses `applications` skill to check status, `logs` skill to debug, `service-test` skill to validate endpoints
+
+</references>
+
+<troubleshooting>
 
 ## Error Handling
 
-### Partial Deployment Failure
-```
-Component {name} failed to deploy. Other components are running.
-Options:
-1. Fix the failing component and redeploy just that one
-2. Check logs: Use `logs` skill with the application ID
-3. Roll back: Use `applications` skill to remove the failed component
+See `references/multi-service-errors.md` for error templates covering:
+- Partial deployment failure (some services succeed, others fail)
+- Circular dependency detection and resolution
+- Cross-service connection failures (DNS, ports, credentials)
+- Unsupported docker-compose features
 
-Already deployed components are still running and don't need redeployment.
-```
-
-### Circular Dependencies
-```
-Detected circular dependency: Service A depends on Service B, which depends on Service A.
-This needs to be resolved before deployment.
-Options:
-1. Make one service start without the other (add retry/fallback logic)
-2. Use a message queue for async communication instead of direct HTTP
-3. Merge the services if they're tightly coupled
-```
-
-### Cross-Service Connection Failed
-```
-Service {name} can't connect to {dependency}.
-Check:
-1. Is {dependency} running? Use `applications` skill to verify
-2. Is the DNS correct? Should be: {name}.{namespace}.svc.cluster.local:{port}
-3. Is the port correct? Check the dependency's port configuration
-4. Are credentials correct? Verify env vars match the infrastructure passwords
-```
+</troubleshooting>

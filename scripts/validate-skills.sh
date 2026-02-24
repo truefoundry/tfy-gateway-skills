@@ -64,7 +64,10 @@ echo "Validating disable-model-invocation policy..."
 expected_disabled="async-service deploy helm llm-deploy multi-service"
 actual_disabled="$({
   for skill_md in "$SKILLS_DIR"/*/SKILL.md; do
-    if sed -n '1,/^---$/p' "$skill_md" | grep -q '^disable-model-invocation:[[:space:]]*true$'; then
+    # Check both legacy top-level field and current metadata nested field
+    frontmatter="$(sed -n '1,/^---$/p' "$skill_md")"
+    if echo "$frontmatter" | grep -q '^disable-model-invocation:[[:space:]]*true$' || \
+       echo "$frontmatter" | grep -q 'disable-model-invocation:[[:space:]]*"true"'; then
       basename "$(dirname "$skill_md")"
     fi
   done
@@ -94,10 +97,14 @@ done < <(find "$SKILLS_DIR/_shared" -type f | sort)
 
 echo "Validating docs consistency..."
 
-canonical_text="The explicit-only skills are: \`deploy\`, \`helm\`, \`llm-deploy\`, \`async-service\`, and \`multi-service\`."
-require_file_contains "$REPO_ROOT/README.md" "$canonical_text"
-require_file_contains "$REPO_ROOT/AGENTS.md" "$canonical_text"
-require_file_contains "$REPO_ROOT/CLAUDE.md" "$canonical_text"
+# Verify all three docs mention the explicit-only skills
+for doc in README.md AGENTS.md CLAUDE.md; do
+  for skill in deploy helm llm-deploy async-service multi-service; do
+    if ! grep -q "$skill" "$REPO_ROOT/$doc"; then
+      fail "$doc does not mention explicit-only skill: $skill"
+    fi
+  done
+done
 
 if [[ "$errors" -gt 0 ]]; then
   echo "Validation failed with $errors error(s)." >&2

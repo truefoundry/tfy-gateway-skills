@@ -25,7 +25,20 @@ jobs:
       - name: tfy-api failure-mode tests
         run: ./scripts/test-tfy-api.sh
 
-      - name: Install script smoke test
+      - name: Install script help smoke test
         run: |
           bash scripts/install.sh --help > /tmp/install_help.txt
           test -s /tmp/install_help.txt
+
+      - name: Install script end-to-end test (Codex target)
+        run: |
+          export HOME="$(mktemp -d)"
+          mkdir -p "$HOME/.codex"
+          bash scripts/install.sh --global --agents codex > /tmp/install_run.txt
+          test -d "$HOME/.codex/skills"
+          skill_count=$(find "$HOME/.codex/skills" -mindepth 1 -maxdepth 1 -type d -name 'truefoundry-*' | wc -l | tr -d ' ')
+          expected_count=$(find "$PWD/skills" -mindepth 1 -maxdepth 1 -type d -not -name '_*' | wc -l | tr -d ' ')
+          test "$skill_count" = "$expected_count"
+          test -L "$HOME/.codex/skills/truefoundry-status/scripts"
+          test -L "$HOME/.codex/skills/truefoundry-status/references"
+          test -x "$HOME/.codex/skills/_shared/scripts/tfy-api.sh"

@@ -47,12 +47,12 @@ AGENTS_GLOBAL=(
 
 # Skills to install (directory names inside skills/)
 SKILL_NAMES=(
-  ai-gateway applications async-service deploy docs gitops helm jobs llm-benchmarking llm-deploy llm-finetuning logs mcp-server multi-service notebooks prompts secrets ssh-server status tfy-apply volumes workflows workspaces
+  ai-gateway applications async-service deploy docs gitops helm jobs llm-benchmarking llm-deploy llm-finetuning logs mcp-server multi-service notebooks preferences prompts secrets service-test ssh-server status tfy-apply volumes workflows workspaces
 )
 
 # Shared files (relative to _shared/ in source)
 SHARED_SCRIPTS=( "scripts/tfy-api.sh" "scripts/tfy-version.sh" )
-SHARED_REFS=( "references/api-endpoints.md" "references/deploy-template.py" "references/sdk-patterns.md" "references/sdk-version-map.md" "references/container-versions.md" "references/prerequisites.md" "references/tfy-api-setup.md" "references/gpu-reference.md" "references/cluster-discovery.md" "references/health-probes.md" "references/resource-estimation.md" )
+SHARED_REFS=( "references/api-endpoints.md" "references/deploy-template.py" "references/sdk-patterns.md" "references/sdk-version-map.md" "references/container-versions.md" "references/prerequisites.md" "references/tfy-api-setup.md" "references/gpu-reference.md" "references/cluster-discovery.md" "references/health-probes.md" "references/resource-estimation.md" "references/rest-api-manifest.md" )
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 MODE=""            # "" = auto (global + local if applicable), "global", "local"
@@ -161,9 +161,39 @@ install_skills() {
     mkdir -p "$dest"
     cp "$src/SKILL.md" "$dest/SKILL.md"
 
-    # Symlink scripts/ and references/ to _shared
-    ln -sfn ../_shared/scripts    "$dest/scripts"
-    ln -sfn ../_shared/references "$dest/references"
+    # Symlink scripts/ to _shared
+    ln -sfn ../_shared/scripts "$dest/scripts"
+
+    # For references: if the skill has extra files beyond _shared, copy all;
+    # otherwise just symlink to _shared/references
+    local has_extra=false
+    if [ -d "$src/references" ]; then
+      for ref_file in "$src/references"/*; do
+        [ -f "$ref_file" ] || continue
+        local ref_name
+        ref_name="$(basename "$ref_file")"
+        if [ ! -f "$src_skills/_shared/references/$ref_name" ]; then
+          has_extra=true
+          break
+        fi
+      done
+    fi
+
+    if [ "$has_extra" = true ]; then
+      # Copy shared refs + skill-specific refs into a real directory
+      rm -f "$dest/references" 2>/dev/null || true
+      mkdir -p "$dest/references"
+      cp "$target_dir"/_shared/references/* "$dest/references/" 2>/dev/null || true
+      cp "$src/references"/* "$dest/references/" 2>/dev/null || true
+    else
+      ln -sfn ../_shared/references "$dest/references"
+    fi
+
+    # Validate symlinks/copies resolve to real files
+    if [ ! -e "$dest/scripts/tfy-api.sh" ]; then
+      error "$label: Broken symlink for $skill/scripts — check permissions"
+      continue
+    fi
 
     count=$((count + 1))
   done
