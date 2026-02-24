@@ -1,6 +1,6 @@
 ---
 name: prompts
-description: This skill should be used when the user asks "list prompts", "show my prompts", "get prompt version", "show prompt registry", "what prompts do I have", "find prompt", "prompt versions", "view prompt template", "browse prompts", "check prompt history", or wants to manage TrueFoundry prompt registry prompts and their versions.
+description: This skill should be used when the user asks "list prompts", "show my prompts", "get prompt version", "show prompt registry", "what prompts do I have", "find prompt", "prompt versions", "view prompt template", "browse prompts", "check prompt history", "create a prompt", "save a prompt", "update prompt", "delete prompt", "tag prompt version", "manage prompts", or wants to manage TrueFoundry prompt registry prompts and their versions.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -10,13 +10,16 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 # Prompts
 
-List and inspect TrueFoundry prompt registry prompts and versions.
+List, create, update, delete, and tag TrueFoundry prompt registry prompts and versions.
 
 ## When to Use
 
 - User asks "list prompts", "show prompts"
 - User wants to get a specific prompt and its versions
 - User asks for a specific prompt version
+- User wants to "create a prompt", "save a prompt", "update prompt"
+- User wants to "delete prompt" or "delete prompt version"
+- User wants to "tag prompt version" (e.g., tag as production)
 - Working with LLM prompt management
 
 </objective>
@@ -64,6 +67,103 @@ Prompts:
 | summarize-text    | p-def    | 3        | v3     |
 ```
 
+## Create or Update Prompt
+
+This is an upsert: creates a new prompt if it doesn't exist, or adds a new version if it does.
+
+### Via SDK (primary method)
+
+```python
+from truefoundry.ml import ChatPromptManifest
+
+client.prompts.create_or_update(
+    manifest=ChatPromptManifest(
+        name="my-prompt",
+        ml_repo="ml-repo-fqn",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "{{user_input}}"},
+        ],
+        model_fqn="model-catalog:openai:gpt-4",
+        temperature=0.7,
+        max_tokens=1024,
+        top_p=1.0,
+        tools=[],  # optional
+    )
+)
+```
+
+### Via Direct API
+
+```bash
+$TFY_API_SH POST /api/ml/v1/prompts '{
+  "name": "my-prompt",
+  "ml_repo": "ml-repo-fqn",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "{{user_input}}"}
+  ],
+  "model_fqn": "model-catalog:openai:gpt-4",
+  "temperature": 0.7,
+  "max_tokens": 1024,
+  "top_p": 1.0
+}'
+```
+
+## Delete Prompt
+
+### Via SDK
+
+```python
+client.prompts.delete(id="prompt-id")
+```
+
+### Via Direct API
+
+```bash
+$TFY_API_SH DELETE /api/ml/v1/prompts/PROMPT_ID
+```
+
+## Delete Prompt Version
+
+### Via SDK
+
+```python
+client.prompt_versions.delete(id="version-id")
+```
+
+### Via Direct API
+
+```bash
+$TFY_API_SH DELETE /api/ml/v1/prompt-versions/VERSION_ID
+```
+
+## Apply Tags to Prompt Version
+
+Tags like `production` or `staging` let you reference a stable version by name.
+
+### Via SDK
+
+```python
+client.prompt_versions.apply_tags(
+    prompt_version_id="version-id",
+    tags=["production", "v2"],
+    force=True,  # reassign tag if already on another version
+)
+```
+
+No direct REST equivalent — use the SDK.
+
+## Get Prompt Version by FQN
+
+Fetch a specific tagged or numbered version using its fully qualified name.
+
+### Via SDK
+
+```python
+client.prompt_versions.get_by_fqn(fqn="ml-repo:prompt-name:production")
+```
+
 </instructions>
 
 <success_criteria>
@@ -73,6 +173,9 @@ Prompts:
 - The user can see a formatted table of all prompts in the registry
 - The user can retrieve a specific prompt by ID and view its versions
 - The user can inspect the content of a specific prompt version
+- The user can create a new prompt or update an existing one with a new version
+- The user can delete a prompt or a specific prompt version
+- The user can apply tags (e.g., production) to a prompt version
 - The agent has presented prompts in a clear, tabular format
 
 </success_criteria>
@@ -83,6 +186,8 @@ Prompts:
 
 - **With deployments**: Use `applications` skill to check deployed services that consume prompts
 - **For versioning**: List prompt versions to track changes
+- **Create/update flow**: Use `workspaces` skill to find the ML repo FQN, then create or update the prompt
+- **Tagging flow**: After creating a new version, apply a `production` tag to promote it
 
 </references>
 
@@ -93,6 +198,21 @@ Prompts:
 ### Prompt Not Found
 ```
 Prompt ID not found. List prompts first to find the correct ID.
+```
+
+### ML Repo Not Found
+```
+Invalid ml_repo FQN. Use the workspaces skill to list available ML repos.
+```
+
+### Tag Already Assigned
+```
+Tag already exists on another version. Use force=True to reassign it.
+```
+
+### Delete Fails — Prompt Has Tagged Versions
+```
+Cannot delete prompt with tagged versions. Remove tags first, then delete.
 ```
 
 </troubleshooting>

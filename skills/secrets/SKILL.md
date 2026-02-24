@@ -18,6 +18,8 @@ Manage TrueFoundry secret groups and secrets. Secret groups organize secrets; in
 - User wants to create a secret group
 - User asks "what secrets are in this group"
 - User wants to get a specific secret value
+- User wants to update a secret, rotate secret values
+- User wants to delete a secret or remove a secret group
 - Setting up secrets before a deploy
 
 </objective>
@@ -80,7 +82,57 @@ tfy_secret_groups_create(payload={"name": "my-secrets", ...})
 ### Via Direct API
 
 ```bash
-$TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets"}'
+$TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets","integrationId":"INTEGRATION_ID","secrets":[{"key":"DB_PASSWORD","value":"s3cret"}]}'
+```
+
+## Update Secret Group
+
+Updates secrets in a group. A new version is created for every secret with a modified value. Secrets omitted from the array are deleted. At least one secret is required.
+
+### Via MCP
+
+```
+tfy_secret_groups_update(id="GROUP_ID", payload={"secrets": [{"key": "DB_PASSWORD", "value": "new-value"}, {"key": "API_KEY", "value": "new-key"}]})
+```
+
+**Note:** Requires human approval (HITL) via MCP.
+
+### Via Direct API
+
+```bash
+$TFY_API_SH PUT /api/svc/v1/secret-groups/GROUP_ID '{"secrets":[{"key":"DB_PASSWORD","value":"new-value"},{"key":"API_KEY","value":"new-key"}]}'
+```
+
+## Delete Secret Group
+
+### Via MCP
+
+```
+tfy_secret_groups_delete(id="GROUP_ID")
+```
+
+**Note:** Requires human approval (HITL) via MCP.
+
+### Via Direct API
+
+```bash
+$TFY_API_SH DELETE /api/svc/v1/secret-groups/GROUP_ID
+```
+
+## Delete Individual Secret
+
+### Via MCP
+
+```
+tfy_secrets_delete(id="SECRET_ID")
+```
+
+**Note:** Requires human approval (HITL) via MCP.
+
+### Via Direct API
+
+```bash
+$TFY_API_SH DELETE /api/svc/v1/secrets/SECRET_ID
 ```
 
 </instructions>
@@ -91,9 +143,11 @@ $TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets"}'
 
 - The user can list all secret groups and see their contents in a formatted table
 - The user can create a new secret group with a specified name
+- The user can update secrets in a group (rotate values, add/remove keys)
+- The user can delete a secret group or an individual secret
 - The agent has never displayed full secret values — only masked or "(set)" indicators
 - The user can inspect individual secrets within a group by ID
-- The agent has confirmed any create/delete operations before executing
+- The agent has confirmed any create/update/delete operations before executing
 
 </success_criteria>
 
@@ -124,6 +178,21 @@ Cannot access secrets. Check your API key permissions.
 ### Secret Already Exists
 ```
 Secret group with this name already exists. Use a different name.
+```
+
+### At Least One Secret Required
+```
+Cannot update secret group with zero secrets. Include at least one secret in the payload.
+```
+
+### No Secret Store Configured
+```
+No secret store configured for this workspace. Contact your platform admin.
+```
+
+### Missing Required Fields
+```
+Unprocessable entity. Ensure all secrets have both "key" and "value" fields.
 ```
 
 </troubleshooting>
