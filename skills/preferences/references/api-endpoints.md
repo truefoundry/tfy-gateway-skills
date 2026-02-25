@@ -89,6 +89,11 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 | POST | `/api/svc/v1/personal-access-tokens` | Create PAT (body: name) |
 | DELETE | `/api/svc/v1/personal-access-tokens/{id}` | Delete PAT |
 
+## Model Catalogues
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/model-catalogues/deployment-specs` | Get recommended deployment specs for a HuggingFace model. Query: `huggingfaceHubUrl` (full HF URL), `workspaceId`, `huggingfaceHubTokenSecretFqn` (optional, for gated models), `pipelineTagOverride` (e.g. `text-generation`). Returns GPU, CPU, memory, storage requirements. |
+
 ## API Docs
 - Full reference: `https://truefoundry.com/docs/api-reference`
 - Generating API keys: `https://docs.truefoundry.com/docs/generating-truefoundry-api-keys`

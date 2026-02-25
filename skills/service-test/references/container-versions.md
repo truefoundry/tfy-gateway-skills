@@ -1,16 +1,30 @@
 # Pinned Container Image Versions
 
-Single source of truth for all model serving container images. Skills should reference this file instead of hardcoding versions.
+Single source of truth for all TrueFoundry container images. Skills should reference this file instead of hardcoding versions.
 
 **Last updated:** February 2026
 
-## Current Versions
+## Model Serving
 
-| Framework | Image URI | Version | Released | Check for Updates |
-|-----------|-----------|---------|----------|-------------------|
-| vLLM | `public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0` | v0.13.0 | 2026 | [vLLM Releases](https://github.com/vllm-project/vllm/releases) |
-| TGI | `ghcr.io/huggingface/text-generation-inference:2.4.1` | 2.4.1 | 2025 | [TGI Releases](https://github.com/huggingface/text-generation-inference/releases) |
-| NVIDIA NIM | `nvcr.io/nim/{model-path}:{version}` | model-specific | — | [NGC Catalog](https://catalog.ngc.nvidia.com) |
+| Framework | Image URI | Version | Check for Updates |
+|-----------|-----------|---------|-------------------|
+| vLLM | `public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0` | v0.13.0 | [vLLM Releases](https://github.com/vllm-project/vllm/releases) |
+| TGI | `ghcr.io/huggingface/text-generation-inference:2.4.1` | 2.4.1 | [TGI Releases](https://github.com/huggingface/text-generation-inference/releases) |
+| NVIDIA NIM | `nvcr.io/nim/{model-path}:{version}` | model-specific | [NGC Catalog](https://catalog.ngc.nvidia.com) |
+
+## Development Environments
+
+| Type | Image URI | Variant |
+|------|-----------|---------|
+| Jupyter Notebook | `public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo` | CPU (default) |
+| SSH Server (CPU) | `public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-py3.12.12` | CPU (no CUDA) |
+| SSH Server (CUDA) | `public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-cu129-py3.12.12` | GPU (CUDA 12.9) |
+
+## LLM Fine-Tuning
+
+| Type | Image URI | Version |
+|------|-----------|---------|
+| QLoRA / LoRA / Full | `tfy.jfrog.io/tfy-images/llm-finetune:0.4.1` | 0.4.1 |
 
 ## Update Frequency
 
@@ -21,9 +35,11 @@ Container images for model serving frameworks are updated frequently (monthly or
 - Before using a version from this file, consider running WebFetch on the release page to check if a newer stable version exists.
 - If a user requests a specific version, use that instead of these defaults.
 - When updating this file, also update the last-updated date.
+- For notebooks and SSH servers, ask the user if they need GPU support to choose the correct image variant.
 
 ## Version Selection Guidelines
 
 - **vLLM**: Use latest stable release. Avoid release candidates.
 - **TGI**: Use latest stable release from ghcr.io.
 - **NIM**: Version depends on model. Check NGC catalog for model-specific versions.
+- **Jupyter/SSH**: Use TrueFoundry-provided images for best compatibility. Choose CUDA variant only when GPU is needed.
