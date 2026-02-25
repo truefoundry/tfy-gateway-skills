@@ -1,11 +1,11 @@
 ---
 name: deploy
-description: This skill should be used when the user says "deploy to truefoundry", "deploy this app", "ship to tfy", "push to truefoundry", "publish my app", "host this service", "deploy to cloud", "put this in production", "launch my service", "release this app", or wants to deploy code or images to TrueFoundry. Supports REST API manifests, Git-based remote builds, pre-built images, and Python SDK deploy.
+description: Deploys code or container images to TrueFoundry as HTTP services. Supports YAML manifests with `tfy apply`, Git-based remote builds, and pre-built images. Use when deploying apps, shipping services to production, or hosting web services on TrueFoundry.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
   disable-model-invocation: "true"
-allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
 ---
 
 <objective>
@@ -14,22 +14,21 @@ allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.
 
 Deploy code or images to TrueFoundry. Two paths:
 
-1. **REST API manifest** (recommended) — Works with any Python version. Uses `tfy-api.sh` to deploy pre-built images or trigger remote builds from Git.
-2. **Python SDK** (`deploy.py`) — Packages local code and deploys. Requires Python 3.10-3.12.
+1. **CLI** (`tfy apply`) — Write a YAML manifest and apply it. Works everywhere.
+2. **REST API** (fallback) — When CLI unavailable, use `tfy-api.sh`.
 
-Use the REST API path by default. Fall back to SDK only if the user already has a `deploy.py` or explicitly requests it.
+Use the CLI path by default. Fall back to REST API only if `tfy` CLI is not installed and the user cannot install it.
 
 ## When to Use
 
 - User says "deploy", "deploy to truefoundry", "ship this"
-- User says "run deploy.py", "python deploy.py"
 - User wants to push code or images to TrueFoundry
 - User says "deploy and check status"
 
 ## When NOT to Use
 
-- User wants to see what's deployed → use `applications` skill
-- User wants to check workspace → use `workspaces` skill
+- User wants to see what's deployed -> use `applications` skill
+- User wants to check workspace -> use `workspaces` skill
 
 </objective>
 
@@ -39,71 +38,55 @@ Use the REST API path by default. Fall back to SDK only if the user already has 
 
 **Always verify before deploying:**
 
-1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** -- Check if `tfy` CLI is available
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## Choose Deployment Path
 
-**Default to REST API.** Only use SDK if the user already has a deploy.py or explicitly requests it.
+**Default to CLI (`tfy apply`).** Only use REST API if CLI is unavailable.
 
 | User's situation | Path |
 |---|---|
-| Has a pre-built Docker image | REST API — deploy image directly |
-| Code is in a Git repo (GitHub, GitLab, etc.) | REST API — TrueFoundry builds remotely from Git |
-| Code is local-only (not in Git), has Python 3.10-3.12 | SDK — packages and uploads code |
-| Code is local-only, no compatible Python, has Docker | Docker build locally → REST API with pre-built image |
-| Already has deploy.py | SDK — run existing deploy.py |
+| Has a pre-built Docker image | YAML manifest + `tfy apply` |
+| Code is in a Git repo | YAML manifest with git build source + `tfy apply` |
+| Code is local-only, has Docker | Docker build locally -> YAML manifest with image + `tfy apply` |
+| Code is local-only, no Docker | Push code to Git first -> YAML manifest with git build |
+| Has existing manifest.yaml | `tfy apply -f manifest.yaml` directly |
 
 ### Detection Steps
 
-1. Check: Does the project have a `deploy.py`? → If yes, offer SDK path
-2. Check: Is the code in a Git repository? (`git remote -v`) → If yes, use REST API with Git build
-3. Ask: "Do you have a pre-built Docker image?" → If yes, use REST API with image
-4. If local code only: check `python3 --version`
-   - Python 3.10-3.12 → SDK path
-   - Python 3.13+ → check for `docker` → Docker build + REST API
-   - Neither → suggest pushing code to Git first, then REST API
+1. Check: Is the `tfy` CLI installed? (`tfy --version`)
+   - If not: `pip install truefoundry` to install it
+2. Check: Is the code in a Git repository? (`git remote -v`) -> If yes, use YAML manifest with Git build
+3. Ask: "Do you have a pre-built Docker image?" -> If yes, use YAML manifest with image
+4. If local code only: check for `docker` -> Docker build + YAML manifest with image
+5. Otherwise -> suggest pushing code to Git first, then YAML manifest with git build
 
 ## Step 0: Detect Environment
 
 **Before anything else**, check what tools are available:
 
 ```bash
+# Check for CLI
+tfy --version 2>/dev/null
+
 # Check for Git repo
 git remote -v 2>/dev/null
 
-# Check Python version (only matters for SDK path)
-python3 --version 2>/dev/null
-
-# Check for existing deploy.py
-ls deploy.py 2>/dev/null
+# Check for existing manifest
+ls tfy-manifest.yaml 2>/dev/null
 
 # Check for Docker (only matters for local build path)
 docker --version 2>/dev/null
 ```
 
-If going the SDK path, detect SDK version:
+If `tfy` CLI is not installed:
 ```bash
-$TFY_SKILL_DIR/scripts/tfy-version.sh all
+pip install truefoundry
 ```
-
-### SDK Version Compatibility (SDK path only)
-
-| SDK Version | Action |
-|------------|--------|
-| >= 0.5.0 | Use deploy patterns as-is. `replicas` accepts `int`. |
-| 0.4.x | Apply compat: use `Replicas(min=N, max=N)` object, ensure `TFY_HOST` is set. |
-| 0.3.x | Legacy SDK. Consider upgrading or switch to REST API. |
-| Not installed | Use REST API path. |
-
-| Python Version | Action |
-|---------------|--------|
-| 3.10–3.12 | SDK compatible. |
-| 3.13+ | **SDK is incompatible** (pydantic v1 build failures). Use REST API path. |
-
-> **Tested 2026-02-14**: Python 3.14 fails with pydantic v1 compilation errors. REST API path works with any Python.
 
 </context>
 
@@ -118,13 +101,13 @@ Fetch the cluster's capabilities before asking about resources or public URLs. S
 ### Extract Available Capabilities
 
 From the cluster response, extract:
-1. **Base domains** — pick the wildcard domain, strip `*.` → base domain for constructing hosts.
-2. **Available GPUs** — present only GPU types the cluster supports, not a generic list.
+1. **Base domains** -- pick the wildcard domain, strip `*.` -> base domain for constructing hosts.
+2. **Available GPUs** -- present only GPU types the cluster supports, not a generic list.
 
 ### Why This Matters
 
-- Deploying with an unsupported GPU type → API error
-- Using wrong base domain → "Provided host is not configured in cluster"
+- Deploying with an unsupported GPU type -> API error
+- Using wrong base domain -> "Provided host is not configured in cluster"
 - These are the #1 and #2 most common deployment failures
 
 **Always discover before asking.** This prevents wasted round-trips with the user.
@@ -137,78 +120,29 @@ From the cluster response, extract:
 
 Scan the project to determine:
 
-1. **Framework & runtime** — Look at dependency files and entrypoints:
-   - `requirements.txt`, `pyproject.toml`, `setup.py` → Python (check for FastAPI, Flask, Django, Celery, etc.)
-   - `package.json` → Node.js (check for Express, Next.js, NestJS, etc.)
-   - `go.mod` → Go
-   - `Dockerfile` → check `FROM` image and `CMD`/`ENTRYPOINT`
+1. **Framework & runtime** -- Look at dependency files and entrypoints:
+   - `requirements.txt`, `pyproject.toml`, `setup.py` -> Python (check for FastAPI, Flask, Django, Celery, etc.)
+   - `package.json` -> Node.js (check for Express, Next.js, NestJS, etc.)
+   - `go.mod` -> Go
+   - `Dockerfile` -> check `FROM` image and `CMD`/`ENTRYPOINT`
 
-2. **Application type** — Categorize what the app does:
-   - **Web API / HTTP service** — REST/GraphQL endpoint (FastAPI, Express, Django, etc.)
-   - **ML inference** — Model serving (vLLM, TGI, Triton, transformers, torch, etc.)
-   - **Worker / queue consumer** — Background processing (Celery, Bull, etc.)
-   - **Static site / frontend** — Next.js SSR, React SPA, etc.
-   - **Data pipeline** — Batch processing (Spark, pandas, etc.)
+2. **Application type** -- Categorize what the app does:
+   - **Web API / HTTP service** -- REST/GraphQL endpoint (FastAPI, Express, Django, etc.)
+   - **ML inference** -- Model serving (vLLM, TGI, Triton, transformers, torch, etc.)
+   - **Worker / queue consumer** -- Background processing (Celery, Bull, etc.)
+   - **Static site / frontend** -- Next.js SSR, React SPA, etc.
+   - **Data pipeline** -- Batch processing (Spark, pandas, etc.)
 
-3. **Compute indicators** — Check for signals that affect resource needs:
-   - ML libraries (`torch`, `transformers`, `vllm`, `tensorflow`) → likely needs GPU + high memory
-   - Image/video processing (`Pillow`, `opencv`, `ffmpeg`) → CPU-intensive
-   - In-memory caching or large datasets (`redis`, `pandas` with large files) → memory-intensive
-   - Async/concurrent patterns (`asyncio`, `uvicorn workers`, `gunicorn`) → can handle more load per CPU
-   - Database connections (`sqlalchemy`, `prisma`, `mongoose`) → connection pooling matters
+3. **Compute indicators** -- Check for signals that affect resource needs:
+   - ML libraries (`torch`, `transformers`, `vllm`, `tensorflow`) -> likely needs GPU + high memory
+   - Image/video processing (`Pillow`, `opencv`, `ffmpeg`) -> CPU-intensive
+   - In-memory caching or large datasets (`redis`, `pandas` with large files) -> memory-intensive
+   - Async/concurrent patterns (`asyncio`, `uvicorn workers`, `gunicorn`) -> can handle more load per CPU
+   - Database connections (`sqlalchemy`, `prisma`, `mongoose`) -> connection pooling matters
 
 ### 2b. Ask About Expected Load
 
-Based on the app type, ask the user targeted questions:
-
-**For Web APIs / HTTP services:**
-```
-To suggest the right resources, I need to understand your expected load:
-
-1. Expected requests per second (TPS)?
-   - Low (< 10 TPS) — internal tool, dev/testing
-   - Medium (10–100 TPS) — production API with moderate traffic
-   - High (100–1000 TPS) — high-traffic production service
-   - Very high (1000+ TPS) — needs autoscaling
-
-2. Expected concurrent users?
-   - Few (< 50) — internal team
-   - Moderate (50–500) — typical B2B SaaS
-   - Many (500+) — consumer-facing
-
-3. Average response time target?
-   - < 100ms (real-time APIs)
-   - < 500ms (standard web)
-   - < 5s (batch/processing endpoints)
-
-4. Is this for dev/staging or production?
-```
-
-**For ML inference services:**
-```
-To suggest the right resources:
-
-1. What model are you serving? (model name + parameter count)
-2. Expected inference requests per second?
-   - Low (< 1 TPS) — development/testing
-   - Medium (1–10 TPS) — production inference
-   - High (10+ TPS) — high-throughput serving
-3. Max acceptable latency per request?
-   - < 1s (real-time)
-   - < 10s (near real-time)
-   - < 60s (batch-style)
-4. Batch size? (1 for online, higher for throughput)
-```
-
-**For workers / background processors:**
-```
-To suggest the right resources:
-
-1. What kind of tasks? (data processing, image generation, email sending, etc.)
-2. How many concurrent tasks should it handle?
-3. Average task duration?
-4. Peak task queue depth?
-```
+Based on the app type, ask the user targeted questions about expected TPS, concurrent users, latency targets, and environment (dev/staging/prod). For detailed question templates by app type (Web APIs, ML inference, workers), see [references/load-analysis-questions.md](references/load-analysis-questions.md).
 
 ### 2c. Resource Suggestion Table
 
@@ -235,116 +169,112 @@ Do you want to use the suggested values, or customize any of them?
 For detailed CPU, memory, GPU, and replica estimation rules of thumb, see `references/resource-estimation.md`. Key points:
 
 - Always check available GPU types on the cluster (Step 1)
-- Memory limit should be 1.5–2x the request
+- Memory limit should be 1.5-2x the request
 - Production: min 2 replicas for high availability
-- GPU VRAM needed ≈ model parameter count × 2 bytes (FP16)
+- GPU VRAM needed ~ model parameter count x 2 bytes (FP16)
 
 ### Important Notes
 
-- **Always show the suggestion table** — Don't just pick values silently. Users should see the reasoning.
-- **Let users override** — Suggestions are starting points, not mandates.
-- **Mention trade-offs** — More resources = higher cost, fewer = risk of OOM/throttling.
-- **Factor in environment** — Dev gets minimal defaults, production gets HA suggestions.
-- **Reference cluster capabilities** — Only suggest GPU types that are actually available (from Step 1).
+- **Always show the suggestion table** -- Don't just pick values silently. Users should see the reasoning.
+- **Let users override** -- Suggestions are starting points, not mandates.
+- **Mention trade-offs** -- More resources = higher cost, fewer = risk of OOM/throttling.
+- **Factor in environment** -- Dev gets minimal defaults, production gets HA suggestions.
+- **Reference cluster capabilities** -- Only suggest GPU types that are actually available (from Step 1).
 
 ## Deploy Flow
 
-### Path 1: REST API Manifest (Recommended)
+### Step 1: Generate YAML Manifest
 
-Use this for pre-built images, Git-hosted code, or any environment where SDK isn't available.
-No Python SDK required — just `tfy-api.sh` (bash + curl).
+Based on the gathered information (image source, resources, ports, env vars), generate a YAML manifest file.
 
-For complete manifest templates and field reference, see `references/rest-api-manifest.md`.
+Reference `references/manifest-schema.md` for field definitions and `references/manifest-defaults.md` for recommended defaults per service type.
 
-**Deployment options** (full JSON examples in `references/deploy-api-examples.md`):
+**Deployment options** (full YAML examples in `references/deploy-api-examples.md`):
 
 | Option | When to Use |
 |--------|-------------|
 | **A: Pre-built Image** | User has a Docker image ready to deploy |
-| **B: Git + Dockerfile** | Code is in Git with a Dockerfile — TrueFoundry builds remotely |
-| **C: Git + PythonBuild** | Python code in Git, no Dockerfile — TrueFoundry auto-builds |
-| **D: Local Docker Build** | Code not in Git, no SDK — build locally, push, then use Option A |
+| **B: Git + Dockerfile** | Code is in Git with a Dockerfile -- TrueFoundry builds remotely |
+| **C: Git + PythonBuild** | Python code in Git, no Dockerfile -- TrueFoundry auto-builds |
+| **D: Local Docker Build** | Code not in Git -- build locally, push, then use Option A |
 
-For each option: get workspace ID, build the manifest per `references/deploy-api-examples.md`, deploy via `PUT /api/svc/v1/apps`, then poll status (see "After Deploy" section).
+Example YAML manifest (pre-built image):
 
-### Path 2: Python SDK (deploy.py)
+```yaml
+name: my-service
+type: service
+image:
+  type: image
+  image_uri: docker.io/myorg/my-api:v1.0
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: true
+    host: my-service-ws.ml.your-org.truefoundry.cloud
+    app_protocol: http
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  LOG_LEVEL: info
+replicas: 1
+workspace_fqn: cluster-id:workspace-name
+```
 
-Use this when the user already has a deploy.py or explicitly wants SDK.
-**Requires Python 3.10-3.12.** If pip install fails on Python 3.13+, switch to Path 1.
+### Step 2: Write Manifest
 
-#### Path 2a: Project Has deploy.py
+Write the manifest to `tfy-manifest.yaml` in the project directory.
 
-1. Verify all env vars are set
-2. Install SDK if needed:
-   ```bash
-   pip install truefoundry python-dotenv
-   ```
-3. Run deploy:
-   ```bash
-   python deploy.py
-   ```
-4. Report result to user
+### Step 3: Preview
 
-#### Path 2b: No deploy.py — Create One
+```bash
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+```
 
-1. **Check for Dockerfile** — Look for a Dockerfile in the project root.
-   - **If Dockerfile found**: Show the user the Dockerfile path and a brief summary of what it does (base image, exposed port, CMD). Ask: "I found a Dockerfile at `./Dockerfile`. Do you want to use this for the deployment, or would you prefer TrueFoundry to build your app automatically (no Dockerfile needed)?"
-   - **If no Dockerfile found**: Ask the user: "No Dockerfile found. Would you like me to create one for your app, or would you prefer TrueFoundry to handle the build automatically?" TrueFoundry can auto-detect Python/Node.js apps and build them without a Dockerfile using `PythonBuild` or `NodejsBuild` from the SDK.
-   - **If user wants no Dockerfile**: Use `PythonBuild(python_version="3.12", command="uvicorn main:app --host 0.0.0.0 --port 8000")` instead of `DockerFileBuild` in deploy.py.
+Show the preview output to the user. If this is an update to an existing service, the diff shows what will change.
 
-2. **ANALYZE & ASK THE USER** — Before creating deploy.py:
+### Step 4: Apply
 
-   **First**, run the codebase analysis (Step 2a) to identify framework, app type, and compute indicators.
+After user confirms:
 
-   **Then**, gather this information from the user:
-   - **Service name**: What should this service be called? (suggest project directory name if unclear)
-   - **Port**: What port does your app listen on? (detect from code if possible — look for `uvicorn`, `app.listen`, `EXPOSE` in Dockerfile)
-   - **Expected load**: Ask targeted load questions based on app type (Step 2b) — TPS, concurrent users, environment
-   - **Resources**: Present the resource suggestion table (Step 2c) showing defaults vs suggested values based on load analysis. Let the user confirm or adjust.
-   - **GPU**: Does your app require GPU acceleration? If yes, present only available GPU types from Step 1. Suggest GPU size based on model parameters.
-   - **Environment variables**:
-     - Check if project has `.env` file or `config.py` with env var patterns
-     - List any found and ask: "Do you need these as environment variables?"
-     - Ask: "Are there any other env vars your app needs?"
-   - **Public URL**: Should this service be publicly accessible on the internet, or internal-only?
-     - **If public**: Look up the cluster's base domains and suggest a host like `{service-name}-{workspace-name}.{base_domain}`. Show the constructed URL and confirm with the user.
-     - **If internal**: Set `expose=False` and no `host` — the service is only reachable inside the cluster.
-   - **Secrets**: Does your app need access to secrets from TrueFoundry secret groups? (e.g., API keys, database passwords)
+```bash
+tfy apply -f tfy-manifest.yaml
+```
 
-3. Create `deploy.py` from the template using confirmed values. Copy from `references/deploy-template.py` and adapt.
+### Fallback: REST API
 
-4. Install SDK:
-   ```bash
-   pip install truefoundry python-dotenv
-   ```
-   If this fails on Python 3.13+:
-   ```bash
-   python3.12 -m venv .venv-deploy
-   source .venv-deploy/bin/activate
-   pip install truefoundry python-dotenv
-   ```
-   If python3.12 isn't available, switch to Path 1 (REST API).
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process and `references/rest-api-manifest.md` for the full API reference.
 
-5. Run:
-   ```bash
-   python deploy.py
-   ```
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
+
+# Get workspace ID from FQN
+$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
+
+# Deploy via REST API (JSON body)
+$TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WORKSPACE_ID" }'
+```
 
 ## User Confirmation Checklist
 
-**Before deploying (either path), confirm these with the user:**
+**Before deploying, confirm these with the user:**
 
-- [ ] **Service name** — what to call this deployment
-- [ ] **Image source** — pre-built image, Git repo + Dockerfile, Git repo + PythonBuild, or SDK local build?
-- [ ] **Port** — what port the application listens on
-- [ ] **Expected load** — TPS, concurrent users, environment (dev/staging/prod) → use Step 2 analysis
-- [ ] **CPU/Memory** — show resource suggestion table from Step 2 (defaults vs suggested values)
-- [ ] **GPU** — whether GPU is needed (only offer available types from Step 1)
-- [ ] **Replicas** — min/max for autoscaling (suggest based on load analysis)
-- [ ] **Environment variables** — check `.env`, `config.py`, or ask directly
-- [ ] **Health probes** — configure startup/readiness/liveness probes (recommended for production)
-- [ ] **Public URL** — internal-only or public? If public, look up cluster base domains and confirm the host
-- [ ] **Secrets** — whether to mount TrueFoundry secret groups
+- [ ] **Service name** -- what to call this deployment
+- [ ] **Image source** -- pre-built image, Git repo + Dockerfile, Git repo + PythonBuild, or local Docker build?
+- [ ] **Port** -- what port the application listens on
+- [ ] **Expected load** -- TPS, concurrent users, environment (dev/staging/prod) -> use Step 2 analysis
+- [ ] **CPU/Memory** -- show resource suggestion table from Step 2 (defaults vs suggested values)
+- [ ] **GPU** -- whether GPU is needed (only offer available types from Step 1)
+- [ ] **Replicas** -- min/max for autoscaling (suggest based on load analysis)
+- [ ] **Environment variables** -- check `.env`, `config.py`, or ask directly
+- [ ] **Health probes** -- configure startup/readiness/liveness probes (recommended for production)
+- [ ] **Public URL** -- internal-only or public? If public, look up cluster base domains and confirm the host
+- [ ] **Secrets** -- whether to mount TrueFoundry secret groups
+- [ ] **Auto-shutdown** -- does the user want the service to auto-stop after inactivity? Useful for dev/staging to save costs. Not recommended for production services that need to be always-on.
 
 **Do NOT deploy with hardcoded defaults without asking.** Analyze the app (Step 2), suggest appropriate values, and let the user confirm or adjust.
 
@@ -355,14 +285,14 @@ Use this when the user already has a deploy.py or explicitly wants SDK.
 | Probe | Purpose | When to Use |
 |-------|---------|-------------|
 | **Startup** | Wait for app to initialize | Apps with slow startup (model loading, DB migrations, cache warming) |
-| **Readiness** | Can this pod receive traffic? | Always — prevents routing to unready pods |
-| **Liveness** | Is this pod alive? | Always — restarts hung processes |
+| **Readiness** | Can this pod receive traffic? | Always -- prevents routing to unready pods |
+| **Liveness** | Is this pod alive? | Always -- restarts hung processes |
 
-For SDK format, API manifest format, and detailed probe examples, see `references/health-probes.md`.
+For YAML probe examples (startup, readiness, liveness), REST API format, and tuning guidelines by app type, see [references/health-probes.md](references/health-probes.md).
 
 ### Tuning Guidelines
 
-- **Startup probe**: Set `failure_threshold × period_seconds` ≥ max app startup time
+- **Startup probe**: Set `failure_threshold x period_seconds` >= max app startup time
 - **Fast APIs** (< 5s startup): `initial_delay_seconds: 3`, `failure_threshold: 5`
 - **Slow apps** (DB migrations, cache warming): `initial_delay_seconds: 15`, `failure_threshold: 30`
 - **ML model loading**: `initial_delay_seconds: 10`, `failure_threshold: 60` (see `llm-deploy` skill)
@@ -371,7 +301,24 @@ See: [Liveness & Readiness Probes](https://truefoundry.com/docs/liveness-readine
 
 ## Autoscaling & Rollout Strategy
 
-For replica configuration (REST API + SDK), scaling guidelines by environment, rollout strategy options, and zero-downtime deploy settings, see `references/deploy-scaling.md`.
+YAML format for replicas and autoscaling:
+
+```yaml
+replicas:
+  min: 2
+  max: 10
+```
+
+YAML format for rollout strategy:
+
+```yaml
+rollout_strategy:
+  type: rolling_update
+  max_surge_percentage: 25
+  max_unavailable_percentage: 0
+```
+
+For scaling guidelines by environment, rollout strategy options, and zero-downtime deploy settings, see `references/deploy-scaling.md`.
 
 Key points:
 - Production: min 2 replicas for high availability
@@ -382,34 +329,41 @@ Key points:
 
 ## Public URL (Exposing a Service)
 
-When the user wants their service publicly accessible, **do NOT guess the domain — always look it up.**
+When the user wants their service publicly accessible, **do NOT guess the domain -- always look it up.**
 
-1. **Get base domains** — See `references/cluster-discovery.md` for cluster ID extraction and base domain lookup. Pick the wildcard domain, strip `*.`.
-2. **Construct host** — Convention: `{service-name}-{workspace-name}.{base_domain}` (e.g., `simple-server-my-workspace.ml.your-org.truefoundry.cloud`)
-3. **Confirm with user** — Show the constructed `https://` URL and ask if correct.
-4. **Set in manifest** — Use `"expose": true` and `"host": "..."` in the ports config. Or set `TFY_DEPLOY_HOST` env var (the deploy template reads this automatically).
-5. **Internal-only** — Set `"expose": false` and omit `host`. Service is only reachable within the cluster.
+1. **Get base domains** -- See `references/cluster-discovery.md` for cluster ID extraction and base domain lookup. Pick the wildcard domain, strip `*.`.
+2. **Construct host** -- Convention: `{service-name}-{workspace-name}.{base_domain}` (e.g., `simple-server-my-workspace.ml.your-org.truefoundry.cloud`)
+3. **Confirm with user** -- Show the constructed `https://` URL and ask if correct.
+4. **Set in manifest**:
+   ```yaml
+   ports:
+     - port: 8000
+       expose: true
+       host: my-service-ws.ml.your-org.truefoundry.cloud
+       app_protocol: http
+   ```
+5. **Internal-only** -- Set `expose: false` and omit `host`. Service is only reachable within the cluster.
 
-**Common errors:** "Provided host is not configured in cluster" means the domain doesn't match cluster `base_domains` — re-check via cluster API. See `references/deploy-errors.md`.
+**Common errors:** "Provided host is not configured in cluster" means the domain doesn't match cluster `base_domains` -- re-check via cluster API. See `references/deploy-errors.md`.
 
 See: [Define Ports and Domains](https://truefoundry.com/docs/define-ports-and-domains)
 
-## After Deploy — Get & Return URL
+## After Deploy -- Get & Return URL
 
 **CRITICAL: Always fetch and return the deployment URL to the user. A deployment without a URL is incomplete.**
 
 ### Step 1: Poll for Deployment Status
 
-After deploying (either path), the deployment is submitted but not yet live. Poll the status:
+After deploying, the deployment is submitted but not yet live. Poll the status:
 
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
 
-# Get application details — replace SERVICE_NAME and WORKSPACE_FQN
+# Get application details -- replace SERVICE_NAME and WORKSPACE_FQN
 $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=SERVICE_NAME'
 ```
 
-Or via MCP:
+Or via tool call:
 ```
 tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "SERVICE_NAME"})
 ```
@@ -489,10 +443,11 @@ Report the result to the user. For comprehensive validation (endpoint smoke test
 
 For specific error messages and resolution steps, see `references/deploy-errors.md`. Covers:
 - `TFY_WORKSPACE_FQN` not set
-- SDK not installed / Python version incompatible
+- `tfy: command not found` -- install with `pip install truefoundry`
+- `tfy apply` validation errors -- check YAML syntax and required fields
 - "Host not configured in cluster"
 - Git build failures
-- Build failures (SDK path)
 - No Dockerfile found
 
 </troubleshooting>
+</output>

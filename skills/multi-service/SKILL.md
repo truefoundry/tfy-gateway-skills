@@ -1,11 +1,11 @@
 ---
 name: multi-service
-description: This skill should be used when the user asks "deploy my full app", "deploy frontend and backend", "multi-service deployment", "deploy all services", "microservices deployment", "deploy my docker-compose app", "deploy my monorepo", "deploy multiple containers", "deploy full stack", "deploy interconnected services", "orchestrate service deployment", or has a project with multiple interconnected services that need coordinated deployment on TrueFoundry.
+description: Coordinates deployment of multiple interconnected services on TrueFoundry. Uses YAML manifests with `tfy apply` for each service. Use when deploying full-stack apps, microservices, monorepos, or docker-compose projects with frontend and backend components.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
   disable-model-invocation: "true"
-allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
@@ -13,6 +13,8 @@ allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 # Multi-Service Application Deployment
 
 Orchestrate the deployment of complex applications with multiple interconnected services on TrueFoundry. This skill builds a dependency graph, deploys services in the correct order, and wires them together so the full application works end-to-end.
+
+Each service gets its own YAML manifest, applied in dependency order with `tfy apply`.
 
 ## When to Use
 
@@ -24,14 +26,14 @@ Orchestrate the deployment of complex applications with multiple interconnected 
 
 ## When NOT to Use
 
-- User wants to deploy a single service → use `deploy` skill
-- User wants to deploy just a database → use `helm` skill
-- User wants to deploy just an LLM → use `llm-deploy` skill
-- User wants to check what's deployed → use `applications` skill
+- User wants to deploy a single service -> use `deploy` skill
+- User wants to deploy just a database -> use `helm` skill
+- User wants to deploy just an LLM -> use `llm-deploy` skill
+- User wants to check what's deployed -> use `applications` skill
 
 ## CRITICAL: Service Wiring is MANDATORY
 
-**When deploying multiple services, you MUST wire them together.** Deploying services in isolation without connecting them is useless — a frontend that can't reach its backend, or a backend that can't reach its database, is a broken deployment.
+**When deploying multiple services, you MUST wire them together.** Deploying services in isolation without connecting them is useless -- a frontend that can't reach its backend, or a backend that can't reach its database, is a broken deployment.
 
 **The agent MUST:**
 1. Build a dependency graph of all services
@@ -50,8 +52,9 @@ Orchestrate the deployment of complex applications with multiple interconnected 
 
 Same as other deploy skills:
 
-1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set
-2. **Workspace** — `TFY_WORKSPACE_FQN` is required. **Never auto-pick — always ask the user.**
+1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set
+2. **Workspace** -- `TFY_WORKSPACE_FQN` is required. **Never auto-pick -- always ask the user.**
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
 
 </context>
 
@@ -72,13 +75,13 @@ Same as other deploy skills:
    - Volume mounts
    - Health checks
 
-2. **Multiple Dockerfiles** — Look for `Dockerfile`, `Dockerfile.*`, `*/Dockerfile` across the project
+2. **Multiple Dockerfiles** -- Look for `Dockerfile`, `Dockerfile.*`, `*/Dockerfile` across the project
 
-3. **Service directories** — Directories with their own `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`
+3. **Service directories** -- Directories with their own `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`
 
-4. **Kubernetes manifests** — Check `k8s/`, `manifests/`, `deploy/` directories
+4. **Kubernetes manifests** -- Check `k8s/`, `manifests/`, `deploy/` directories
 
-5. **Monorepo patterns** — `services/`, `apps/`, `packages/` with subdirectories
+5. **Monorepo patterns** -- `services/`, `apps/`, `packages/` with subdirectories
 
 ### Classify Each Service
 
@@ -86,13 +89,12 @@ For each discovered service, determine its **type**:
 
 | Type | How to Detect | Deploy Method |
 |------|--------------|---------------|
-| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (Bitnami) |
-| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (Bitnami) |
-| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (Bitnami) |
-| **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service |
+| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (Bitnami) via `tfy apply` |
+| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (Bitnami) via `tfy apply` |
+| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (Bitnami) via `tfy apply` |
+| **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service via `tfy apply` |
 | **LLM** | Image contains `vllm`, `tgi`, `triton`, `ollama` | `llm-deploy` skill |
-| **MCP Server** | Exposes `/mcp` endpoint, uses MCP protocol | `mcp-server` skill |
-| **Application** | Has `build:` context or custom image with code | Service deployment |
+| **Application** | Has `build:` context or custom image with code | Service deployment via `tfy apply` |
 
 ## Step 2: Build Dependency Graph
 
@@ -108,9 +110,9 @@ services:
       - db
       - redis
     environment:
-      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # ← "db" is a dependency
-      - REDIS_URL=redis://redis:6379                           # ← "redis" is a dependency
-      - FRONTEND_ORIGIN=http://frontend:3000                   # ← NOT a dependency (frontend depends on backend, not the reverse)
+      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # "db" is a dependency
+      - REDIS_URL=redis://redis:6379                           # "redis" is a dependency
+      - FRONTEND_ORIGIN=http://frontend:3000                   # NOT a dependency (frontend depends on backend, not the reverse)
 ```
 
 **From environment variables:**
@@ -118,26 +120,26 @@ Scan env var values for references to other service names. A hostname in a conne
 
 **From code analysis (if no compose file):**
 Look at code for connection patterns:
-- `DATABASE_URL`, `MONGO_URI` → depends on database
-- `REDIS_URL`, `CACHE_URL` → depends on cache
-- `BROKER_URL`, `AMQP_URL` → depends on message queue
-- `API_URL`, `BACKEND_URL` → depends on another service
+- `DATABASE_URL`, `MONGO_URI` -> depends on database
+- `REDIS_URL`, `CACHE_URL` -> depends on cache
+- `BROKER_URL`, `AMQP_URL` -> depends on message queue
+- `API_URL`, `BACKEND_URL` -> depends on another service
 
 ### Dependency Rules
 
-1. **Infrastructure has no dependencies** — databases, caches, queues are leaf nodes
-2. **Backend services depend on infrastructure** — and potentially on other backends
-3. **Frontends depend on backends** — never on infrastructure directly
-4. **Workers depend on queues + databases** — same tier as backends
-5. **If A's env vars reference B's hostname → A depends on B**
-6. **`depends_on` in compose is explicit** — always respect it
+1. **Infrastructure has no dependencies** -- databases, caches, queues are leaf nodes
+2. **Backend services depend on infrastructure** -- and potentially on other backends
+3. **Frontends depend on backends** -- never on infrastructure directly
+4. **Workers depend on queues + databases** -- same tier as backends
+5. **If A's env vars reference B's hostname -> A depends on B**
+6. **`depends_on` in compose is explicit** -- always respect it
 
 ### Detect Circular Dependencies
 
 If the graph has a cycle, **stop and tell the user:**
 
 ```
-Detected circular dependency: service-a → service-b → service-a
+Detected circular dependency: service-a -> service-b -> service-a
 
 This cannot be deployed in sequence. Options:
 1. Break the cycle by making one service start without the other (add retry logic)
@@ -147,7 +149,7 @@ This cannot be deployed in sequence. Options:
 
 ### CRITICAL: Poll Infrastructure Readiness Before Next Tier
 
-> **Tested 2026-02-14**: `DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
+`DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
 
 **Between each deployment tier, poll the actual pods for readiness:**
 
@@ -158,8 +160,8 @@ This cannot be deployed in sequence. Options:
 
 ```bash
 # Example: poll PostgreSQL readiness
+TFY_API_SH=~/.claude/skills/truefoundry-multi-service/scripts/tfy-api.sh
 for i in $(seq 1 20); do
-  # Check if pods are actually responding (from within cluster or via API)
   $TFY_API_SH GET '/api/svc/v1/apps/APP_ID' | jq '.applicationComponentStatuses[0].status'
   sleep 15
 done
@@ -172,16 +174,16 @@ Topologically sort the DAG. Services with no dependencies deploy first. Services
 **Example:**
 ```
 Graph:
-  frontend → backend
-  backend  → db, redis, worker
-  worker   → db, redis, rabbitmq
-  db       → (none)
-  redis    → (none)
-  rabbitmq → (none)
+  frontend -> backend
+  backend  -> db, redis, worker
+  worker   -> db, redis, rabbitmq
+  db       -> (none)
+  redis    -> (none)
+  rabbitmq -> (none)
 
 Deploy order:
-  Level 0: db, redis, rabbitmq     (parallel — no dependencies)
-  Level 1: backend, worker         (parallel — both depend only on level 0)
+  Level 0: db, redis, rabbitmq     (parallel -- no dependencies)
+  Level 1: backend, worker         (parallel -- both depend only on level 0)
   Level 2: frontend                (depends on backend from level 1)
 ```
 
@@ -190,12 +192,12 @@ Deploy order:
 **ALWAYS present the discovered architecture and ask the user to confirm before deploying.**
 
 Show:
-1. What services were found (and how — compose file, directory scan, etc.)
+1. What services were found (and how -- compose file, directory scan, etc.)
 2. The dependency graph
 3. The deploy order
 4. What will be deployed as Helm vs. Service vs. LLM
 
-The plan should include: dependency graph (tree format), deploy order with levels, environment wiring (which env vars connect which services), and questions about workspace, public URLs, and secrets. Always end with "Shall I proceed with this plan?"
+The plan should include: dependency graph (tree format), deploy order with levels, environment wiring (which env vars connect which services), and questions about workspace, public URLs, secrets, and **auto-shutdown** (should services auto-stop after inactivity? useful for dev/staging). Always end with "Shall I proceed with this plan?"
 
 **Do NOT deploy until the user confirms.**
 
@@ -213,8 +215,8 @@ $TFY_API_SH GET '/api/svc/v1/workspace?workspaceFqn=WORKSPACE_FQN'
 ```
 
 From the response, extract:
-- `id` → workspace ID (needed for deployment API calls)
-- `clusterId` → cluster ID (needed for base domain lookup)
+- `id` -> workspace ID (needed for deployment API calls)
+- `clusterId` -> cluster ID (needed for base domain lookup)
 - The namespace is typically the workspace name portion of the FQN
 
 ### Get Base Domain (for public URLs)
@@ -245,9 +247,11 @@ For Helm-deployed infrastructure, the DNS includes the chart name:
 
 Walk the dependency graph level by level. **Wait for each level to be healthy before proceeding to the next.**
 
+Each service gets its own YAML manifest file (e.g., `tfy-manifest-db.yaml`, `tfy-manifest-backend.yaml`, `tfy-manifest-frontend.yaml`). Reference `references/manifest-schema.md` for field definitions and `references/manifest-defaults.md` for recommended defaults per service type. If `tfy` CLI is unavailable, see `references/cli-fallback.md` for REST API fallback.
+
 ### For Infrastructure (Helm Charts)
 
-Use the `helm` skill approach. All charts use `PUT /api/svc/v1/apps` with `kind: HelmChart` and `source.repo_url: https://charts.bitnami.com/bitnami`. Common charts:
+Use `tfy apply` with a Helm manifest. Common charts:
 
 | Service | `chart_name` | Key Values |
 |---------|-------------|------------|
@@ -255,6 +259,38 @@ Use the `helm` skill approach. All charts use `PUT /api/svc/v1/apps` with `kind:
 | Redis | `redis` (v20.6.2) | `auth.password`, `architecture: "standalone"` |
 | RabbitMQ | `rabbitmq` (v15.1.2) | `auth.username`, `auth.password` |
 | MongoDB | `mongodb` | `auth.rootUser`, `auth.rootPassword` |
+
+Example Helm manifest for PostgreSQL:
+
+```yaml
+# tfy-manifest-db.yaml
+name: myapp-db
+type: helm
+source:
+  type: oci-repo
+  version: "16.4.1"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+values:
+  auth:
+    postgresPassword: GENERATED_PASSWORD
+    database: myapp
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      requests:
+        cpu: "0.5"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+workspace_fqn: cluster-id:workspace-name
+```
+
+```bash
+tfy apply -f tfy-manifest-db.yaml
+```
 
 Name each chart `APP_NAME-{service}` (e.g., `myapp-db`, `myapp-redis`). See the `helm` skill for full manifest examples.
 
@@ -269,44 +305,54 @@ $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=APP
 
 ### For Application Services
 
-Deploy using the Service manifest with wired env vars:
+Deploy each service using its own YAML manifest with wired env vars:
 
-```bash
-$TFY_API_SH PUT /api/svc/v1/apps '{
-  "manifest": {
-    "kind": "Service",
-    "name": "APP_NAME-backend",
-    "image": {
-      "type": "image",
-      "image_uri": "PREBUILT_IMAGE_OR_REGISTRY_IMAGE",
-      "command": "uvicorn main:app --host 0.0.0.0 --port 8000"
-    },
-    "ports": [
-      {
-        "port": 8000,
-        "protocol": "TCP",
-        "expose": true,
-        "host": "APP_NAME-backend-WS.BASE_DOMAIN",
-        "app_protocol": "http"
-      }
-    ],
-    "resources": {
-      "cpu_request": 0.5,
-      "cpu_limit": 1.0,
-      "memory_request": 512,
-      "memory_limit": 1024
-    },
-    "env": {
-      "DATABASE_URL": "postgresql://postgres:PASSWORD@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/DB_NAME",
-      "REDIS_URL": "redis://:PASSWORD@APP_NAME-redis-redis-master.NAMESPACE.svc.cluster.local:6379/0"
-    },
-    "replicas": { "min": 1, "max": 1 }
-  },
-  "workspaceId": "WORKSPACE_ID"
-}'
+```yaml
+# tfy-manifest-backend.yaml
+name: myapp-backend
+type: service
+image:
+  type: image
+  image_uri: PREBUILT_IMAGE_OR_REGISTRY_IMAGE
+  command: uvicorn main:app --host 0.0.0.0 --port 8000
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: true
+    host: myapp-backend-ws.BASE_DOMAIN
+    app_protocol: http
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+env:
+  DATABASE_URL: postgresql://postgres:PASSWORD@myapp-db-postgresql.NAMESPACE.svc.cluster.local:5432/DB_NAME
+  REDIS_URL: redis://:PASSWORD@myapp-redis-redis-master.NAMESPACE.svc.cluster.local:6379/0
+replicas:
+  min: 1
+  max: 1
+workspace_fqn: cluster-id:workspace-name
 ```
 
-**If the service has a `build:` context (docker-compose) or a Dockerfile**, use the `deploy` skill's build approach instead of a pre-built image. Create a `deploy.py` per service.
+```bash
+tfy apply -f tfy-manifest-backend.yaml
+```
+
+**If the service has a `build:` context (docker-compose) or a Dockerfile**, use Git build source in the YAML manifest:
+
+```yaml
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    branch_name: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: backend/Dockerfile
+    build_context_path: backend/
+```
 
 ### For LLM Services
 
@@ -343,74 +389,27 @@ DATABASE_URL=postgresql://postgres:pass@APP_NAME-db-postgresql.NAMESPACE.svc.clu
 
 For passwords shared between infrastructure and services:
 
-1. **Generate strong passwords** — `openssl rand -base64 24` for each
-2. **Store in TrueFoundry secrets** (using `secrets` skill):
-   ```bash
-   $TFY_API_SH POST /api/svc/v1/secret-groups '{
-     "name": "APP_NAME-secrets",
-     "secrets": [
-       {"key": "db-password", "value": "GENERATED_PASSWORD"},
-       {"key": "redis-password", "value": "GENERATED_PASSWORD"}
-     ]
-   }'
-   ```
-3. **Reference in env vars**:
-   ```python
-   env = {
-       "DB_PASSWORD": "tfy-secret://DOMAIN:APP_NAME-secrets:db-password",
-   }
-   ```
+1. **Generate strong passwords** -- `openssl rand -base64 24` for each
+2. **Store in TrueFoundry secrets** (using `secrets` skill) and reference in YAML manifests as `tfy-secret://DOMAIN:SECRET_GROUP:KEY`
 
 ## Step 7: Verify Connectivity
 
-After all services are deployed and running, verify they can reach each other.
+After all services are deployed and running, verify they can reach each other:
 
-### Check Deployment Status
-
-```bash
-# Check all services are RUNNING
-for app in APP_NAME-db APP_NAME-redis APP_NAME-backend APP_NAME-frontend; do
-  $TFY_API_SH GET "/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=$app"
-done
-```
-
-### Check Logs for Connection Errors
-
-For each application service, download recent logs and search for connection errors:
-
-```bash
-$TFY_API_SH GET '/api/svc/v1/logs/WORKSPACE_ID/download?applicationFqn=APP_FQN&startTs=DEPLOY_TIME&searchString=error&searchType=contains'
-```
-
-Look for:
-- `Connection refused` → dependency not reachable (wrong DNS or not running)
-- `Authentication failed` → password mismatch between infra and service
-- `Name resolution failed` → wrong service name in DNS
-- `Timeout` → service is starting slowly (check health probes)
-
-### Hit Service Endpoints
-
-If services have public URLs, test them:
-
-```bash
-# Backend health
-curl -s -o /dev/null -w '%{http_code}' "https://APP_NAME-backend-WS.BASE_DOMAIN/health"
-
-# Frontend
-curl -s -o /dev/null -w '%{http_code}' "https://APP_NAME-frontend-WS.BASE_DOMAIN/"
-```
-
-Use the `service-test` skill for deeper validation.
+1. **Check deployment status** -- Poll each service via `$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=APP_NAME'` and confirm status is RUNNING
+2. **Check logs for connection errors** -- Use the `logs` skill to search for `Connection refused`, `Authentication failed`, `Name resolution failed`, or `Timeout`
+3. **Hit service endpoints** -- `curl` public URLs to verify HTTP 200 responses
+4. Use the `service-test` skill for deeper validation.
 
 ## Step 8: Report Deployment Summary
 
 **CRITICAL: Always provide a comprehensive summary with ALL URLs and wiring.**
 
 The summary must include:
-1. **Component table** — each service with its type (Helm/Service), status, and URL or internal DNS
-2. **Wiring map** — which env vars connect which services (mask passwords with `***`)
-3. **Access URLs** — public URLs for frontend and API docs
-4. **Next steps** — open frontend, use `logs` skill if broken, use `service-test` skill to validate
+1. **Component table** -- each service with its type (Helm/Service), status, and URL or internal DNS
+2. **Wiring map** -- which env vars connect which services (mask passwords with `***`)
+3. **Access URLs** -- public URLs for frontend and API docs
+4. **Next steps** -- open frontend, use `logs` skill if broken, use `service-test` skill to validate
 
 **The user should be able to open the frontend URL and see a working app.** If they can't, the deployment is not done.
 
@@ -419,11 +418,11 @@ The summary must include:
 See `references/compose-translation.md` for the full translation reference. Key points:
 
 - **Always scan for compose files first** before asking the user about architecture
-- `build:` services -> TrueFoundry Service with `DockerFileBuild`
-- `image:` services (custom) -> TrueFoundry Service with pre-built image
-- `image:` services (postgres, redis, etc.) -> Helm charts (Bitnami)
+- `build:` services -> YAML manifest with git build source + `tfy apply`
+- `image:` services (custom) -> YAML manifest with pre-built image + `tfy apply`
+- `image:` services (postgres, redis, etc.) -> Helm manifests via `tfy apply`
 - `depends_on` -> deploy order in the dependency graph
-- `healthcheck` -> TrueFoundry liveness/readiness probes
+- `healthcheck` -> TrueFoundry liveness/readiness probes in YAML
 - `volumes` -> Helm persistence or TrueFoundry Volumes
 - `networks` -> ignored (all services share a K8s namespace)
 - `env_file` / `secrets` -> read values, create TrueFoundry secrets as needed
@@ -432,7 +431,7 @@ See `references/compose-translation.md` for the full translation reference. Key 
 
 See `references/multi-service-patterns.md` for ready-made dependency graphs and deploy orders for:
 - **RAG applications** (LLM + vector DB + API + frontend)
-- **AI Agent with tools** (LLM + MCP server + DB)
+- **AI Agent with tools** (LLM + tool server + DB)
 - **Full-Stack SaaS with AI** (frontend + backend + workers + infra + LLM)
 - **Monorepo support** (detecting structure, shared code, build contexts)
 
@@ -460,7 +459,6 @@ This skill orchestrates other skills:
 - **Infrastructure**: Uses `helm` skill patterns for databases, caches, queues
 - **Services**: Uses `deploy` skill patterns for application services
 - **LLMs**: Uses `llm-deploy` skill patterns if the app includes model serving
-- **MCP Servers**: Uses `mcp-server` skill if the app includes MCP servers
 - **Secrets**: Uses `secrets` skill to create shared credential groups
 - **Workspaces**: Uses `workspaces` skill to get workspace FQN and namespace
 - **Verification**: Uses `applications` skill to check status, `logs` skill to debug, `service-test` skill to validate endpoints
@@ -477,4 +475,9 @@ See `references/multi-service-errors.md` for error templates covering:
 - Cross-service connection failures (DNS, ports, credentials)
 - Unsupported docker-compose features
 
+### CLI Errors
+- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy apply` validation errors -- Check YAML syntax for each manifest file
+
 </troubleshooting>
+</output>

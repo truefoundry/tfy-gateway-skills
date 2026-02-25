@@ -1,18 +1,23 @@
 ---
 name: helm
-description: This skill should be used when the user asks "deploy a database", "install redis", "helm chart", "deploy postgres", "deploy mongodb", "install a helm chart", "deploy vector database", "deploy qdrant", "deploy milvus", "deploy elasticsearch", "install a chart", "deploy infrastructure", "set up a database", "add redis to my cluster", "deploy rabbitmq", "install kafka", "deploy monitoring stack", or wants to deploy any infrastructure component via Helm on TrueFoundry. Supports ANY public or private OCI Helm chart.
+description: Deploys infrastructure components via Helm charts on TrueFoundry. Supports any public or private OCI Helm chart including databases (Postgres, MongoDB, Redis), message brokers (Kafka, RabbitMQ), and vector databases (Qdrant, Milvus). Uses YAML manifests with `tfy apply`. Use when installing Helm charts or deploying infrastructure on TrueFoundry.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
   disable-model-invocation: "true"
-allowed-tools: Bash(*/tfy-api.sh *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
 
 # Helm Chart Deployment
 
-Deploy any Helm chart to TrueFoundry — databases, caches, message queues, vector databases, monitoring tools, or any other OCI-compatible Helm chart. TrueFoundry supports any chart as long as the cluster can pull it from the registry.
+Deploy any Helm chart to TrueFoundry -- databases, caches, message queues, vector databases, monitoring tools, or any other OCI-compatible Helm chart. TrueFoundry supports any chart as long as the cluster can pull it from the registry.
+
+Two paths:
+
+1. **CLI** (`tfy apply`) -- Write a YAML manifest and apply it. Works everywhere.
+2. **REST API** (fallback) -- When CLI unavailable, use `tfy-api.sh`.
 
 ## When to Use
 
@@ -28,9 +33,9 @@ Deploy any Helm chart to TrueFoundry — databases, caches, message queues, vect
 
 ## When NOT to Use
 
-- User wants to deploy application code → use `deploy` skill
-- User wants to check what's deployed → use `applications` skill
-- User wants to view logs → use `logs` skill
+- User wants to deploy application code -> use `deploy` skill
+- User wants to check what's deployed -> use `applications` skill
+- User wants to view logs -> use `logs` skill
 
 </objective>
 
@@ -40,8 +45,9 @@ Deploy any Helm chart to TrueFoundry — databases, caches, message queues, vect
 
 **Always verify before deploying:**
 
-1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
@@ -49,18 +55,19 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 **Before deploying a Helm chart, ALWAYS confirm these with the user:**
 
-- [ ] **Chart source** — Which chart? (suggest from common charts table)
-- [ ] **Chart registry** — Public (Bitnami, official) or private registry?
-- [ ] **Chart version** — Specific version or latest?
-- [ ] **Release name** — What to call this deployment? (default: chart name + random suffix)
-- [ ] **Namespace/Workspace** — Which workspace FQN? (never auto-pick)
-- [ ] **Environment** — Is this for dev, staging, or production? (affects resource defaults)
-- [ ] **Configuration** — Critical values to set:
-  - **Passwords/credentials** — Use strong random values or reference TrueFoundry secrets
-  - **Storage size** — Persistent volume size (e.g., 10Gi, 20Gi)
-  - **Resources** — CPU/memory limits and requests
-  - **Replicas** — Number of instances (1 for dev, 3+ for prod)
-  - **Network** — Expose externally or internal-only?
+- [ ] **Chart source** -- Which chart? (suggest from common charts table)
+- [ ] **Chart registry** -- Public (Bitnami, official) or private registry?
+- [ ] **Chart version** -- Specific version or latest?
+- [ ] **Release name** -- What to call this deployment? (default: chart name + random suffix)
+- [ ] **Namespace/Workspace** -- Which workspace FQN? (never auto-pick)
+- [ ] **Environment** -- Is this for dev, staging, or production? (affects resource defaults)
+- [ ] **Configuration** -- Critical values to set:
+  - **Passwords/credentials** -- Use strong random values or reference TrueFoundry secrets
+  - **Storage size** -- Persistent volume size (e.g., 10Gi, 20Gi)
+  - **Resources** -- CPU/memory limits and requests
+  - **Replicas** -- Number of instances (1 for dev, 3+ for prod)
+  - **Network** -- Expose externally or internal-only?
+- [ ] **Auto-shutdown** -- Should the deployment auto-stop after inactivity? (useful for dev/staging to save costs)
 
 **Do NOT deploy with minimal defaults without asking.** Production databases need proper sizing, credentials, and persistence configuration.
 
@@ -94,49 +101,64 @@ I'll deploy PostgreSQL to TrueFoundry. Let me confirm a few things:
 7. Access: Internal-only (default) or expose externally?
 ```
 
-### 2. Build HelmRelease Manifest
+### 2. Generate YAML Manifest
 
-Create a TrueFoundry HelmRelease manifest with user-confirmed values:
+Create a YAML manifest with user-confirmed values:
 
-```json
-{
-  "manifest": {
-    "name": "postgres-prod",
-    "type": "helm",
-    "source": {
-      "type": "oci-repo",
-      "version": "16.7.21",
-      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
-    },
-    "values": {
-      "auth": {
-        "postgresPassword": "GENERATED_OR_SECRET_REF",
-        "database": "myapp"
-      },
-      "primary": {
-        "persistence": { "enabled": true, "size": "50Gi" },
-        "resources": {
-          "requests": { "cpu": "2", "memory": "2Gi" },
-          "limits": { "cpu": "4", "memory": "4Gi" }
-        }
-      },
-      "readReplicas": { "replicaCount": 2 }
-    },
-    "workspace_fqn": "cluster-id:workspace-name"
-  },
-  "workspaceId": "WORKSPACE_ID_FROM_FQN"
-}
+```yaml
+name: postgres-prod
+type: helm
+source:
+  type: oci-repo
+  version: "16.7.21"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+values:
+  auth:
+    postgresPassword: GENERATED_OR_SECRET_REF
+    database: myapp
+  primary:
+    persistence:
+      enabled: true
+      size: 50Gi
+    resources:
+      requests:
+        cpu: "2"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 4Gi
+  readReplicas:
+    replicaCount: 2
+workspace_fqn: cluster-id:workspace-name
 ```
 
-**Note:** `workspaceId` must be the internal ID, not the FQN. Get it from the `workspaces` skill.
+### 3. Write and Preview Manifest
 
-### 3. Deploy via MCP or API
+Write the manifest to `tfy-manifest.yaml`:
+
+```bash
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+```
+
+Show the preview output to the user.
+
+### 4. Apply
+
+After user confirms:
+
+```bash
+tfy apply -f tfy-manifest.yaml
+```
+
+### Fallback: REST API
+
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
 
 **Important:** The `workspaceId` must be the internal workspace ID (not the FQN). Get it from the `workspaces` skill: `GET /api/svc/v1/workspaces?fqn=WORKSPACE_FQN` -> use the `id` field.
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-#### Via MCP
+#### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
@@ -158,15 +180,17 @@ tfy_applications_create_deployment(
 )
 ```
 
-**Note:** This requires human approval (HITL) when using MCP.
+**Note:** This requires human approval (HITL) when using tool calls.
 
 #### Via Direct API
 
 ```bash
+TFY_API_SH=~/.claude/skills/truefoundry-helm/scripts/tfy-api.sh
+
 # First, get workspace ID from FQN
 $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 
-# Then deploy
+# Then deploy (JSON body)
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
     "name": "postgres-prod",
@@ -192,13 +216,13 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 }'
 ```
 
-### 4. Report Connection Details
+### 5. Report Connection Details
 
 After successful deployment, provide the user with connection details (host, port, database, credentials). For connection DNS patterns and default ports by chart type, see [references/helm-chart-sources.md](references/helm-chart-sources.md) (Connection Details by Chart section).
 
 ## Example Configurations
 
-For full JSON manifest examples (Redis, MongoDB, RabbitMQ, Qdrant, Elasticsearch), secrets management patterns, and environment-specific defaults, see [references/helm-chart-examples.md](references/helm-chart-examples.md).
+For full YAML manifest examples (Redis, MongoDB, RabbitMQ, Qdrant, Elasticsearch), secrets management patterns, and environment-specific defaults, see [references/helm-chart-examples.md](references/helm-chart-examples.md).
 
 ## Advanced: Kustomize & Additional Manifests
 
@@ -240,7 +264,7 @@ Next steps:
 - **Test after deployment**: Use `service-test` skill to validate the deployed service
 - **Manage secrets**: Use `secrets` skill to create secret groups before deploy
 - **View logs**: Use `logs` skill with the HelmRelease application ID
-- **Connect from app**: Reference the deployed chart's service DNS in your application's deploy.py
+- **Connect from app**: Reference the deployed chart's service DNS in your application's YAML manifest
 
 </references>
 
@@ -250,4 +274,9 @@ Next steps:
 
 For error messages and troubleshooting (workspace issues, chart not found, values validation, insufficient resources, PVC binding, connection issues), see [references/helm-errors.md](references/helm-errors.md).
 
+Additional CLI-specific errors:
+- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy apply` validation errors -- Check YAML syntax, ensure required fields (name, type, source, workspace_fqn) are present
+
 </troubleshooting>
+</output>

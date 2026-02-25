@@ -1,16 +1,19 @@
 ---
 name: jobs
-description: This skill should be used when the user asks "deploy a job", "create a job", "run a batch task", "schedule a job", "show job runs", "list runs", "job status", "is my job running", "run a batch job", "execute a task", "cron job", "one-time job", "trigger a run", "check job run", "failed job", or wants to deploy or monitor TrueFoundry job executions. For listing job applications, use applications skill.
+description: Deploys and monitors TrueFoundry batch jobs, scheduled cron jobs, and one-time tasks. Uses YAML manifests with `tfy apply`. Use when deploying jobs, scheduling cron tasks, checking job run status, or viewing execution history. For listing job applications, use applications skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
 
 # Jobs
 
-Deploy, schedule, and monitor TrueFoundry job runs.
+Deploy, schedule, and monitor TrueFoundry job runs. Two paths:
+
+1. **CLI** (`tfy apply`) -- Write a YAML manifest and apply it. Works everywhere.
+2. **REST API** (fallback) -- When CLI unavailable, use `tfy-api.sh`.
 
 ## When to Use
 
@@ -23,17 +26,21 @@ Deploy, schedule, and monitor TrueFoundry job runs.
 
 ## When NOT to Use
 
-- User wants to list job *applications* → use `applications` skill with `application_type: "job"`
+- User wants to list job *applications* -> use `applications` skill with `application_type: "job"`
 
 </objective>
 
 <context>
 
-## Job Deployment
+## Prerequisites
 
-### Prerequisites
+**Always verify before deploying:**
 
-Same as deploy skill: `TFY_BASE_URL`, `TFY_API_KEY`, `TFY_WORKSPACE_FQN` required. Run `pip install truefoundry`.
+1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
+
+For credential check commands and .env setup, see `references/prerequisites.md`.
 
 </context>
 
@@ -46,85 +53,101 @@ Same as deploy skill: `TFY_BASE_URL`, `TFY_API_KEY`, `TFY_WORKSPACE_FQN` require
 - Resource requirements (CPU/GPU/memory)
 - Expected duration
 
-### Step 2: Create deploy.py
+### Step 2: Generate YAML Manifest
 
-> **SDK v0.13.x breaking changes** (tested 2026-02-14):
-> - `ManualTrigger` is now `Manual` — use `from truefoundry.deploy import Manual`
-> - `CronTrigger` is now `Cron` — use `from truefoundry.deploy import Cron`
-> - Job `image` with `DockerFileBuild` requires explicit `command` field (e.g., `command="python job.py"`)
-> - Use Python 3.12 venv — 3.13+ / 3.14 are incompatible with the SDK
+Based on the job requirements, create a YAML manifest.
 
-Provide SDK template:
+#### Option A: Pre-built Image
 
-```python
-from truefoundry.deploy import Build, Job, PythonBuild, Resources, LocalSource, DockerFileBuild
+```yaml
+name: my-batch-job
+type: job
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  ENVIRONMENT: production
+workspace_fqn: cluster-id:workspace-name
+```
 
-# Option A: From local code with PythonBuild
-job = Job(
-    name="my-job",
-    image=Build(
-        build_source=LocalSource(local_build=False),
-        build_spec=PythonBuild(
-            command="python train.py",
-            python_version="3.11",
-            requirements_path="requirements.txt",
-        ),
-    ),
-    resources=Resources(
-        cpu_request=2, cpu_limit=4,
-        memory_request=4000, memory_limit=8000,
-        ephemeral_storage_request=1000, ephemeral_storage_limit=2000,
-    ),
-    env={
-        "ENVIRONMENT": "production",
-    },
-)
+#### Option B: Git Repo + Dockerfile
 
-# Option B: From Docker image
-job = Job(
-    name="my-job",
-    image=Build(
-        build_spec=DockerFileBuild(
-            dockerfile_path="Dockerfile",
-            command="python train.py",
-        ),
-        build_source=LocalSource(local_build=False),
-    ),
-    resources=Resources(
-        cpu_request=2, cpu_limit=4,
-        memory_request=4000, memory_limit=8000,
-    ),
-)
+```yaml
+name: my-batch-job
+type: job
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    branch_name: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: Dockerfile
+    build_context_path: "."
+    command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+env:
+  ENVIRONMENT: production
+workspace_fqn: cluster-id:workspace-name
+```
 
-# Option C: Pre-built image
-from truefoundry.deploy import Image
-job = Job(
-    name="my-job",
-    image=Image(
-        image_uri="my-registry/my-image:latest",
-        command="python train.py",
-    ),
-    resources=Resources(
-        cpu_request=2, cpu_limit=4,
-        memory_request=4000, memory_limit=8000,
-    ),
-)
+#### Option C: Git Repo + PythonBuild (No Dockerfile)
 
-job.deploy(workspace_fqn="your-workspace-fqn")
+```yaml
+name: my-batch-job
+type: job
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    branch_name: main
+  build_spec:
+    type: python
+    python_version: "3.11"
+    requirements_path: requirements.txt
+    command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+workspace_fqn: cluster-id:workspace-name
 ```
 
 ### Scheduled Jobs (Cron)
 
-```python
-from truefoundry.deploy import Job, CronTrigger
+Add a `trigger` section for scheduled execution:
 
-job = Job(
-    name="nightly-retrain",
-    # ... image and resources ...
-    trigger=CronTrigger(
-        schedule="0 2 * * *",  # 2 AM daily
-    ),
-)
+```yaml
+name: nightly-retrain
+type: job
+trigger:
+  type: cron
+  schedule: "0 2 * * *"  # 2 AM daily
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+workspace_fqn: cluster-id:workspace-name
 ```
 
 Cron format: `minute hour day_of_month month day_of_week`
@@ -137,18 +160,24 @@ Common schedules:
 | Weekly Monday | `0 9 * * 1` | Weekly Monday 9 AM |
 | Monthly 1st | `0 0 1 * *` | First of month midnight |
 
-### Retry Configuration
+### Manual Trigger with Retries
 
-```python
-from truefoundry.deploy import Job, ManualTrigger
-
-job = Job(
-    name="my-job",
-    trigger=ManualTrigger(
-        num_retries=3,
-    ),
-    # ... rest of config
-)
+```yaml
+name: my-job
+type: job
+trigger:
+  type: manual
+  num_retries: 3
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python job.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+workspace_fqn: cluster-id:workspace-name
 ```
 
 ### Concurrency Policies
@@ -173,38 +202,68 @@ Then set command: `python train.py --epochs 50 --batch-size 64`
 
 ### GPU Jobs
 
-```python
-from truefoundry.deploy import Resources, NvidiaGPU, GPUType
-
-resources = Resources(
-    cpu_request=4, cpu_limit=8,
-    memory_request=16000, memory_limit=32000,
-    devices=[NvidiaGPU(name=GPUType.A10_24GB, count=1)],
-)
+```yaml
+name: gpu-training-job
+type: job
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 4
+  cpu_limit: 8
+  memory_request: 16000
+  memory_limit: 32000
+  devices:
+    - type: nvidia_gpu
+      name: A10_24GB
+      count: 1
+workspace_fqn: cluster-id:workspace-name
 ```
 
 ### Job with Volume Mounts
 
-```python
-from truefoundry.deploy import Job, VolumeMount
-
-job = Job(
-    name="training-job",
-    # ... image, resources ...
-    mounts=[
-        VolumeMount(
-            mount_path="/data",
-            volume_fqn="your-volume-fqn",
-        ),
-    ],
-)
+```yaml
+name: training-job
+type: job
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+mounts:
+  - mount_path: /data
+    volume_fqn: your-volume-fqn
+workspace_fqn: cluster-id:workspace-name
 ```
 
-### Step 3: Deploy
+### Step 3: Write and Apply Manifest
+
+Write the manifest to `tfy-manifest.yaml`:
 
 ```bash
-pip install truefoundry
-python deploy.py
+# Preview
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+
+# Apply after user confirms
+tfy apply -f tfy-manifest.yaml
+```
+
+### Fallback: REST API
+
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
+
+$TFY_API_SH PUT /api/svc/v1/apps '{
+  "manifest": { ... JSON version of the YAML manifest ... },
+  "workspaceId": "WORKSPACE_ID"
+}'
 ```
 
 ### Step 4: Trigger the Job
@@ -216,7 +275,7 @@ TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
 $TFY_API_SH POST /api/svc/v1/jobs/JOB_ID/runs -d '{}'
 ```
 
-## After Deploy — Report Status
+## After Deploy -- Report Status
 
 **CRITICAL: Always report the deployment status and job details to the user.**
 
@@ -253,34 +312,6 @@ To monitor runs:
 **For scheduled jobs**, also show when the next run will execute.
 **For manually triggered jobs**, remind the user how to trigger them.
 
-### Via API Manifest
-
-```bash
-TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
-
-$TFY_API_SH POST /api/svc/v1/applications -d '{
-  "name": "my-batch-job",
-  "type": "job",
-  "workspace_fqn": "WORKSPACE_FQN",
-  "manifest": {
-    "name": "my-batch-job",
-    "components": {
-      "image": {
-        "type": "image",
-        "image_uri": "python:3.11-slim",
-        "command": "python -c \"print('"'"'Hello from TrueFoundry Job!'"'"')\""
-      },
-      "resources": {
-        "cpu_request": 0.5,
-        "cpu_limit": 1,
-        "memory_request": 500,
-        "memory_limit": 1000
-      }
-    }
-  }
-}'
-```
-
 ### .tfyignore
 
 Create a `.tfyignore` file (follows `.gitignore` syntax) to exclude files from the Docker build:
@@ -296,7 +327,7 @@ data/
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_jobs_list_runs(job_id="job-id")
@@ -333,10 +364,10 @@ $TFY_API_SH GET '/api/svc/v1/jobs/JOB_ID/runs?sortBy=createdAt&searchPrefix=my-r
 ```
 Job Runs for data-pipeline:
 | Run Name       | Status    | Started            | Duration |
-|----------------|-----------|--------------------|---------| 
+|----------------|-----------|--------------------|---------|
 | run-20260210-1 | SUCCEEDED | 2026-02-10 09:00   | 5m 32s  |
 | run-20260210-2 | FAILED    | 2026-02-10 10:00   | 1m 05s  |
-| run-20260210-3 | RUNNING   | 2026-02-10 11:00   | —       |
+| run-20260210-3 | RUNNING   | 2026-02-10 11:00   | --       |
 ```
 
 </instructions>
@@ -379,4 +410,9 @@ tfy_applications_list(filters={"application_type": "job"})
 No runs found for this job. The job may not have been triggered yet.
 ```
 
+### CLI Errors
+- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy apply` validation errors -- Check YAML syntax, ensure required fields (name, type, image, resources, workspace_fqn) are present
+
 </troubleshooting>
+</output>

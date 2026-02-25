@@ -49,12 +49,12 @@ AGENTS_GLOBAL=(
 
 # Skills to install (directory names inside skills/)
 SKILL_NAMES=(
-  ai-gateway applications async-service deploy docs gitops helm jobs llm-benchmarking llm-deploy llm-finetuning logs mcp-server multi-service notebooks preferences prompts secrets service-test ssh-server status tfy-apply volumes workflows workspaces
+  access-tokens ai-gateway applications async-service deploy docs gitops helm jobs llm-deploy logs ml-repos multi-service notebooks preferences prompts secrets service-test ssh-server status tfy-apply tracing volumes workflows workspaces
 )
 
 # Shared files (relative to _shared/ in source)
 SHARED_SCRIPTS=( "scripts/tfy-api.sh" "scripts/tfy-version.sh" )
-SHARED_REFS=( "references/api-endpoints.md" "references/deploy-template.py" "references/sdk-patterns.md" "references/sdk-version-map.md" "references/container-versions.md" "references/prerequisites.md" "references/tfy-api-setup.md" "references/gpu-reference.md" "references/cluster-discovery.md" "references/health-probes.md" "references/resource-estimation.md" "references/rest-api-manifest.md" )
+SHARED_REFS=( "references/api-endpoints.md" "references/container-versions.md" "references/prerequisites.md" "references/tfy-api-setup.md" "references/gpu-reference.md" "references/cluster-discovery.md" "references/health-probes.md" "references/resource-estimation.md" "references/rest-api-manifest.md" "references/manifest-schema.md" "references/manifest-defaults.md" "references/cli-fallback.md" )
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 MODE=""            # "" = auto (global + local if applicable), "global", "local"

@@ -2,31 +2,42 @@
 
 Common deployment errors and how to resolve them.
 
+## CLI Errors
+
+### tfy: command not found
+
+```
+The TrueFoundry CLI is not installed.
+Install it with: pip install truefoundry
+Then verify: tfy --version
+```
+
+### tfy apply validation errors
+
+```
+YAML manifest validation failed. Check:
+- Required fields are present: name, type, image, resources, workspace_fqn
+- YAML syntax is valid (proper indentation, no tabs)
+- Field names match the schema (see references/manifest-schema.md)
+- workspace_fqn format is correct: "cluster-id:workspace-name"
+```
+
+### tfy apply --dry-run shows unexpected diff
+
+```
+The diff shows changes you didn't expect. This usually means:
+- An existing deployment has different values than your manifest
+- Default values are being applied that differ from the current state
+Review the diff carefully before applying.
+```
+
 ## TFY_WORKSPACE_FQN Not Set
 
 ```
 TFY_WORKSPACE_FQN is required. Get it from:
 - TrueFoundry dashboard -> Workspaces
-- Or run: tfy_workspaces_list (if MCP server is available)
+- Or run: tfy_workspaces_list (if tool server is available)
 Do not auto-pick a workspace.
-```
-
-## SDK Not Installed (SDK path only)
-
-```
-Install the TrueFoundry SDK:
-  pip install truefoundry python-dotenv
-
-If this fails on Python 3.13+, switch to REST API deployment (Path 1).
-```
-
-## Python Version Incompatible (SDK path only)
-
-```
-TrueFoundry SDK requires Python 3.10-3.12. Current: X.Y
-Options:
-  1. Use REST API deployment (recommended) -- works with any Python
-  2. Create a compatible venv: python3.12 -m venv .venv-deploy && source .venv-deploy/bin/activate
 ```
 
 ## Host Not Configured in Cluster
@@ -50,7 +61,7 @@ The remote build from Git failed. Check:
 - Check build logs in TrueFoundry dashboard
 ```
 
-## Build Failed (SDK path)
+## Build Failed
 
 ```
 Build failed on TrueFoundry. Check the dashboard for build logs.
@@ -60,11 +71,38 @@ Common issues:
 - Dockerfile CMD not matching the app's start command
 ```
 
-## No Dockerfile (SDK path)
+## No Dockerfile
 
 ```
-No Dockerfile found. Create one for your app first.
-For a Python app: FROM python:3.12-slim, COPY, pip install, CMD.
-For Node.js: FROM node:20-slim, COPY, npm install, CMD.
-Or switch to REST API path with PythonBuild (no Dockerfile needed).
+No Dockerfile found. Options:
+1. Create a Dockerfile for your app
+2. Use PythonBuild in the manifest (no Dockerfile needed):
+   image:
+     type: build
+     build_source:
+       type: git
+       repo_url: https://github.com/user/repo
+       branch_name: main
+     build_spec:
+       type: python
+       python_version: "3.12"
+       requirements_path: requirements.txt
+       command: uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+## REST API Fallback Errors
+
+### 401 Unauthorized
+
+```
+TFY_API_KEY is invalid or expired.
+Check: echo $TFY_API_KEY (should be set)
+Regenerate from TrueFoundry dashboard -> Settings -> API Keys
+```
+
+### 404 Workspace Not Found
+
+```
+The workspace FQN does not exist.
+List available workspaces: GET /api/svc/v1/workspaces
 ```

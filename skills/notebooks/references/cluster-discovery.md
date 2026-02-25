@@ -10,7 +10,7 @@ The cluster ID is the part before the colon in a workspace FQN:
 ## Fetching Cluster Details
 
 ```
-# Via MCP
+# Via Tool Call
 tfy_clusters_list(cluster_id="CLUSTER_ID")
 
 # Via Direct API

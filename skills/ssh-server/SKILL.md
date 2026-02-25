@@ -1,16 +1,16 @@
 ---
 name: ssh-server
-description: This skill should be used when the user asks "launch ssh server", "deploy ssh server", "remote development", "VS Code remote", "SSH access", "start dev environment", "cloud development machine", "GPU dev box", "remote coding setup", "SSH into server", "set up remote workspace", or wants a remote development environment with SSH access on TrueFoundry.
+description: Deploys remote development environments with SSH access on TrueFoundry. Use when setting up VS Code Remote workspaces, cloud development machines, GPU dev boxes, or remote coding environments with SSH access.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-allowed-tools: Bash(*/tfy-api.sh *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
 
 # SSH Server
 
-Launch an SSH server on TrueFoundry for remote development. Connect with VS Code Remote-SSH or any SSH client, with full GPU access and persistent storage.
+Launch an SSH server on TrueFoundry for remote development. Write a YAML manifest and apply with `tfy apply`. REST API fallback when CLI unavailable. Connect with VS Code Remote-SSH or any SSH client, with full GPU access and persistent storage.
 
 ## When to Use
 
@@ -29,6 +29,29 @@ Launch an SSH server on TrueFoundry for remote development. Connect with VS Code
 
 <context>
 
+## Prerequisites
+
+**Always verify before launching an SSH server:**
+
+1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** — Check `tfy --version`. Install if missing: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"`
+
+For credential check commands and .env setup, see `references/prerequisites.md`.
+
+### CLI Detection
+
+```bash
+tfy --version
+```
+
+| CLI Output | Status | Action |
+|-----------|--------|--------|
+| `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` as documented below. |
+| `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade: `pip install -U truefoundry`. Core `tfy apply` should still work. |
+| Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
+| CLI unavailable (no pip/Python) | Fallback | Use REST API via `tfy-api.sh`. See `references/cli-fallback.md`. |
+
 ## Launch SSH Server via UI
 
 1. Go to **Deployments → New Deployment → SSH Server**
@@ -40,74 +63,131 @@ Launch an SSH server on TrueFoundry for remote development. Connect with VS Code
 
 <instructions>
 
-## Launch SSH Server via API
+## Launch SSH Server via `tfy apply` (CLI — Recommended)
 
-When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
+### Configuration Questions
+
+Before generating the manifest, ask the user:
+
+1. **Name** — What to call the SSH server
+2. **GPU needed?** — CPU server (default) or GPU server (for ML development). If GPU, use the CUDA image variant.
+3. **Home directory size** — Persistent storage in GB (default: 20)
+4. **Image variant** — CPU (`ssh-server:0.4.5-py3.12.12`) or CUDA (`ssh-server:0.4.5-cu129-py3.12.12`)
+
+### CPU SSH Server
+
+**1. Generate the manifest:**
+
+```yaml
+# tfy-manifest.yaml — SSH Server (CPU)
+name: my-ssh-server
+type: ssh-server
+image:
+  image_uri: public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-py3.12.12
+home_directory_size: 20
+resources:
+  node:
+    type: node_selector
+    capacity_type: on_demand
+  cpu_request: 1
+  cpu_limit: 3
+  memory_request: 4000
+  memory_limit: 6000
+  ephemeral_storage_request: 5000
+  ephemeral_storage_limit: 10000
+workspace_fqn: "YOUR_WORKSPACE_FQN"
+```
+
+**2. Preview:**
+
+```bash
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+```
+
+**3. Apply:**
+
+```bash
+tfy apply -f tfy-manifest.yaml
+```
+
+### GPU SSH Server
+
+```yaml
+# tfy-manifest.yaml — GPU SSH Server (CUDA)
+name: gpu-dev-server
+type: ssh-server
+image:
+  image_uri: public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-cu129-py3.12.12
+home_directory_size: 20
+resources:
+  node:
+    type: node_selector
+    capacity_type: on_demand
+  cpu_request: 4
+  cpu_limit: 8
+  memory_request: 16000
+  memory_limit: 32000
+  ephemeral_storage_request: 10000
+  ephemeral_storage_limit: 20000
+  devices:
+    - type: nvidia_gpu
+      name: A10_24GB
+      count: 1
+workspace_fqn: "YOUR_WORKSPACE_FQN"
+```
+
+## Launch SSH Server via REST API (Fallback)
+
+When CLI is not available, use `tfy-api.sh`. Set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ### Create SSH Server
 
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-ssh-server/scripts/tfy-api.sh
 
-$TFY_API_SH POST /api/svc/v1/applications -d '{
+$TFY_API_SH PUT /api/svc/v1/apps -d '{
   "name": "my-ssh-server",
   "type": "ssh-server",
-  "workspace_fqn": "WORKSPACE_FQN",
-  "manifest": {
-    "name": "my-ssh-server",
-    "components": {
-      "image": {
-        "type": "image",
-        "image_uri": "public.ecr.aws/truefoundrycloud/ssh-server:latest"
-      },
-      "resources": {
-        "cpu_request": 2,
-        "cpu_limit": 4,
-        "memory_request": 4000,
-        "memory_limit": 8000,
-        "ephemeral_storage_request": 5000,
-        "ephemeral_storage_limit": 10000,
-        "storage": 20000
-      },
-      "auto_shutdown": {
-        "wait_time": 60
-      }
-    }
-  }
+  "image": {
+    "image_uri": "public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-py3.12.12"
+  },
+  "home_directory_size": 20,
+  "resources": {
+    "node": {"type": "node_selector", "capacity_type": "on_demand"},
+    "cpu_request": 1,
+    "cpu_limit": 3,
+    "memory_request": 4000,
+    "memory_limit": 6000,
+    "ephemeral_storage_request": 5000,
+    "ephemeral_storage_limit": 10000
+  },
+  "workspace_fqn": "WORKSPACE_FQN"
 }'
 ```
 
-### GPU SSH Server
+### GPU SSH Server (REST API)
 
 ```bash
-$TFY_API_SH POST /api/svc/v1/applications -d '{
+$TFY_API_SH PUT /api/svc/v1/apps -d '{
   "name": "gpu-dev-server",
   "type": "ssh-server",
-  "workspace_fqn": "WORKSPACE_FQN",
-  "manifest": {
-    "name": "gpu-dev-server",
-    "components": {
-      "image": {
-        "type": "image",
-        "image_uri": "public.ecr.aws/truefoundrycloud/ssh-server:latest"
-      },
-      "resources": {
-        "cpu_request": 4,
-        "cpu_limit": 8,
-        "memory_request": 16000,
-        "memory_limit": 32000,
-        "ephemeral_storage_request": 10000,
-        "ephemeral_storage_limit": 20000,
-        "storage": 50000,
-        "devices": [
-          {"type": "nvidia_gpu", "name": "A10_24GB", "count": 1}
-        ]
-      },
-      "auto_shutdown": {
-        "wait_time": 120
-      }
-    }
-  }
+  "image": {
+    "image_uri": "public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-cu129-py3.12.12"
+  },
+  "home_directory_size": 20,
+  "resources": {
+    "node": {"type": "node_selector", "capacity_type": "on_demand"},
+    "cpu_request": 4,
+    "cpu_limit": 8,
+    "memory_request": 16000,
+    "memory_limit": 32000,
+    "ephemeral_storage_request": 10000,
+    "ephemeral_storage_limit": 20000,
+    "devices": [
+      {"type": "nvidia_gpu", "name": "A10_24GB", "count": 1}
+    ]
+  },
+  "workspace_fqn": "WORKSPACE_FQN"
 }'
 ```
 
@@ -190,7 +270,7 @@ rsync -avz <deploymentName>:<remote-path> <local-path>
 
 ## Scale-to-Zero
 
-SSH servers auto-stop after inactivity to save costs. Configure via `wait_time` (minutes).
+SSH servers may auto-stop after inactivity to save costs.
 
 **Activity detection**: Active SSH connections and foreground applications.
 **Not detected**: Background processes.
@@ -271,6 +351,24 @@ pip install torch transformers
 
 ## Error Handling
 
+### CLI Errors
+
+```
+tfy: command not found
+Install the TrueFoundry CLI:
+  pip install truefoundry
+  tfy login --host "$TFY_BASE_URL"
+```
+
+```
+Manifest validation failed.
+Check:
+- YAML syntax is valid
+- Required fields: name, type, workspace_fqn
+- Image URI exists and is accessible
+- Resource values use correct units (memory in MB)
+```
+
 ### Cannot Connect
 
 ```
@@ -294,8 +392,16 @@ GPU not accessible. Verify:
 ```
 SSH server stopped. Possible causes:
 - Auto-shutdown triggered (no active SSH connections)
-- Increase wait_time for longer sessions
+- Check if auto-shutdown is configured on the server
 - Resource limits exceeded (increase memory/CPU)
+```
+
+### REST API Fallback Errors
+
+```
+401 Unauthorized — Check TFY_API_KEY is valid
+404 Not Found — Check TFY_BASE_URL and API endpoint path
+422 Validation Error — Check manifest fields match expected schema
 ```
 
 </troubleshooting>

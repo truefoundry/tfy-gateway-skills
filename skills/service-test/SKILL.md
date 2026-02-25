@@ -1,6 +1,6 @@
 ---
 name: service-test
-description: This skill should be used when the user asks "test my deployment", "is my service healthy", "smoke test my app", "validate endpoint", "check if app is working", "health check", "test deployed service", "monitor deployment", "verify my service", "run endpoint tests", "check service response time", "is my API up", or wants to verify a deployed TrueFoundry service is responding correctly.
+description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs and web apps. NOT for LLM benchmarking or log viewing.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl *)
@@ -14,16 +14,11 @@ Validate that a deployed TrueFoundry service is healthy and responding correctly
 
 ## When to Use
 
-- After deploying a service, to verify it's actually working
-- User asks "is my service healthy", "test my deployment"
-- User asks "smoke test", "validate endpoint", "check if app is working"
-- User wants to verify an MCP server is responding and listing tools
-- User wants to measure basic response times for a deployed service
-- As the final step in a deploy → verify workflow
+Verify a deployed service is healthy and responding, run endpoint smoke tests, or perform basic load soak tests after deployment.
 
 ## When NOT to Use
 
-- User wants to benchmark LLM inference performance → use `llm-benchmarking` skill
+- User wants deep LLM inference benchmarking → use a dedicated benchmarking tool
 - User wants to view logs → use `logs` skill
 - User wants to check pod status only → use `applications` skill
 - User wants to deploy something → use `deploy` skill
@@ -47,7 +42,7 @@ Layer 4: Load Soak         → (Optional) Does it hold up under repeated request
 
 Verify the application is running on TrueFoundry before hitting any endpoints.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "APP_NAME"})
@@ -124,59 +119,6 @@ Health Check: https://my-app.example.cloud/health
 
 Test the service's actual functionality based on its type. Auto-detect the type, or ask the user.
 
-### MCP Server
-
-MCP servers expose an `/mcp` endpoint. Test the MCP protocol handshake:
-
-```bash
-# Test MCP initialize (streamable HTTP)
-curl -s --max-time 15 \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2025-03-26",
-      "capabilities": {},
-      "clientInfo": {"name": "service-test", "version": "1.0.0"}
-    }
-  }' \
-  "https://HOST/mcp"
-```
-
-**What to verify:**
-- Response contains `"result"` with `"serverInfo"` and `"capabilities"`
-- No `"error"` field in response
-
-Then list tools:
-
-```bash
-# List available tools
-curl -s --max-time 15 \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -H "Mcp-Session-Id: SESSION_ID_FROM_INIT" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 2,
-    "method": "tools/list",
-    "params": {}
-  }' \
-  "https://HOST/mcp"
-```
-
-**Report format:**
-
-```
-MCP Server Test: https://mcp-server.example.cloud/mcp
-  Protocol: OK (initialized)
-  Server: tfy-mcp-server v1.0.0
-  Tools: 16 registered
-  Tool list: tfy_applications_list, tfy_workspaces_list, ...
-```
-
 ### REST API (FastAPI / Flask / Express)
 
 ```bash
@@ -225,7 +167,7 @@ curl -s -w '\n%{http_code} %{time_total}s' --max-time 10 "https://HOST/ENDPOINT"
 
 ## Layer 4: Load Soak (Optional)
 
-Only run if the user asks for it ("load test", "soak test", "stress test", "how fast is it"). This is NOT a full benchmark — use `llm-benchmarking` for LLM performance testing.
+Only run if the user asks for it ("load test", "soak test", "stress test", "how fast is it"). This is NOT a full benchmark — use a dedicated benchmarking tool for LLM performance testing.
 
 ### Sequential Soak (Default)
 
@@ -334,7 +276,7 @@ Result: FAILED at Layer 2 (Health Check)
 - **Before testing**: Use `workspaces` skill to get the workspace FQN
 - **On failure**: Use `logs` skill to investigate what went wrong
 - **After deploy**: Chain directly — `deploy` → `service-test`
-- **For LLMs**: Use `llm-benchmarking` skill instead for inference performance testing
+- **For LLMs**: Use a dedicated benchmarking tool for inference performance testing
 - **For status only**: Use `applications` skill if you just need pod status without endpoint testing
 
 </references>

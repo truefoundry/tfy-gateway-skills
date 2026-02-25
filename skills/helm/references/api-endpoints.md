@@ -34,10 +34,14 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 | POST | `/api/svc/v1/secret-groups` | Create secret group |
 | POST | `/api/svc/v1/secrets` | List secrets in a group (body: secretGroupId, limit, offset) |
 | GET | `/api/svc/v1/secrets/{id}` | Get secret by ID |
+| PUT | `/api/svc/v1/secret-groups/{id}` | Update secret group (body: secrets array with key/value pairs; omitted secrets are deleted) |
+| DELETE | `/api/svc/v1/secret-groups/{id}` | Delete secret group |
+| DELETE | `/api/svc/v1/secrets/{id}` | Delete a secret |
 
 ## Jobs
 | Method | Path | Description |
 |--------|------|-------------|
+| POST | `/api/svc/v1/jobs/trigger` | Trigger a job run (body: applicationId) |
 | GET | `/api/svc/v1/jobs/{jobId}/runs` | List job runs (query: searchPrefix, sortBy) |
 | GET | `/api/svc/v1/jobs/{jobId}/runs/{runName}` | Get a specific job run |
 
@@ -54,6 +58,18 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 | GET | `/api/ml/v1/prompts/{id}` | Get prompt |
 | GET | `/api/ml/v1/prompt-versions` | List prompt versions (query: prompt_id) |
 | GET | `/api/ml/v1/prompt-versions/{id}` | Get prompt version |
+| POST | `/api/ml/v1/prompts` | Create or update prompt (body: ChatPromptManifest) |
+| DELETE | `/api/ml/v1/prompts/{id}` | Delete prompt |
+| DELETE | `/api/ml/v1/prompt-versions/{id}` | Delete prompt version |
+
+## Tracing
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/ml/v1/tracing-projects` | List tracing projects |
+| POST | `/api/ml/v1/tracing-projects` | Create tracing project (body: name) |
+| GET | `/api/ml/v1/tracing-projects/{id}` | Get tracing project |
+| GET | `/api/ml/v1/tracing-projects/{id}/applications` | List applications in project |
+| POST | `/api/ml/v1/tracing-projects/{id}/applications` | Create application in project (body: name) |
 
 ## ML Repos
 | Method | Path | Description |
@@ -61,11 +77,22 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 | GET | `/api/ml/v1/ml-repos` | List ML repos |
 | GET | `/api/ml/v1/ml-repos/{id}` | Get ML repo |
 
+## Models
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/ml/v1/models` | List models (query: fqn, ml_repo_id, name) |
+
 ## Personal Access Tokens
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/svc/v1/personal-access-tokens` | List PATs |
-| POST | `/api/svc/v1/personal-access-tokens` | Create PAT |
+| POST | `/api/svc/v1/personal-access-tokens` | Create PAT (body: name) |
+| DELETE | `/api/svc/v1/personal-access-tokens/{id}` | Delete PAT |
+
+## Model Catalogues
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/model-catalogues/deployment-specs` | Get recommended deployment specs for a HuggingFace model. Query: `huggingfaceHubUrl` (full HF URL), `workspaceId`, `huggingfaceHubTokenSecretFqn` (optional, for gated models), `pipelineTagOverride` (e.g. `text-generation`). Returns GPU, CPU, memory, storage requirements. |
 
 ## API Docs
 - Full reference: `https://truefoundry.com/docs/api-reference`

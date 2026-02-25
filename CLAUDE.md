@@ -23,14 +23,14 @@ Skills work across Claude Code, Cursor, OpenAI Codex, and OpenCode.
 
 ## Architecture
 
-### Dual-mode operation
+### Deployment modes
 
-Every skill provides two equivalent instruction paths:
+Deploy skills use a CLI-first approach with REST API as fallback:
 
-1. **MCP tools** — When `tfy-mcp-server` is configured, skills reference tool names like `tfy_applications_list`. The agent calls these directly.
-2. **Direct API** — Each skill bundles `scripts/tfy-api.sh`, an authenticated curl wrapper. Used when MCP is unavailable.
+1. **CLI** (`tfy apply`) — Primary. Write a YAML manifest and apply it. Works everywhere `tfy` CLI is installed.
+2. **REST API** (fallback) — When CLI is unavailable, convert YAML to JSON and use `tfy-api.sh`. See `cli-fallback.md`.
 
-Both modes use `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
+All modes use `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
 
 ### Skill format
 
@@ -55,7 +55,9 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 - `_shared/scripts/tfy-api.sh` — authenticated REST helper
 - `_shared/references/api-endpoints.md` — endpoint reference
-- `_shared/references/deploy-template.py` — deploy script template
+- `_shared/references/manifest-schema.md` — complete YAML manifest field reference (single source of truth)
+- `_shared/references/manifest-defaults.md` — per-service-type defaults with YAML templates
+- `_shared/references/cli-fallback.md` — CLI detection and REST API fallback pattern
 
 **Never edit files inside individual skill `scripts/` or `references/` directories.** Edit `_shared/`, then run `./scripts/sync-shared.sh`. The install script symlinks `_shared/` into each installed skill; `sync-shared.sh` copies files for the dev layout.
 
@@ -72,24 +74,23 @@ allowed-tools: Bash(*/tfy-api.sh *)
 - The repo root `skills/` directory is the source of truth for development.
 - Skills reference each other for composability (e.g. deploy tells users to check `workspaces` skill first). Common flows: `status → workspaces → deploy → applications`, `applications → logs`.
 - `TFY_WORKSPACE_FQN` is never auto-picked by any skill — always ask the user.
-- When adding a new skill, include both MCP and direct API instructions, reference the `status` skill for preflight checks, and run `sync-shared.sh` afterward.
+- When adding a new skill, include CLI-first instructions with direct API fallback, reference the `status` skill for preflight checks, and run `sync-shared.sh` afterward.
 
 ## Version Awareness
 
-Skills detect the user's SDK, CLI, and Python versions before acting. This prevents failures from version mismatches.
+Skills detect the `tfy` CLI version before deploying to ensure compatibility.
 
 ### Detection flow
 
-1. Run `tfy-version.sh all` → JSON with SDK, CLI, Python versions
-2. Check `references/sdk-version-map.md` for version-specific patterns
-3. Check `references/container-versions.md` for latest image versions
+1. Run `tfy --version` → check CLI is installed and current
+2. Check `references/container-versions.md` for latest image versions
+3. If CLI unavailable → fall back to REST API via `cli-fallback.md`
 
 ### Key rules
 
-- SDK >= 0.5.0: use `sdk-patterns.md` as-is
-- SDK 0.3.x–0.4.x: apply compat shims (see `sdk-version-map.md`)
-- SDK not installed or < 0.3.0: fall back to REST API via `tfy-api.sh`
-- Python 3.13+: warn user, suggest `python3.12 -m venv`
+- CLI >= 0.5.0: use `tfy apply` as documented
+- CLI 0.3.x–0.4.x: upgrade recommended, core `tfy apply` still works
+- CLI not installed: fall back to REST API via `tfy-api.sh`
 - Container images: always check `container-versions.md` for pinned versions; use WebFetch to check for newer stable releases when deploying
 
 ### Freshness strategy
@@ -97,9 +98,9 @@ Skills detect the user's SDK, CLI, and Python versions before acting. This preve
 | Asset | Staleness Risk | Strategy |
 |-------|---------------|----------|
 | REST API endpoints | Low | Manual updates to `api-endpoints.md` |
-| SDK patterns | Medium | `sdk-version-map.md` documents version diffs |
+| Manifest schema | Low | `manifest-schema.md` documents all field types |
 | Container images | High | Pinned in `container-versions.md`, WebFetch on demand |
-| SDK docs (newer than map) | Medium | WebFetch to PyPI/GitHub/TFY docs |
+| CLI version | Low | `tfy --version` check at runtime |
 
 ## Agent Teams
 

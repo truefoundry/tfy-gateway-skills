@@ -1,11 +1,11 @@
 ---
 name: llm-deploy
-description: This skill should be used when the user asks "deploy a model", "deploy LLM", "serve a model", "deploy hugging face model", "deploy vLLM", "deploy TGI", "deploy NIM", "NVIDIA NIM", "inference server", "serve gemma", "serve llama", "serve mistral", "GPU model serving", "host a language model", "deploy ML model", or wants to deploy any ML/LLM model on TrueFoundry.
+description: Deploys ML and LLM models on TrueFoundry with GPU inference servers (vLLM, TGI, NVIDIA NIM). Uses YAML manifests with `tfy apply`. Use when serving language models, deploying Hugging Face models, or hosting GPU-accelerated inference endpoints.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
   disable-model-invocation: "true"
-allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 ---
 
 <objective>
@@ -13,6 +13,11 @@ allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 # LLM / Model Deployment
 
 Deploy large language models and ML inference servers to TrueFoundry. Supports vLLM, TGI, and custom model servers with proper GPU allocation, model caching, health probes, and production-ready defaults.
+
+Two paths:
+
+1. **CLI** (`tfy apply`) -- Write a YAML manifest and apply it. Works everywhere.
+2. **REST API** (fallback) -- When CLI unavailable, use `tfy-api.sh`.
 
 ## When to Use
 
@@ -24,9 +29,9 @@ Deploy large language models and ML inference servers to TrueFoundry. Supports v
 
 ## When NOT to Use
 
-- User wants to deploy a regular web app or API → use `deploy` skill
-- User wants to deploy a database or Helm chart → use `helm` skill
-- User wants to check what's deployed → use `applications` skill
+- User wants to deploy a regular web app or API -> use `deploy` skill
+- User wants to deploy a database or Helm chart -> use `helm` skill
+- User wants to check what's deployed -> use `applications` skill
 
 </objective>
 
@@ -36,8 +41,9 @@ Deploy large language models and ML inference servers to TrueFoundry. Supports v
 
 **Always verify before deploying:**
 
-1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
@@ -45,23 +51,17 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 <instructions>
 
-## Step 0a: Detect Environment & Versions
+## Step 0a: Detect Environment
 
-**Before deploying**, detect the installed tools and container image versions.
+**Before deploying**, check CLI availability and container image versions.
 
 ```bash
-# Run version detection
-$TFY_SKILL_DIR/scripts/tfy-version.sh all
+# Check CLI
+tfy --version 2>/dev/null
+
+# If not installed
+pip install truefoundry
 ```
-
-### Interpret Results
-
-| Component | Action |
-|-----------|--------|
-| SDK installed | Can use Python SDK for deployment if needed |
-| CLI (`tfy`) installed | Use `tfy apply` with YAML manifest (recommended for LLM deploys) |
-| Neither installed | Install CLI: `pip install truefoundry` |
-| Python 3.13+ | Create venv with Python 3.12 if SDK needed |
 
 ### Verify Container Image Versions
 
@@ -70,8 +70,8 @@ Before using the manifest templates, check `references/container-versions.md` fo
 **To check for newer versions on demand:**
 
 ```
-WebFetch https://github.com/vllm-project/vllm/releases → latest stable vLLM version
-WebFetch https://github.com/huggingface/text-generation-inference/releases → latest stable TGI version
+WebFetch https://github.com/vllm-project/vllm/releases -> latest stable vLLM version
+WebFetch https://github.com/huggingface/text-generation-inference/releases -> latest stable TGI version
 ```
 
 If a newer stable version exists, use it instead of the pinned version. Avoid release candidates.
@@ -85,8 +85,8 @@ See `references/cluster-discovery.md` for how to extract cluster ID from workspa
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 From the cluster response, extract:
-1. **Base domains** — for public URL host construction (see Public URL section)
-2. **Available GPUs** — only present GPU types that the cluster actually supports
+1. **Base domains** -- for public URL host construction (see Public URL section)
+2. **Available GPUs** -- only present GPU types that the cluster actually supports
 
 ## Step 1: Gather Model Details
 
@@ -97,7 +97,7 @@ I'll help you deploy an LLM. Let me gather a few details:
 
 1. Which model? (e.g., google/gemma-2-2b-it, meta-llama/Llama-3.2-1B-Instruct)
 2. Serving framework?
-   - vLLM (recommended — fast, OpenAI-compatible)
+   - vLLM (recommended -- fast, OpenAI-compatible)
    - TGI (HuggingFace Text Generation Inference)
    - Custom image
 3. Does the model require authentication? (e.g., gated HuggingFace models needing HF_TOKEN)
@@ -106,11 +106,27 @@ I'll help you deploy an LLM. Let me gather a few details:
 5. Environment: Dev/testing or production?
 ```
 
-## Step 2: Select GPU & Resources
+## Step 2: Get Recommended Resources from Deployment Specs API
 
-Based on the model, suggest appropriate resources. **Always check available GPUs from Step 0 first.**
+After the user provides a HuggingFace model ID and workspace, call the deployment-specs API to get recommended GPU, CPU, memory, and storage specs.
 
-### Model Size to GPU Mapping
+**First, get the workspace ID from the workspace FQN:**
+
+```bash
+$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
+```
+
+Extract the `id` field from the response. Then call:
+
+```bash
+$TFY_API_SH GET "/api/svc/v1/model-catalogues/deployment-specs?huggingfaceHubUrl=https://huggingface.co/${HF_MODEL_ID}&workspaceId=${WORKSPACE_ID}&pipelineTagOverride=text-generation"
+```
+
+This returns recommended specs including GPU type, GPU count, CPU, memory, storage, and max model length. Use these as the starting point for resource allocation instead of guessing from the model size table.
+
+**If the API call fails** (e.g., model not in catalogue), fall back to the model size table below.
+
+### Fallback: Model Size to GPU Mapping
 
 For full GPU types and DTYPE selection, see `references/gpu-reference.md`.
 
@@ -123,7 +139,7 @@ For full GPU types and DTYPE selection, see `references/gpu-reference.md`.
 | 13B-30B | ~26-60 GB | A100_40GB or A100_80GB | 12-16 | 128 GB | 120 GB |
 | 30B-70B | ~60-140 GB | A100_80GB or H100 (multi-GPU) | 16+ | 200 GB+ | 190 GB+ |
 
-**Present a resource suggestion table** showing GPU, CPU, memory, shared memory, ephemeral storage, and max model length. Include the list of available GPUs from the cluster.
+**Present a resource suggestion table** showing GPU, CPU, memory, shared memory, ephemeral storage, and max model length. Include the list of available GPUs from the cluster. If deployment-specs returned values, show those as "Recommended by TrueFoundry" alongside the table.
 
 ### Important: Shared Memory
 
@@ -136,7 +152,7 @@ System memory (RAM) must be **much larger** than GPU VRAM because:
 - KV cache and request batching use CPU memory
 - Rule of thumb: RAM should be 2-4x the model's VRAM footprint
 
-## Step 3: Build the Manifest
+## Step 3: Build the YAML Manifest
 
 For complete manifest templates (vLLM, TGI, NVIDIA NIM), template variables reference, DTYPE selection guide, artifacts download configuration, and common vLLM flags, see [references/llm-manifest-templates.md](references/llm-manifest-templates.md).
 
@@ -150,27 +166,46 @@ For complete manifest templates (vLLM, TGI, NVIDIA NIM), template variables refe
 
 Check `references/container-versions.md` for latest pinned versions. Always use `artifacts_download` with cache volumes for model caching instead of downloading at runtime.
 
+**The vLLM manifest MUST include:**
+- `artifacts_download` with `huggingface-hub` type and `cache_volume` for model caching
+- `labels`: `tfy_model_server`, `tfy_openapi_path`, `tfy_sticky_session_header_name`, `huggingface_model_task`
+- `rollout_strategy`, `startup_probe`, `readiness_probe`, `liveness_probe`
+- Env vars: `DTYPE`, `GPU_COUNT`, `MAX_MODEL_LENGTH`, `VLLM_NO_USAGE_STATS`, `NVIDIA_REQUIRE_CUDA`, `GPU_MEMORY_UTILIZATION`, `MODEL_NAME`, `VLLM_CACHE_ROOT`
+
 **Health probes** are mandatory for all LLM deployments. The manifest templates include LLM-tuned probe values (startup threshold of 35 retries for ~350s tolerance). For general probe configuration, see `references/health-probes.md`. For large models (30B+), increase startup `failure_threshold` to 60+.
 
-## Step 4: Deploy
+### Step 3a: Write Manifest
 
-### Via Direct API
+Write the YAML manifest to `tfy-manifest.yaml`. Reference `references/llm-manifest-templates.md` for complete templates and `references/manifest-schema.md` for field definitions.
+
+## Step 4: Preview and Apply
 
 ```bash
-# Convert the YAML manifest to JSON and deploy
+# Preview
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+
+# Apply after user confirms
+tfy apply -f tfy-manifest.yaml
+```
+
+### Fallback: REST API
+
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-llm-deploy/scripts/tfy-api.sh
+
+# Get workspace ID
+$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
+
+# Deploy (JSON body)
 $TFY_API_SH PUT /api/svc/v1/apps '{
-  "manifest": { ... JSON version of the manifest above ... },
+  "manifest": { ... JSON version of the YAML manifest ... },
   "workspaceId": "WORKSPACE_ID_HERE"
 }'
 ```
 
-**Note:** You need the workspace's internal ID (not FQN). Get it from:
-```bash
-$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
-# → use the "id" field from the response
-```
-
-### Via MCP
+#### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
@@ -248,27 +283,40 @@ curl https://{HOST}/v1/chat/completions \
 
 ## Public URL
 
-Same as the `deploy` skill — look up cluster base domains and construct the host.
+Same as the `deploy` skill -- look up cluster base domains and construct the host.
 
 1. Fetch cluster base domains: `$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID`
 2. Pick wildcard domain, strip `*.` to get base domain
 3. Construct host: `{model-name}-{workspace-name}.{base_domain}`
-4. **Alternative: path-based routing** — Use the cluster's base domain directly as `host` and set a unique `path` prefix.
+4. **Alternative: path-based routing** -- Use the cluster's base domain directly as `host` and set a unique `path` prefix.
+
+## Deployment Flow Summary
+
+1. Check credentials + workspace (Step 0a, prerequisites)
+2. Discover cluster capabilities -- GPUs, base domains (Step 0)
+3. Get model info -- HuggingFace model ID from user (Step 1)
+4. Call deployment-specs API to get recommended resources (Step 2)
+5. Generate YAML manifest referencing `references/llm-manifest-templates.md` (Step 3)
+6. Write to `tfy-manifest.yaml` (Step 3a)
+7. Preview: `tfy apply -f tfy-manifest.yaml --dry-run --show-diff` (Step 4)
+8. Apply: `tfy apply -f tfy-manifest.yaml` (Step 4)
+9. Verify deployment and return URL (Step 5)
 
 ## User Confirmation Checklist
 
 **Before deploying, confirm these with the user:**
 
-- [ ] **Model** — HuggingFace model ID and revision
-- [ ] **Framework** — vLLM, TGI, or NVIDIA NIM
-- [ ] **GPU type & count** — from available cluster GPUs (Step 0)
-- [ ] **Resources** — CPU, memory, shared memory (show suggestion table from Step 2)
-- [ ] **DTYPE** — float16 or bfloat16 (based on GPU)
-- [ ] **Max model length** — context window size
-- [ ] **Access** — public URL or internal-only
-- [ ] **Authentication** — HF token for gated models (from TrueFoundry secrets)
-- [ ] **Environment** — dev (1 replica) or production (2+ replicas)
-- [ ] **Service name** — what to call the deployment
+- [ ] **Model** -- HuggingFace model ID and revision
+- [ ] **Framework** -- vLLM, TGI, or NVIDIA NIM
+- [ ] **GPU type & count** -- from deployment-specs API or cluster GPUs (Step 2)
+- [ ] **Resources** -- CPU, memory, shared memory (deployment-specs recommendation + cluster availability)
+- [ ] **DTYPE** -- float16 or bfloat16 (based on GPU)
+- [ ] **Max model length** -- context window size
+- [ ] **Access** -- public URL or internal-only
+- [ ] **Authentication** -- HF token for gated models (from TrueFoundry secrets)
+- [ ] **Environment** -- dev (1 replica) or production (2+ replicas)
+- [ ] **Service name** -- what to call the deployment
+- [ ] **Auto-shutdown** -- Should the deployment auto-stop after inactivity? (useful for dev/staging to save GPU costs)
 
 </instructions>
 
@@ -301,8 +349,8 @@ After deploying, you can connect the model to TrueFoundry's AI Gateway for unifi
 - **View logs**: Use `logs` skill to debug startup issues
 - **Deploy database alongside**: Use `helm` skill for vector DBs, caches, etc.
 - **Connect to AI Gateway**: Add deployed model as a provider in the gateway (see above)
-- **Benchmark performance**: Use `llm-benchmarking` skill to test throughput/latency
-- **Fine-tune first**: Use `llm-finetuning` skill to customize a model before deploying
+- **Benchmark performance**: Run load tests against the deployed endpoint to measure throughput/latency
+- **Fine-tune first**: Fine-tune externally and deploy the resulting model artifact with this skill
 
 </references>
 
@@ -311,5 +359,10 @@ After deploying, you can connect the model to TrueFoundry's AI Gateway for unifi
 ## Error Handling
 
 For common LLM deployment errors (GPU not available, OOM, CUDA errors, model download failures, probe timeouts, invalid GPU types, host configuration issues) and their fixes, see [references/llm-errors.md](references/llm-errors.md).
+
+### CLI Errors
+- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy apply` validation errors -- Check YAML syntax, ensure required fields are present
+- Manifest validation failures -- Check `references/llm-manifest-templates.md` for correct field names
 
 </troubleshooting>

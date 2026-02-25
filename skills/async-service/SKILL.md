@@ -1,22 +1,27 @@
 ---
 name: async-service
-description: This skill should be used when the user asks "deploy async service", "queue-based service", "async worker", "message queue processing", "deploy SQS consumer", "deploy Kafka consumer", "deploy NATS consumer", "scale to zero", "async processing", "background job processor", "event-driven service", "queue consumer", or wants to deploy a TrueFoundry Async Service that processes messages from queues with scale-to-zero support. NOT for regular HTTP services — use deploy skill for that.
+description: Deploys TrueFoundry Async Services that process messages from queues (SQS, Kafka, NATS) with scale-to-zero support. Uses YAML manifests with `tfy apply`. Use when deploying queue consumers, async workers, event-driven services, or background job processors. NOT for regular HTTP services — use deploy skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
   disable-model-invocation: "true"
-allowed-tools: Bash(*/tfy-api.sh *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
 
 # Async Service Deployment
 
-Deploy an Async Service to TrueFoundry — a queue-based processing service that consumes messages from SQS, NATS, Kafka, or Google AMQP, processes them asynchronously, and optionally writes results to an output queue. Supports scale-to-zero when queues are empty.
+Deploy an Async Service to TrueFoundry -- a queue-based processing service that consumes messages from SQS, NATS, Kafka, or AMQP, processes them asynchronously via `worker_config`. Supports scale-to-zero when queues are empty.
+
+Two paths:
+
+1. **CLI** (`tfy apply`) -- Write a YAML manifest and apply it. Works everywhere.
+2. **REST API** (fallback) -- When CLI unavailable, use `tfy-api.sh`.
 
 ## When to Use
 
-- User wants to process messages from a queue (SQS, NATS, Kafka, Google AMQP)
+- User wants to process messages from a queue (SQS, NATS, Kafka, AMQP)
 - User says "deploy async service", "queue consumer", "async worker"
 - User needs scale-to-zero capability (no traffic = no pods running)
 - User has workloads with large payloads stored in S3/blob storage
@@ -27,11 +32,11 @@ Deploy an Async Service to TrueFoundry — a queue-based processing service that
 
 ## When NOT to Use
 
-- User wants a synchronous HTTP API → use `deploy` skill
-- User wants request-response with low latency (< 1s) → use `deploy` skill
-- User wants to deploy an LLM → use `llm-deploy` skill
-- User wants to deploy infrastructure (database, queue broker) → use `helm` skill
-- User wants to run a one-off batch job → use `deploy` skill with job type
+- User wants a synchronous HTTP API -> use `deploy` skill
+- User wants request-response with low latency (< 1s) -> use `deploy` skill
+- User wants to deploy an LLM -> use `llm-deploy` skill
+- User wants to deploy infrastructure (database, queue broker) -> use `helm` skill
+- User wants to run a one-off batch job -> use `jobs` skill
 
 </objective>
 
@@ -45,7 +50,7 @@ Deploy an Async Service to TrueFoundry — a queue-based processing service that
 | **Latency** | Sub-second expected | Seconds to minutes acceptable |
 | **Payload size** | Limited by HTTP timeout | Large payloads via queue + S3 |
 | **Traffic spikes** | Can cause 5XX errors | Queue buffers absorb spikes |
-| **Scale-to-zero** | Not supported | Supported — no pods when queue is empty |
+| **Scale-to-zero** | Not supported | Supported -- no pods when queue is empty |
 | **Message durability** | Lost if pod crashes mid-request | Messages persist in queue, redelivered on failure |
 | **Use case** | REST APIs, web apps, dashboards | Background processing, ML inference, ETL pipelines |
 
@@ -55,54 +60,34 @@ Deploy an Async Service to TrueFoundry — a queue-based processing service that
 
 **Always verify before deploying:**
 
-1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
-2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
-3. **Queue infrastructure** — A message queue must be provisioned and accessible. Use the `helm` skill to deploy NATS, Kafka, or RabbitMQ on the cluster, or use a managed service (AWS SQS, Google AMQP).
+1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
+4. **Queue infrastructure** -- A message queue must be provisioned and accessible. Use the `helm` skill to deploy NATS, Kafka, or RabbitMQ on the cluster, or use a managed service (AWS SQS, etc.).
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## Architecture Overview
 
-An Async Service has three components:
+An Async Service has two components:
 
-1. **Input queue** — Messages arrive here (SQS, NATS, Kafka, or Google AMQP)
-2. **Processing service** — Your application code that handles each message
-3. **Output queue** (optional) — Results are written here after processing
+1. **Worker config** -- Defines the input queue connection via `worker_config.input_config` (SQS, NATS, Kafka, or AMQP)
+2. **Processing service** -- Your application code that handles each message
 
-### Two Implementation Patterns
-
-#### Pattern 1: Sidecar (Recommended for Most Cases)
-
-The `tfy-async-sidecar` runs alongside your HTTP service. It:
-
-1. Consumes messages from the input queue
-2. Sends each message as a POST request to your HTTP endpoint
-3. Writes the response to the output queue (if configured)
-4. Acknowledges the message only after successful processing and output write
+The service connects directly to the queue through `worker_config.input_config`. TrueFoundry manages message consumption, acknowledgment, and autoscaling based on queue depth.
 
 ```
-[Input Queue] → [tfy-async-sidecar] → POST → [Your HTTP Service]
-                                                    ↓
-                                           [Output Queue] (optional)
+[Input Queue] -> [worker_config.input_config] -> [Your Service]
 ```
 
-**Use when:**
-- Your service is written in any language (Python, Node.js, Go, Java, etc.)
-- Processing time is under 1 minute per message
-- You already have an HTTP service and want to add queue consumption
-- You want to keep queue logic separate from business logic
+### Supported Queue Types
 
-**Your service only needs:** An HTTP endpoint that accepts POST requests with the message payload.
-
-#### Pattern 2: Python Library
-
-TrueFoundry provides an open-source Python library that integrates directly with queue frameworks. Your code implements a processing handler function.
-
-**Use when:**
-- Processing code is Python
-- Processing time exceeds 1 minute per message
-- You want direct control over queue consumption logic
-- You need custom acknowledgment patterns
+| Queue | `input_config.type` | Key Fields |
+|-------|---------------------|------------|
+| **SQS** | `sqs` | `queue_url`, `region_name`, `wait_time_seconds`, `visibility_timeout` |
+| **NATS** | `nats` | `nats_url`, `stream_name`, `root_subject`, `consumer_name`, `nats_metrics_url`, `wait_time_seconds` |
+| **Kafka** | `kafka` | `bootstrap_servers`, `topic_name`, `consumer_group`, `tls`, `wait_time_seconds` |
+| **AMQP** | `amqp` | `url`, `queue_name`, `wait_time_seconds` |
 
 </context>
 
@@ -112,30 +97,29 @@ TrueFoundry provides an open-source Python library that integrates directly with
 
 **Before deploying an Async Service, ALWAYS confirm these with the user:**
 
-- [ ] **Pattern** — Sidecar or Python library?
-- [ ] **Queue type** — SQS, NATS, Kafka, or Google AMQP?
-- [ ] **Queue details** — Queue URL/topic name, credentials
-- [ ] **Service name** — What to call this deployment
-- [ ] **Port** — What port the HTTP service listens on (sidecar pattern)
-- [ ] **Endpoint path** — The POST endpoint path (e.g., `/predict`, `/process`) (sidecar pattern)
-- [ ] **Output queue** — Is an output queue needed? If yes, which queue?
-- [ ] **Resources** — CPU, memory (analyze the workload first — see `deploy` skill Step 1)
-- [ ] **Autoscaling** — Min/max replicas, scale-to-zero?
-- [ ] **Environment** — Dev, staging, or production?
-- [ ] **Environment variables** — Queue credentials, app-specific config
-- [ ] **Secrets** — Whether to mount TrueFoundry secret groups
+- [ ] **Queue type** -- SQS, NATS, Kafka, or AMQP?
+- [ ] **Queue details** -- Queue URL/topic name, credentials
+- [ ] **Service name** -- What to call this deployment
+- [ ] **Port** -- What port the service listens on
+- [ ] **Concurrent workers** -- `num_concurrent_workers` (default: 1)
+- [ ] **Resources** -- CPU, memory (defaults: cpu_request=0.2, cpu_limit=0.5, memory_request=200, memory_limit=500)
+- [ ] **Autoscaling** -- Min/max replicas, scale-to-zero?
+- [ ] **Environment** -- Dev, staging, or production?
+- [ ] **Environment variables** -- Queue credentials, app-specific config
+- [ ] **Secrets** -- Whether to mount TrueFoundry secret groups
+- [ ] **Auto-shutdown** -- Should the service auto-stop after inactivity? (useful for dev/staging to save costs)
 
 **Do NOT deploy with hardcoded defaults without asking.**
 
 ## Queue Configuration
 
-For queue-specific connection JSON (SQS, NATS, Kafka, Google AMQP), message-sending examples, and Helm deploy snippets for self-hosted queues, see `references/async-queue-configs.md`.
+For queue-specific connection configs (SQS, NATS, Kafka, AMQP), message-sending examples, and Helm deploy snippets for self-hosted queues, see `references/async-queue-configs.md`.
 
-## Deploying with the Sidecar Pattern
+## Deploying an Async Service
 
-### Step 1: Prepare Your HTTP Service
+### Step 1: Prepare Your Service
 
-Your service needs a POST endpoint that accepts the queue message payload and returns a response. Example with FastAPI:
+Your service needs an HTTP endpoint to process messages. Example with FastAPI:
 
 ```python
 # server.py
@@ -146,7 +130,6 @@ app = FastAPI()
 @app.post("/process")
 async def process(request: Request):
     payload = await request.json()
-    # Your processing logic here
     result = {"status": "processed", "input": payload}
     return result
 
@@ -155,107 +138,140 @@ async def health():
     return {"status": "ok"}
 ```
 
-### Step 2: Deploy via SDK (deploy.py)
+### Step 2: Generate YAML Manifest
 
-```python
-"""Deploy an Async Service to TrueFoundry using the sidecar pattern."""
-import os
-from pathlib import Path
+Create a manifest using `worker_config.input_config` for queue connection:
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parent / ".env")
-except ImportError:
-    pass
-
-if os.environ.get("TFY_BASE_URL") and not os.environ.get("TFY_HOST"):
-    os.environ["TFY_HOST"] = os.environ["TFY_BASE_URL"].strip().rstrip("/")
-
-from truefoundry.deploy import (
-    AsyncService,
-    Build,
-    DockerFileBuild,
-    LocalSource,
-    Port,
-    Resources,
-    SQSQueueConfig,       # or NATSQueueConfig, KafkaQueueConfig
-    SidecarPattern,
-    Replicas,
-)
-
-PROJECT_ROOT = str(Path(__file__).resolve().parent)
-
-async_service = AsyncService(
-    name="my-async-worker",                         # ← change
-    image=Build(
-        build_source=LocalSource(project_root_path=PROJECT_ROOT, local_build=True),
-        build_spec=DockerFileBuild(
-            dockerfile_path="Dockerfile",
-            build_context_path=".",
-        ),
-    ),
-    resources=Resources(
-        cpu_request=0.5, cpu_limit=1.0,
-        memory_request=512, memory_limit=1024,
-        ephemeral_storage_request=100, ephemeral_storage_limit=200,
-    ),
-    ports=[
-        Port(port=8000, protocol="TCP", expose=False, app_protocol="http"),
-    ],
-    replicas=Replicas(min=0, max=5),                # scale-to-zero enabled
-    sidecar=SidecarPattern(
-        destination_url="http://0.0.0.0:8000/process",  # ← your POST endpoint
-    ),
-    input_queue=SQSQueueConfig(
-        queue_url="https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue",
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", ""),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
-        aws_region="us-east-1",
-    ),
-    # output_queue=SQSQueueConfig(...)  # optional: for writing results
-)
-
-if __name__ == "__main__":
-    workspace_fqn = (os.environ.get("TFY_WORKSPACE_FQN") or "").strip()
-    if not workspace_fqn:
-        raise SystemExit(
-            "TFY_WORKSPACE_FQN is required. "
-            "Get it from the TrueFoundry dashboard or tfy_workspaces_list. "
-            "Do not auto-pick a workspace."
-        )
-    async_service.deploy(workspace_fqn=workspace_fqn, wait=False)
-    print("Async Service deployment submitted. Check the TrueFoundry dashboard for status.")
+```yaml
+type: async-service
+name: my-async-worker
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    ref: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: ./Dockerfile
+    build_context_path: ./
+    command: uvicorn server:app --host 0.0.0.0 --port 8000
+  docker_registry: my-registry
+ports:
+  - expose: true
+    port: 8000
+    protocol: TCP
+    app_protocol: http
+resources:
+  node:
+    type: node_selector
+  cpu_request: 0.2
+  cpu_limit: 0.5
+  memory_request: 200
+  memory_limit: 500
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+worker_config:
+  input_config:
+    type: sqs
+    queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue
+    region_name: us-east-1
+    wait_time_seconds: 19
+    visibility_timeout: 1
+  num_concurrent_workers: 1
+workspace_fqn: cluster-id:workspace-name
+replicas: 1
+env: {}
 ```
 
-### Step 3: Deploy via API Manifest
+**For pre-built images**, replace the `image` section:
 
-When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
+```yaml
+image:
+  type: image
+  image_uri: my-registry/my-async-worker:latest
+```
 
-#### Via MCP
+### Queue type examples
+
+**SQS:**
+```yaml
+worker_config:
+  input_config:
+    type: sqs
+    queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-queue
+    region_name: us-east-1
+    wait_time_seconds: 19
+    visibility_timeout: 1
+  num_concurrent_workers: 1
+```
+
+**NATS:**
+```yaml
+worker_config:
+  input_config:
+    type: nats
+    nats_url: nats://nats.namespace.svc.cluster.local:4222
+    stream_name: my-stream
+    root_subject: my-subject
+    consumer_name: my-consumer
+    nats_metrics_url: http://nats-metrics:7777
+    wait_time_seconds: 10
+  num_concurrent_workers: 1
+```
+
+**Kafka:**
+```yaml
+worker_config:
+  input_config:
+    type: kafka
+    bootstrap_servers: kafka.namespace.svc.cluster.local:9092
+    topic_name: my-topic
+    consumer_group: my-group
+    tls: false
+    wait_time_seconds: 10
+  num_concurrent_workers: 1
+```
+
+**AMQP:**
+```yaml
+worker_config:
+  input_config:
+    type: amqp
+    url: amqp://user:pass@rabbitmq.namespace.svc.cluster.local:5672
+    queue_name: my-queue
+    wait_time_seconds: 10
+  num_concurrent_workers: 1
+```
+
+### Step 3: Write and Apply Manifest
+
+```bash
+# Preview
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+
+# Apply after user confirms
+tfy apply -f tfy-manifest.yaml
+```
+
+### Fallback: REST API
+
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
+
+#### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
     manifest={
         "name": "my-async-worker",
         "type": "async-service",
-        "image": {
-            "type": "build",
-            "build_source": {"type": "local", "project_root_path": "."},
-            "build_spec": {"type": "dockerfile", "dockerfile_path": "Dockerfile", "build_context_path": "."}
-        },
-        "resources": {
-            "cpu_request": 0.5, "cpu_limit": 1.0,
-            "memory_request": 512, "memory_limit": 1024
-        },
-        "ports": [{"port": 8000, "protocol": "TCP", "expose": false}],
-        "replicas": {"min": 0, "max": 5},
-        "sidecar": {
-            "destination_url": "http://0.0.0.0:8000/process"
-        },
-        "input_queue": {
-            "type": "sqs",
-            "queue_url": "https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue",
-            "aws_region": "us-east-1"
+        "image": { ... },
+        "resources": { "cpu_request": 0.2, "cpu_limit": 0.5, "memory_request": 200, "memory_limit": 500 },
+        "ports": [{"port": 8000, "protocol": "TCP", "expose": true, "app_protocol": "http"}],
+        "replicas": 1,
+        "worker_config": {
+            "input_config": { "type": "sqs", "queue_url": "...", "region_name": "us-east-1", "wait_time_seconds": 19, "visibility_timeout": 1 },
+            "num_concurrent_workers": 1
         },
         "workspace_fqn": "cluster-id:workspace-name"
     },
@@ -269,76 +285,21 @@ tfy_applications_create_deployment(
 #### Via Direct API
 
 ```bash
-# Set the path to tfy-api.sh for your agent (example for Claude Code):
 TFY_API_SH=~/.claude/skills/truefoundry-async-service/scripts/tfy-api.sh
 
 # First, get workspace ID from FQN
 $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 
-# Then deploy
+# Then deploy (JSON body)
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
     "name": "my-async-worker",
     "type": "async-service",
-    "image": {
-      "type": "build",
-      "build_source": {"type": "local", "project_root_path": "."},
-      "build_spec": {"type": "dockerfile", "dockerfile_path": "Dockerfile", "build_context_path": "."}
-    },
-    "resources": {
-      "cpu_request": 0.5,
-      "cpu_limit": 1.0,
-      "memory_request": 512,
-      "memory_limit": 1024
-    },
-    "ports": [{"port": 8000, "protocol": "TCP", "expose": false}],
-    "replicas": {"min": 0, "max": 5},
-    "sidecar": {
-      "destination_url": "http://0.0.0.0:8000/process"
-    },
-    "input_queue": {
-      "type": "sqs",
-      "queue_url": "https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue",
-      "aws_region": "us-east-1"
-    },
-    "workspace_fqn": "cluster-id:workspace-name"
+    ...
   },
   "workspaceId": "WORKSPACE_ID_HERE"
 }'
 ```
-
-## Deploying with the Python Library Pattern
-
-### Step 1: Install the Library
-
-```bash
-pip install truefoundry[async]
-```
-
-### Step 2: Implement the Handler
-
-```python
-# worker.py
-from truefoundry.async_service import AsyncHandler, Message
-
-class MyHandler(AsyncHandler):
-    def __init__(self):
-        # Initialize models, connections, etc.
-        pass
-
-    async def process(self, message: Message) -> dict:
-        """Process a single message from the queue."""
-        payload = message.body
-        # Your processing logic here (can take minutes)
-        result = {"status": "processed", "output": payload}
-        return result
-
-handler = MyHandler()
-```
-
-### Step 3: Deploy
-
-Use the same `deploy.py` approach as the sidecar pattern but replace `SidecarPattern` with `PythonLibraryPattern` configuration in the SDK, or set `"pattern": "python-library"` in the API manifest. The entry command should point to your worker script.
 
 ## Autoscaling and Scale-to-Zero
 
@@ -346,28 +307,10 @@ Async Services support autoscaling based on queue depth, including scaling down 
 
 ### Scale-to-Zero Configuration
 
-```python
-# SDK
-from truefoundry.deploy import Replicas
-
-async_service = AsyncService(
-    # ...
-    replicas=Replicas(
-        min=0,    # scale-to-zero when queue is empty
-        max=10,   # max replicas under load
-    ),
-)
-```
-
-### API Manifest
-
-```json
-{
-  "replicas": {
-    "min": 0,
-    "max": 10
-  }
-}
+```yaml
+replicas:
+  min: 0    # scale-to-zero when queue is empty
+  max: 10   # max replicas under load
 ```
 
 ### Scaling Guidelines
@@ -382,9 +325,9 @@ async_service = AsyncService(
 
 **Key considerations:**
 
-- `min: 0` enables scale-to-zero — pods are terminated when the queue is empty. Cold start latency applies when new messages arrive.
-- `min: 1` keeps at least one pod warm — no cold start but consumes resources even when idle.
-- Autoscaling triggers based on queue depth — more messages in the queue means more replicas.
+- `min: 0` enables scale-to-zero -- pods are terminated when the queue is empty. Cold start latency applies when new messages arrive.
+- `min: 1` keeps at least one pod warm -- no cold start but consumes resources even when idle.
+- Autoscaling triggers based on queue depth -- more messages in the queue means more replicas.
 - Message acknowledgment happens only after processing completes, so messages are not lost during scale-down.
 
 ## Deploying Queue Infrastructure
@@ -415,7 +358,7 @@ Next steps:
 - Messages sent to the input queue are consumed and processed by the service
 - Scale-to-zero is configured correctly if the user requested it (min replicas = 0)
 - The user can verify processing by sending a test message and checking logs
-- Output queue is configured and receiving results if the user specified one
+- The `worker_config.input_config` is correctly configured for the chosen queue type
 
 </success_criteria>
 
@@ -439,6 +382,11 @@ Next steps:
 
 ## Error Handling
 
-For troubleshooting queue connection failures, sidecar communication issues, message processing problems, and scale-to-zero issues, see `references/async-errors.md`.
+For troubleshooting queue connection failures, worker_config issues, message processing problems, and scale-to-zero issues, see `references/async-errors.md`.
+
+### CLI Errors
+- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy apply` validation errors -- Check YAML syntax, ensure required fields (name, type, image, resources, worker_config, workspace_fqn) are present
 
 </troubleshooting>
+</output>

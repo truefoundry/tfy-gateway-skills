@@ -8,47 +8,32 @@ The manifest format for OCI (most common):
 ```json
 "source": {
   "type": "oci-repo",
-  "version": "16.7.21",
-  "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
+  "version": "1.0.0",
+  "oci_chart_url": "oci://REGISTRY/CHART_NAME"
 }
 ```
 
-This example uses `oci-repo`. You can also use `helm-repo` or `git-helm-repo` -- see "All Source Types" section.
+You can also use `helm-repo` or `git-helm-repo` -- see "All Source Types" section.
 
 ## Step 1: Identify the Chart
 
-If the user asks for a specific service (e.g., "I need a Postgres database"), match it to a chart:
+**Always ask the user for the chart they want to deploy.** Do not assume or recommend specific chart registries.
 
-1. **Check the Common Charts table below** — covers 90% of use cases
-2. **Search Artifact Hub** — https://artifacthub.io — the central registry for Helm charts
-3. **Ask the user** if they have a specific chart or registry in mind
+1. **Ask the user** which chart and registry they want to use
+2. **If they don't know**, suggest they search [Artifact Hub](https://artifacthub.io) — the central discovery hub for Helm charts
+3. **If they have a private/organizational registry**, ask for the registry URL, chart name, and version
 
-## Step 2: Construct the OCI URL
+## Step 2: Construct the Source
 
-### Bitnami Charts (Recommended for Most Cases)
-
-Bitnami publishes all charts as OCI artifacts on Docker Hub. The pattern is:
-
-```
-oci://registry-1.docker.io/bitnamicharts/{chart-name}
-```
-
-Examples:
-- PostgreSQL: `oci://registry-1.docker.io/bitnamicharts/postgresql`
-- Redis: `oci://registry-1.docker.io/bitnamicharts/redis`
-- MongoDB: `oci://registry-1.docker.io/bitnamicharts/mongodb`
-
-**Why Bitnami?** Well-maintained, production-ready, consistent configuration patterns, and extensive documentation. Use Bitnami as the default recommendation unless the user has a specific preference.
-
-### Other Public Registries
+### Public Registries
 
 | Registry | OCI URL Pattern | Example |
 |----------|----------------|---------|
-| Docker Hub (Bitnami) | `oci://registry-1.docker.io/bitnamicharts/{chart}` | `oci://registry-1.docker.io/bitnamicharts/postgresql` |
 | Amazon ECR Public | `oci://public.ecr.aws/{repo}/{chart}` | `oci://public.ecr.aws/aws-controllers-k8s/s3-chart` |
 | GitHub Container Registry | `oci://ghcr.io/{org}/{chart}` | `oci://ghcr.io/argoproj/argo-helm/argo-cd` |
 | Google Artifact Registry | `oci://{region}-docker.pkg.dev/{project}/{repo}/{chart}` | Varies by project |
 | Azure Container Registry | `oci://{registry}.azurecr.io/helm/{chart}` | Varies by registry |
+| Docker Hub | `oci://registry-1.docker.io/{namespace}/{chart}` | Varies by publisher |
 
 ### Private Registries
 
@@ -75,8 +60,8 @@ The modern standard. Charts stored as OCI artifacts in container registries.
 ```json
 "source": {
   "type": "oci-repo",
-  "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql",
-  "version": "16.7.21"
+  "oci_chart_url": "oci://REGISTRY/CHART_NAME",
+  "version": "1.0.0"
 }
 ```
 
@@ -97,9 +82,9 @@ Traditional HTTP-based Helm repositories. Use when a chart isn't available as OC
 ```json
 "source": {
   "type": "helm-repo",
-  "repo_url": "https://charts.bitnami.com/bitnami",
-  "chart": "postgresql",
-  "version": "16.7.21"
+  "repo_url": "https://charts.example.com/repo",
+  "chart": "my-chart",
+  "version": "1.0.0"
 }
 ```
 
@@ -141,7 +126,7 @@ stringData:
 
 | Scenario | Source Type | Why |
 |----------|-----------|-----|
-| Public chart (Bitnami, etc.) | `oci-repo` | Modern standard, fastest |
+| Public chart available as OCI | `oci-repo` | Modern standard, fastest |
 | Chart only available via HTTP repo | `helm-repo` | Legacy repos that don't publish OCI |
 | Private chart in company Git | `git-helm-repo` | Version control + PR reviews |
 | Private OCI registry | `oci-repo` + `container_registry` | Best for private charts |
@@ -157,30 +142,18 @@ Browse chart versions at:
 https://artifacthub.io/packages/helm/{publisher}/{chart}
 ```
 
-For Bitnami charts:
-```
-https://artifacthub.io/packages/helm/bitnami/{chart-name}
-```
-
-Examples:
-- https://artifacthub.io/packages/helm/bitnami/postgresql
-- https://artifacthub.io/packages/helm/bitnami/redis
+Search for any chart at https://artifacthub.io and check its available versions.
 
 ### Option B: Use Helm CLI (if available)
 
 ```bash
-# Show available versions for a Bitnami chart
-helm show chart oci://registry-1.docker.io/bitnamicharts/postgresql --version 16.7.21
+# Show chart info for a specific version
+helm show chart oci://REGISTRY/CHART_NAME --version VERSION
 ```
 
-### Option C: Check Bitnami GitHub
+### Option C: Check the Chart's Repository
 
-Browse releases at:
-```
-https://github.com/bitnami/charts/tree/main/bitnami/{chart-name}
-```
-
-The `Chart.yaml` file shows the current version.
+Browse the chart's source repository (GitHub, GitLab, etc.) and check the `Chart.yaml` file for version information.
 
 ## Step 4: Find Chart Values (Configuration Options)
 
@@ -188,80 +161,43 @@ To know what values a chart accepts:
 
 ### Option A: Artifact Hub (Best)
 
-The Artifact Hub page for each chart shows the full `values.yaml` with documentation:
-```
-https://artifacthub.io/packages/helm/bitnami/{chart-name} → "Default Values" tab
-```
+The Artifact Hub page for each chart shows the full `values.yaml` with documentation. Search for the chart at https://artifacthub.io and check the "Default Values" tab.
 
-### Option B: Bitnami GitHub
+### Option B: Chart Source Repository
 
-```
-https://github.com/bitnami/charts/blob/main/bitnami/{chart-name}/values.yaml
-```
+Check the chart's source repository for its `values.yaml` file.
 
 ### Option C: Helm CLI
 
 ```bash
-helm show values oci://registry-1.docker.io/bitnamicharts/postgresql --version 16.7.21
+helm show values oci://REGISTRY/CHART_NAME --version VERSION
 ```
 
-## Chart Selection Guide
+## Chart Discovery
 
-When the user asks for a generic service, recommend:
+Ask the user which chart they want to use. If they don't know, suggest they search [Artifact Hub](https://artifacthub.io) or provide their organization's chart registry URL.
 
-| Need | Recommended Chart | Why |
-|------|-------------------|-----|
-| SQL database | Bitnami PostgreSQL | Most versatile, excellent defaults |
-| Document store | Bitnami MongoDB | Good for unstructured data |
-| Key-value cache | Bitnami Redis | Industry standard, fast |
-| MySQL compatibility | Bitnami MySQL or MariaDB | For MySQL-specific apps |
-| Message queue (AMQP) | Bitnami RabbitMQ | Reliable, feature-rich |
-| Event streaming | Bitnami Kafka | High-throughput streaming |
-| Search engine | Bitnami Elasticsearch | Full-text search + analytics |
-| Vector database | Qdrant / Milvus / Weaviate | For AI/embedding workloads (check Artifact Hub for OCI URLs) |
-| Object storage | MinIO | S3-compatible storage |
-| Vector DB (general) | Qdrant (Bitnami) | Simple, fast, purpose-built for vectors |
-| Vector + search | Bitnami Elasticsearch | Combined full-text + vector search |
-| S3-compatible storage | Bitnami MinIO | Local object storage |
-| Monitoring | Bitnami Grafana + Prometheus | Observability stack |
-
-## Common Helm Charts
-
-| Use Case | Chart | OCI URL | Typical Version |
-|----------|-------|---------|-----------------|
-| PostgreSQL | `postgresql` | `oci://registry-1.docker.io/bitnamicharts/postgresql` | 16.x |
-| Redis | `redis` | `oci://registry-1.docker.io/bitnamicharts/redis` | 18.x |
-| MongoDB | `mongodb` | `oci://registry-1.docker.io/bitnamicharts/mongodb` | 14.x |
-| MySQL | `mysql` | `oci://registry-1.docker.io/bitnamicharts/mysql` | 9.x |
-| RabbitMQ | `rabbitmq` | `oci://registry-1.docker.io/bitnamicharts/rabbitmq` | 12.x |
-| Kafka | `kafka` | `oci://registry-1.docker.io/bitnamicharts/kafka` | 26.x |
-| Memcached | `memcached` | `oci://registry-1.docker.io/bitnamicharts/memcached` | 6.x |
-| NATS | `nats` | `oci://registry-1.docker.io/bitnamicharts/nats` | Latest |
-| Elasticsearch | `elasticsearch` | `oci://registry-1.docker.io/bitnamicharts/elasticsearch` | 21.x |
-| MinIO | `minio` | `oci://registry-1.docker.io/bitnamicharts/minio` | 14.x |
-| Qdrant | `qdrant` | `oci://registry-1.docker.io/bitnamicharts/qdrant` | 0.x |
-
-**Recommend Bitnami charts** for most cases — well-maintained, production-ready, and widely used.
+Artifact Hub indexes charts from many publishers and registries, making it the best starting point for discovering available charts, versions, and configuration options.
 
 ### Deploying Any Helm Chart
 
-The table above covers common use cases, but **TrueFoundry supports any OCI-compatible Helm chart**. If the user wants a chart not listed above:
+**TrueFoundry supports any OCI-compatible Helm chart.** The workflow is always the same:
 
-1. **Find the chart** — Search [Artifact Hub](https://artifacthub.io) or check the project's documentation
-2. **Get the OCI URL** — Look for "Install" instructions on Artifact Hub; most charts now publish OCI artifacts
-3. **Construct the manifest** — Use the same `source` format:
+1. **Ask the user for the chart** — Get the registry URL, chart name, and version
+2. **If unknown**, suggest searching [Artifact Hub](https://artifacthub.io) or checking the project's documentation
+3. **Construct the manifest** — Use the appropriate source type:
 
 ```json
 "source": {
   "type": "oci-repo",
   "version": "CHART_VERSION",
-  "oci_chart_url": "oci://REGISTRY/PATH/CHART_NAME"
+  "oci_chart_url": "oci://REGISTRY/CHART_NAME"
 }
 ```
 
 This example uses `oci-repo`. You can also use `helm-repo` or `git-helm-repo` -- see "All Source Types" section.
 
-4. **Find values** — Check the chart's `values.yaml` on Artifact Hub or GitHub for configuration options
+4. **Find values** — Check the chart's `values.yaml` on Artifact Hub or its source repository for configuration options
 5. **Deploy** — Use the same `PUT /api/svc/v1/apps` API as any other Helm chart
 
 ### Using Traditional Helm Repo URLs
@@ -269,10 +205,7 @@ This example uses `oci-repo`. You can also use `helm-repo` or `git-helm-repo` --
 If the user provides a traditional Helm repo URL (like `https://charts.example.com`), you have two options:
 
 1. **Use `helm-repo` source type directly** — TrueFoundry supports traditional Helm repos natively. See "All Source Types" section.
-2. **Convert to OCI** (recommended for Bitnami):
-   - **Bitnami** (`https://charts.bitnami.com/bitnami`) → `oci://registry-1.docker.io/bitnamicharts/{chart}`
-   - **Check Artifact Hub** — Most charts list their OCI URL on the install page
-   - **Check project docs** — Many projects document their OCI registry alongside the traditional repo
+2. **Convert to OCI** — Check if the chart publisher also offers an OCI registry URL. Many projects now publish to both formats. Check Artifact Hub or the project's documentation for OCI availability.
 
 ### Custom / Private Charts
 
@@ -297,24 +230,24 @@ Requirements:
 
 | Source | URL Pattern | Best For |
 |--------|-------------|----------|
-| **Artifact Hub** | `https://artifacthub.io/packages/helm/bitnami/{chart}` | Browsing versions, reading values docs |
-| **Bitnami GitHub** | `https://github.com/bitnami/charts/tree/main/bitnami/{chart}` | Reading source, values.yaml, examples |
-| **Helm CLI** | `helm show values oci://registry-1.docker.io/bitnamicharts/{chart}` | Full values.yaml locally |
+| **Artifact Hub** | `https://artifacthub.io/packages/helm/{publisher}/{chart}` | Browsing versions, reading values docs |
+| **Chart Source Repo** | Check the chart's GitHub/GitLab repository | Reading source, values.yaml, examples |
+| **Helm CLI** | `helm show values oci://REGISTRY/CHART_NAME --version VERSION` | Full values.yaml locally |
 
 ### Connection Details by Chart
 
-After deploying, the internal DNS and default ports are:
+After deploying, the internal DNS and default ports depend on the specific chart being used. The chart's documentation will specify the service naming pattern. Common conventions include:
 
-| Chart | Service DNS | Default Port |
-|-------|------------|--------------|
-| PostgreSQL | `{name}-postgresql.{namespace}.svc.cluster.local` | 5432 |
-| Redis | `{name}-redis-master.{namespace}.svc.cluster.local` | 6379 |
-| MongoDB | `{name}-mongodb.{namespace}.svc.cluster.local` | 27017 |
-| MySQL | `{name}-mysql.{namespace}.svc.cluster.local` | 3306 |
-| RabbitMQ | `{name}-rabbitmq.{namespace}.svc.cluster.local` | 5672 (AMQP), 15672 (UI) |
-| Kafka | `{name}-kafka.{namespace}.svc.cluster.local` | 9092 |
-| Elasticsearch | `{name}-elasticsearch.{namespace}.svc.cluster.local` | 9200 |
-| Qdrant | `{name}-qdrant.{namespace}.svc.cluster.local` | 6333 (HTTP), 6334 (gRPC) |
-| MinIO | `{name}-minio.{namespace}.svc.cluster.local` | 9000 (API), 9001 (Console) |
+| Service Type | Typical DNS Pattern | Default Port |
+|-------------|---------------------|--------------|
+| PostgreSQL | `{name}-{chart}.{namespace}.svc.cluster.local` | 5432 |
+| Redis | `{name}-{chart}-master.{namespace}.svc.cluster.local` | 6379 |
+| MongoDB | `{name}-{chart}.{namespace}.svc.cluster.local` | 27017 |
+| MySQL | `{name}-{chart}.{namespace}.svc.cluster.local` | 3306 |
+| RabbitMQ | `{name}-{chart}.{namespace}.svc.cluster.local` | 5672 (AMQP), 15672 (UI) |
+| Kafka | `{name}-{chart}.{namespace}.svc.cluster.local` | 9092 |
+| Elasticsearch | `{name}-{chart}.{namespace}.svc.cluster.local` | 9200 |
+| Qdrant | `{name}-{chart}.{namespace}.svc.cluster.local` | 6333 (HTTP), 6334 (gRPC) |
+| MinIO | `{name}-{chart}.{namespace}.svc.cluster.local` | 9000 (API), 9001 (Console) |
 
-**Note:** `{namespace}` is the Kubernetes namespace of the workspace. You can find it from the workspace details.
+**Note:** The exact service DNS name depends on the chart being used. Check the chart's documentation or the deployed Kubernetes services (`kubectl get svc -n {namespace}`) to confirm the actual service name. `{namespace}` is the Kubernetes namespace of the workspace. You can find it from the workspace details.

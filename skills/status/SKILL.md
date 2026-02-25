@@ -1,6 +1,6 @@
 ---
 name: status
-description: This skill should be used when the user asks "is truefoundry connected", "check my truefoundry config", "truefoundry status", "am I authenticated", "test my TFY connection", "verify API key", "check TFY credentials", "is my TFY setup working", "TrueFoundry health check", "can I reach truefoundry", or wants to verify credentials, diagnose authentication issues, or confirm connectivity before any TrueFoundry operation.
+description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation. NOT for listing workspaces or deploying.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,10 +14,7 @@ Check TrueFoundry connection and verify credentials are configured.
 
 ## When to Use
 
-- User asks about TrueFoundry connection status
-- Before any TrueFoundry operation (deploy, list apps, etc.)
-- User says "check my TFY config", "am I connected to TrueFoundry"
-- Troubleshooting authentication issues
+Verify TrueFoundry credentials and connectivity, or diagnose authentication issues before performing platform operations.
 
 ## When NOT to Use
 
@@ -43,9 +40,9 @@ Check TrueFoundry connection and verify credentials are configured.
 
 ## Check Credentials
 
-### Via MCP (if tfy-mcp-server is configured)
+### Via Tool Call (if tfy-tool-server is configured)
 
-If the TrueFoundry MCP server is available, use the MCP tool:
+If the TrueFoundry tool server is available, use this tool call:
 
 ```
 tfy_config_status
@@ -138,6 +135,6 @@ Set them via environment variables or add to .env in project root.
 
 - **After status OK**: Use any other skill (workspaces, applications, deploy, etc.)
 - **To set credentials**: Export env vars or create .env file
-- **If using MCP**: Use `tfy_config_set` to persist credentials
+- **If using tool calls**: Use `tfy_config_set` to persist credentials
 
 </references>

@@ -1,6 +1,6 @@
 ---
 name: logs
-description: This skill should be used when the user asks "show logs", "view logs", "what are the logs", "download logs", "debug my app", "why is my app failing", "check application output", "tail logs", "stream logs", "search logs for errors", "get logs for my service", or wants to see, download, search, or debug application and job logs from TrueFoundry.
+description: Views, downloads, and searches application and job logs from TrueFoundry. Supports time-range filtering, pod filtering, and error search. NOT for deployment status (use applications skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -12,13 +12,9 @@ allowed-tools: Bash(*/tfy-api.sh *)
 
 View and download application and job logs from TrueFoundry.
 
-## When to Use
+## Scope
 
-- User asks "show logs", "view logs for my app"
-- User wants to debug a deployment
-- User says "what went wrong", "why did it fail"
-- User asks to download logs for a time range
-- After a deploy, to check if the app started correctly
+View, download, and search application and job logs from TrueFoundry. Useful for debugging deployments, checking startup output, and finding errors.
 
 </objective>
 
@@ -28,7 +24,7 @@ View and download application and job logs from TrueFoundry.
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_logs_download(payload={
@@ -72,9 +68,9 @@ $TFY_API_SH GET '/api/svc/v1/logs/WORKSPACE_ID/download?applicationId=APP_ID&sea
 Show logs in chronological order. For long output, show the last N lines or summarize errors:
 
 ```
-Logs for tfy-mcp-server (last 20 lines):
+Logs for tfy-tool-server (last 20 lines):
 2026-02-10 14:30:01 INFO  Server starting on port 8000
-2026-02-10 14:30:02 INFO  MCP endpoint ready at /mcp
+2026-02-10 14:30:02 INFO  Tools endpoint ready at /tools
 2026-02-10 14:30:05 INFO  Health check: OK
 ```
 

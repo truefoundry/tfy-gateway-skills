@@ -1,6 +1,6 @@
 ---
 name: applications
-description: This skill should be used when the user asks "what's deployed", "list my apps", "show services", "deployment status", "is my app running", "what services are running", "check my deployments", "show running apps", "app health", "list deployments", "show my workloads", or wants to inspect, list, or manage application deployments on TrueFoundry. NOT for deploying local code — use deploy skill for that.
+description: Lists, inspects, and manages TrueFoundry application deployments. Shows status, health, and details for services, jobs, and Helm releases. NOT for deploying code (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,11 +14,7 @@ List, inspect, and manage applications and deployments on TrueFoundry.
 
 ## When to Use
 
-- User asks "what's deployed", "list apps", "show my services"
-- User asks "is my app running", "deployment status"
-- User asks to inspect a specific application or deployment
-- User wants to create a deployment via API manifest
-- Checking status after a deploy
+List, inspect, or manage deployed applications and their deployment history. Also supports creating deployments via API manifest for pre-built images.
 
 ## When NOT to Use
 
@@ -33,7 +29,7 @@ List, inspect, and manage applications and deployments on TrueFoundry.
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list()
@@ -79,13 +75,13 @@ Show as a table. Use `updatedAt` from the API response for "Last Deployed" (ISO 
 Applications in my-cluster:my-workspace:
 | Name           | Type    | Status   | Last Deployed      |
 |----------------|---------|----------|--------------------|
-| tfy-mcp-server | service | RUNNING  | 2026-02-10 14:30   |
+| tfy-tool-server | service | RUNNING  | 2026-02-10 14:30   |
 | data-pipeline  | job     | STOPPED  | 2026-02-08 09:15   |
 ```
 
 ## List Deployments
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list_deployments(app_id="app-id")
@@ -176,7 +172,7 @@ A basic TrueFoundry service manifest looks like this:
 
 Present this summary and ask for confirmation before making the API call.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
@@ -193,7 +189,7 @@ tfy_applications_create_deployment(
 )
 ```
 
-**Note:** This requires human approval (HITL) when using MCP.
+**Note:** This requires human approval (HITL) when using tool calls.
 
 ### Via Direct API
 

@@ -1,6 +1,6 @@
 ---
 name: tfy-apply
-description: This skill should be used when the user says "tfy apply", "apply manifest", "deploy from yaml", "declarative deployment", "apply yaml to truefoundry", "gitops deploy", "apply tfy manifest", "deploy from manifest file", "apply config file", "reconcile manifest", "tfy apply dry run", "preview manifest changes", or wants to create/update TrueFoundry resources from YAML manifest files using the tfy CLI.
+description: Creates and updates TrueFoundry resources from YAML manifest files using the `tfy` CLI. Supports dry-run previews and declarative deployments. Use when applying manifests, reconciling configurations, or performing GitOps-style deployments with `tfy apply`.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
@@ -24,7 +24,7 @@ Create or update TrueFoundry resources from YAML manifest files using `tfy apply
 
 ## When NOT to Use
 
-- User wants to deploy local code with auto-build → use `deploy` skill (Python SDK)
+- User wants to deploy local code with auto-build → use `deploy` skill (creates manifests and uses tfy apply)
 - User wants to deploy a Helm chart interactively → use `helm` skill
 - User wants to list or inspect existing deployments → use `applications` skill
 - User wants to check connection/credentials → use `status` skill
@@ -50,7 +50,7 @@ After running `tfy --version`, interpret the result:
 | CLI Output | Status | Action |
 |-----------|--------|--------|
 | `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` as documented below. |
-| `tfy version X.Y.Z` (0.3.x–0.4.x) | Outdated | Upgrade recommended: `pip install -U truefoundry`. Core `tfy apply` should still work. |
+| `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade recommended: `pip install -U truefoundry`. Core `tfy apply` should still work. |
 | `servicefoundry version X.Y.Z` | Legacy CLI | This is the old CLI name. Upgrade: `pip install -U truefoundry`. |
 | Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
 
@@ -84,6 +84,8 @@ tfy apply -f manifest.yaml --dry-run --show-diff
 ## Manifest Format
 
 A TrueFoundry manifest is a YAML file with a `name`, `type`, and type-specific configuration. The `type` field determines the resource kind.
+
+For detailed field definitions, see `references/manifest-schema.md`. For sensible defaults by resource type, see `references/manifest-defaults.md`.
 
 ### Service Manifest
 
@@ -157,6 +159,8 @@ retries: 3
 timeout: 3600
 workspace_fqn: cluster-id:workspace-name
 ```
+
+For async-service, notebook, and ssh-server manifest examples (including GPU variants), see [references/tfy-apply-extra-manifests.md](references/tfy-apply-extra-manifests.md).
 
 ### Helm Chart Manifest
 
@@ -286,85 +290,7 @@ Use this in CI/CD pipelines as a validation step before the actual apply.
 
 ## Integration with CI/CD
 
-### GitHub Actions
-
-```yaml
-name: Deploy to TrueFoundry
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install tfy CLI
-        run: pip install truefoundry
-
-      - name: Login to TrueFoundry
-        env:
-          TFY_BASE_URL: ${{ secrets.TFY_BASE_URL }}
-          TFY_API_KEY: ${{ secrets.TFY_API_KEY }}
-        run: tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
-
-      - name: Preview changes
-        run: |
-          export IMAGE_TAG="${{ github.sha }}"
-          export TFY_WORKSPACE_FQN="${{ vars.TFY_WORKSPACE_FQN }}"
-          envsubst < manifest.yaml | tfy apply -f - --dry-run --show-diff
-
-      - name: Apply manifest
-        run: |
-          export IMAGE_TAG="${{ github.sha }}"
-          export TFY_WORKSPACE_FQN="${{ vars.TFY_WORKSPACE_FQN }}"
-          envsubst < manifest.yaml | tfy apply -f -
-```
-
-### GitLab CI
-
-```yaml
-deploy:
-  stage: deploy
-  image: python:3.12-slim
-  before_script:
-    - pip install truefoundry
-    - tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
-  script:
-    - export IMAGE_TAG="$CI_COMMIT_SHA"
-    - envsubst < manifest.yaml | tfy apply -f -
-  only:
-    - main
-```
-
-### Generic CI/CD Pattern
-
-```bash
-#!/bin/bash
-# deploy.sh — generic CI/CD deploy script
-set -euo pipefail
-
-# 1. Install CLI
-pip install truefoundry
-
-# 2. Authenticate
-tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
-
-# 3. Substitute environment variables
-envsubst < manifest.yaml > manifest-resolved.yaml
-
-# 4. Preview changes
-echo "=== Dry Run ==="
-tfy apply -f manifest-resolved.yaml --dry-run --show-diff
-
-# 5. Apply
-echo "=== Applying ==="
-tfy apply -f manifest-resolved.yaml
-
-# 6. Cleanup
-rm -f manifest-resolved.yaml
-```
+For complete CI/CD examples (GitHub Actions, GitLab CI, generic deploy scripts), see [references/tfy-apply-cicd.md](references/tfy-apply-cicd.md).
 
 </instructions>
 
@@ -389,7 +315,7 @@ rm -f manifest-resolved.yaml
 - **View logs**: Use `logs` skill to check application logs after apply
 - **Manage secrets**: Use `secrets` skill to create secret groups referenced in manifests
 - **Deploy Helm charts**: The `helm` skill provides interactive Helm chart deployment; use `tfy-apply` when you have the manifest ready
-- **Deploy with SDK**: The `deploy` skill deploys local code with auto-build; use `tfy-apply` for pre-built images and declarative configs
+- **Deploy services/jobs**: The `deploy` skill creates manifests and uses `tfy apply`; use `tfy-apply` directly for pre-built images and declarative configs
 
 </references>
 
@@ -420,7 +346,7 @@ Manifest validation failed.
 Check:
 - YAML syntax is valid (use yamllint or a YAML validator)
 - Required fields are present: name, type, workspace_fqn
-- Resource type matches the manifest structure (service, job, helm)
+- Resource type matches the manifest structure (service, job, helm, notebook, ssh-server, async-service)
 - Image URI is reachable from the cluster
 ```
 
@@ -456,7 +382,7 @@ Check:
 Deployment failed: Insufficient resources.
 Check:
 - Requested CPU/memory is within cluster capacity
-- GPU type is available on the cluster (use deploy skill's Step 0 to check)
+- GPU type is available on the cluster (use workspaces skill to check)
 - Reduce resource requests or contact cluster admin
 ```
 

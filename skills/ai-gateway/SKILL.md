@@ -1,6 +1,6 @@
 ---
 name: ai-gateway
-description: This skill should be used when the user asks "use AI gateway", "call LLM through gateway", "gateway API", "unified LLM API", "route LLM requests", "rate limit LLM", "LLM proxy", "model routing", "access LLMs", "single API for all models", "configure model gateway", "set up LLM endpoint", or wants to use TrueFoundry's AI Gateway to access LLMs through a unified API, manage virtual access tokens, or configure load balancing and budget controls for LLM usage.
+description: Configures TrueFoundry AI Gateway for unified OpenAI-compatible LLM access. Covers auth (PAT/VAT), model routing, rate limiting, and budget controls. NOT for deploying models (use llm-deploy).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl*) Bash(python*)
@@ -14,17 +14,12 @@ Use TrueFoundry's AI Gateway to access 1000+ LLMs through a unified OpenAI-compa
 
 ## When to Use
 
-- User wants to call LLMs through a unified API
-- User asks about AI Gateway, LLM proxy, or model routing
-- User wants to set up rate limiting or budget controls for LLM access
-- User wants load balancing across multiple LLM providers
-- User wants to switch between self-hosted and cloud models without code changes
-- User asks about Virtual Access Tokens or gateway authentication
+Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure auth tokens (PAT/VAT), set up rate limiting, budget controls, or load balancing across providers.
 
 ## When NOT to Use
 
 - User wants to deploy a self-hosted model → use `llm-deploy` skill (then connect to gateway)
-- User wants to deploy MCP servers → use `mcp-server` skill
+- User wants to deploy tool servers → use `deploy` skill (service with tool-proxy)
 - User wants to manage TrueFoundry platform credentials → use `status` skill
 
 </objective>
@@ -412,9 +407,9 @@ Usage:
 - **Need API key**: Create PAT/VAT in TrueFoundry dashboard → Access
 - **Rate limiting**: Configure in dashboard → AI Gateway → Rate Limiting
 - **Routing config**: Use `tfy-apply` skill to apply routing YAML via GitOps
-- **MCP servers**: Use `mcp-server` skill to deploy tool servers, register in gateway
+- **tool servers**: Use `deploy` skill to deploy tool servers (service with tool-proxy), register in gateway
 - **Check deployed models**: Use `applications` skill to see running model services
-- **Benchmark through gateway**: Use `llm-benchmarking` skill to test gateway performance
+- **Benchmark through gateway**: Use your preferred load-testing tool against gateway endpoints
 
 </references>
 

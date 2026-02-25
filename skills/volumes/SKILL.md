@@ -1,6 +1,6 @@
 ---
 name: volumes
-description: This skill should be used when the user asks "create a volume", "list volumes", "persistent storage", "mount a volume", "attach storage", "shared storage for pods", "add disk to service", "volume sizing", "storage class options", "expand volume", "attach PVC", "mount shared data", or wants to manage TrueFoundry persistent volumes. NOT for blob storage (S3/GCS) questions.
+description: Creates and manages persistent volumes on TrueFoundry. Handles creation, listing, mounting, storage class selection, and static volume attachment. NOT for blob storage (S3/GCS).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -14,13 +14,7 @@ Create and manage persistent volumes on TrueFoundry. Volumes provide shared, low
 
 ## When to Use
 
-- User asks "create a volume", "add persistent storage"
-- User asks "list volumes", "show my volumes"
-- User wants to share data across pods or replicas (training data, model weights)
-- User needs checkpointing for ML training jobs
-- User wants to mount storage to a service or job
-- User asks about storage classes or volume types
-- User wants to attach pre-existing Kubernetes PersistentVolumes (EFS, GCS, S3)
+Create, list, or mount persistent volumes on TrueFoundry, including dynamic provisioning, static PV attachment, storage class selection, and Volume Browser setup.
 
 ## When NOT to Use
 
@@ -93,37 +87,7 @@ Static volumes require the PersistentVolume to already exist in the Kubernetes c
 
 ## Storage Classes by Cloud Provider
 
-Present only the storage classes available on the user's cluster. These are the common defaults:
-
-### AWS
-| Storage Class | Driver | Description |
-|---------------|--------|-------------|
-| `efs-sc` | `efs.csi.aws.com` | Elastic File System -- shared NFS, scales automatically |
-
-### GCP
-| Storage Class | Driver | Description |
-|---------------|--------|-------------|
-| `standard-rwx` | Filestore | Basic HDD Filestore -- cost-effective shared storage |
-| `premium-rwx` | Filestore | Premium SSD Filestore -- higher IOPS |
-| `enterprise-rwx` | Filestore | Enterprise-grade Filestore -- highest durability and performance |
-
-### Azure
-| Storage Class | Driver | Description |
-|---------------|--------|-------------|
-| `azurefile` | `file.csi.azure.com` | Azure Files -- standard tier |
-| `azurefile-premium` | `file.csi.azure.com` | Azure Files -- premium SSD tier |
-| `azureblob-nfs-premium` | `blob.csi.azure.com` | Azure Blob NFS -- premium |
-| `azureblob-fuse-premium` | `blob.csi.azure.com` | Azure Blob FUSE -- premium |
-
-**To discover available storage classes on a cluster**, see `references/cluster-discovery.md` or check the cluster details:
-
-```bash
-# Via MCP
-tfy_clusters_list(cluster_id="CLUSTER_ID")
-
-# Via Direct API
-$TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
-```
+For storage class tables by cloud provider (AWS, GCP, Azure) and discovery commands, see `references/volume-storage-classes.md`.
 
 </context>
 
@@ -135,57 +99,103 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 
 ### Before Creating
 
-**ALWAYS confirm with the user before creating a volume:**
+**ALWAYS ask the user these questions in order:**
 
-1. **Volume name** -- What should the volume be called?
-2. **Size** -- How much storage? (in Gi, e.g. `50Gi`). Cannot be reduced later.
-3. **Storage class** -- Which storage class? Present available options from the cluster.
-4. **Workspace** -- Which workspace? Volumes are workspace-scoped.
+1. **Volume type** -- "Do you want to create a new volume or use an existing Kubernetes PersistentVolume?"
+   - **Create new** → proceed with dynamic volume questions below
+   - **Use existing** → ask for the PersistentVolume name in Kubernetes, then skip to workspace
+2. **Volume name** -- What should the volume be called?
+3. **Size** -- How much storage? (integer in GB, e.g. `50`). Cannot be reduced later.
+4. **Storage class** -- Which storage class? Present available options from the cluster.
+5. **Workspace** -- Which workspace? Volumes are workspace-scoped.
+6. **Volume Browser** -- "Do you want to enable Volume Browser? It provides a web UI to browse and manage files in your volume without SSH." (Optional)
+   - If yes, ask for:
+     - **Endpoint host** -- The hostname where the browser will be accessible (e.g. `my-cluster.example.truefoundry.com`). Present available hosts from the cluster's base domain.
+     - **Endpoint path** -- URL path prefix (optional, defaults to `/`)
+     - **Username** -- Login username for the browser (optional, defaults to `admin`)
+     - **Password secret** -- FQN of a TrueFoundry secret containing the browser password. If user doesn't have one, help them create it using the `secrets` skill first.
 
 Present a summary and ask for confirmation:
 
 ```
 Volume to create:
+  Type:          Create new (dynamic)
   Name:          training-data
-  Size:          100Gi
+  Size:          100 GB
   Storage class: efs-sc
   Workspace:     my-cluster:my-workspace
+  Volume Browser: Enabled
+    Endpoint:    https://my-cluster.example.truefoundry.com/training-data/
+    Username:    admin
+    Password:    (secret: my-cluster:my-workspace:vol-browser-pw)
 
 Note: Size can be expanded later but not reduced.
 Proceed?
 ```
 
-### Via MCP
+For volumes without Volume Browser:
+```
+Volume to create:
+  Type:          Create new (dynamic)
+  Name:          training-data
+  Size:          100 GB
+  Storage class: efs-sc
+  Workspace:     my-cluster:my-workspace
+  Volume Browser: Disabled
+
+Note: Size can be expanded later but not reduced.
+Proceed?
+```
+
+### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
-    manifest={
-        "kind": "Volume",
-        "name": "my-volume",
-        "volume_config": {
-            "type": "new",
-            "size": "100Gi",
-            "storage_class": "efs-sc"
-        }
-    },
+    manifest={"type": "volume", "name": "my-volume", "config": {"type": "dynamic", "size": 100, "storage_class": "efs-sc"}},
     options={"workspace_id": "ws-id-here"}
 )
 ```
 
-**Note:** This requires human approval (HITL) when using MCP.
+For Volume Browser fields and static volume tool-call examples, use the same fields as the Direct API examples below.
 
 ### Via Direct API
 
+**Create new volume (without Volume Browser):**
+
 ```bash
-# Create a new volume
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "kind": "Volume",
+    "type": "volume",
     "name": "my-volume",
-    "volume_config": {
-      "type": "new",
-      "size": "100Gi",
+    "config": {
+      "type": "dynamic",
+      "size": 100,
       "storage_class": "efs-sc"
+    }
+  },
+  "workspaceId": "ws-id-here"
+}'
+```
+
+**Create new volume (with Volume Browser):**
+
+```bash
+$TFY_API_SH PUT /api/svc/v1/apps '{
+  "manifest": {
+    "type": "volume",
+    "name": "my-volume",
+    "config": {
+      "type": "dynamic",
+      "size": 100,
+      "storage_class": "efs-sc"
+    },
+    "volume_browser": {
+      "username": "admin",
+      "password_secret_fqn": "my-cluster:my-workspace:vol-browser-pw",
+      "endpoint": {
+        "host": "my-cluster.example.truefoundry.com",
+        "path": "/my-volume/"
+      }
     }
   },
   "workspaceId": "ws-id-here"
@@ -197,10 +207,10 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 ```bash
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "kind": "Volume",
+    "type": "volume",
     "name": "my-existing-vol",
-    "volume_config": {
-      "type": "existing",
+    "config": {
+      "type": "static",
       "persistent_volume_name": "pv-name-in-k8s"
     }
   },
@@ -210,7 +220,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 
 ## Listing Volumes
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list(filters={"workspace_fqn": "my-cluster:my-workspace", "application_type": "volume"})
@@ -345,49 +355,21 @@ cache_volume:
 
 ## Static Volume Setup
 
-For mounting pre-existing cloud storage as Kubernetes PersistentVolumes.
-
-### AWS EFS
-
-1. Install the EFS CSI driver on the cluster
-2. Create an EFS access point with proper permissions (UID:1000, GID:1000)
-3. Create the PersistentVolume in Kubernetes referencing `file_system_id::access_point_id`
-4. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-### AWS S3 (via CSI)
-
-1. Configure IAM policies for S3 access
-2. Create a PersistentVolume with the `s3.csi.aws.com` driver and bucket name in `volumeAttributes`
-3. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-### GCP GCS (via GCS Fuse)
-
-1. Enable the GCS Fuse CSI driver on the GKE cluster
-2. Configure IAM service account with `storage.objectAdmin` role
-3. Create a Kubernetes ServiceAccount with workload identity annotation
-4. Create the PersistentVolume with `gcsfuse.csi.storage.gke.io` driver
-5. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-### Azure Files / Blob
-
-1. Ensure the Azure CSI drivers are installed on the AKS cluster
-2. Create the Azure storage resource (File Share or Blob container)
-3. Create the PersistentVolume referencing the Azure resource
-4. In TrueFoundry, create a volume with `type: existing` and the PV name
-
-**Note:** Static volume setup requires Kubernetes cluster access. If the user does not have cluster admin permissions, direct them to their platform administrator.
+For detailed setup instructions for AWS EFS, AWS S3, GCP GCS Fuse, and Azure Files/Blob, see `references/static-volume-setup.md`.
 
 ## Volume Browser
 
-TrueFoundry provides an optional Volume Browser UI for managing files in a volume without SSH. When creating a volume, this can be enabled by setting a password-protected secret for access.
+For Volume Browser configuration fields, setup steps, and access instructions, see `references/volume-browser-setup.md`.
 
 </instructions>
 
 <success_criteria>
 
-- The user can list all volumes in their target workspace
+- The agent asked "create new or use existing?" before proceeding
 - The agent has confirmed volume name, size, storage class, and workspace with the user before creating
+- The agent asked whether to enable Volume Browser and collected endpoint/password details if yes
 - The volume was successfully created and is in RUNNING status
+- The user can list all volumes in their target workspace
 - The user can attach the volume to a service or job using the correct volume FQN
 - The agent has advised on appropriate sizing based on the user's use case
 - The user understands the difference between volumes and blob storage for their scenario
@@ -399,6 +381,7 @@ TrueFoundry provides an optional Volume Browser UI for managing files in a volum
 ## Composability
 
 - **Before deploying with volumes**: Use `workspaces` skill to get workspace FQN, then create the volume in the same workspace
+- **With secrets skill**: Create a password secret before enabling Volume Browser (password_secret_fqn is required)
 - **With deploy skill**: After creating a volume, add `VolumeMount` to the service's deploy.py to attach it
 - **With llm-deploy skill**: Use `cache_volume` in LLM deployment manifests for model weight caching
 - **With jobs skill**: Mount volumes to training jobs for checkpointing and shared data access
@@ -411,54 +394,14 @@ TrueFoundry provides an optional Volume Browser UI for managing files in a volum
 
 ## Error Handling
 
-### Volume Not Found
-```
-Volume not found in workspace. Check:
-- Volume name and workspace FQN are correct
-- Volume was created in the same workspace as your application
-- Use: GET /api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationType=volume
-```
-
-### Storage Class Not Available
-```
-Storage class not found on this cluster. Check available storage classes:
-- GET /api/svc/v1/clusters/CLUSTER_ID
-- Common classes: efs-sc (AWS), standard-rwx (GCP), azurefile (Azure)
-- Ask your platform admin if no storage classes are configured.
-```
-
-### Volume Size Cannot Be Reduced
-```
-Volume size can only be increased, not decreased.
-Current size: 100Gi. You requested: 50Gi.
-To use less storage, create a new smaller volume and migrate data.
-```
-
-### Workspace Mismatch
-```
-Volume and application must be in the same workspace.
-Volume workspace: my-cluster:ws-a
-Application workspace: my-cluster:ws-b
-Create the volume in the same workspace as your application, or redeploy the application to the volume's workspace.
-```
-
-### Permission Denied
-```
-Cannot access or create volumes. Check your API key permissions for this workspace.
-```
-
-### PersistentVolume Not Found (Static Volumes)
-```
-The Kubernetes PersistentVolume name you specified does not exist in the cluster.
-Verify the PV exists: kubectl get pv <pv-name>
-If you need to create it, contact your platform administrator.
-```
-
-### Data Corruption Warning
-```
-Multiple pods writing to the same file path can cause data corruption.
-Ensure each pod writes to a unique sub-directory, or use a single-writer pattern.
-Example: /data/pod-{POD_NAME}/ for per-pod directories.
-```
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Volume not found | Wrong name or workspace | Verify FQN; volumes are workspace-scoped |
+| Storage class not available | Cluster missing provisioner | Check `GET /api/svc/v1/clusters/CLUSTER_ID` for available classes |
+| Size cannot be reduced | PVC limitation | Create new smaller volume and migrate data |
+| Workspace mismatch | Volume in different workspace | Create volume in same workspace as the app |
+| Permission denied | API key lacks access | Check API key permissions for this workspace |
+| PV not found (static) | K8s PV doesn't exist | Verify with `kubectl get pv <pv-name>` |
+| Data corruption | Multiple pods writing same path | Use per-pod sub-directories (e.g., `/data/pod-{POD_NAME}/`) |
 
 </troubleshooting>

@@ -1,9 +1,9 @@
 ---
 name: workflows
-description: This skill should be used when the user asks "create a workflow", "deploy a workflow", "run a pipeline", "schedule a workflow", "cron workflow", "TrueFoundry workflow", "build a DAG", "orchestrate tasks", "create an ML pipeline", "Flyte workflow", "batch pipeline", "ETL pipeline on truefoundry", or wants to build data processing or ML training pipelines using TrueFoundry Workflows (built on Flyte).
+description: Builds and deploys data processing and ML training pipelines using TrueFoundry Workflows (built on Flyte). Use when creating DAGs, orchestrating multi-step tasks, scheduling ETL pipelines, or running ML training workflows.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-allowed-tools: Bash(python*) Bash(pip*)
+allowed-tools: Bash(tfy*) Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
@@ -11,6 +11,8 @@ allowed-tools: Bash(python*) Bash(pip*)
 # TrueFoundry Workflows
 
 Create, configure, and deploy workflows on TrueFoundry. Workflows are built on [Flyte](https://flyte.org/), an open-source orchestration platform, and use Python decorators (`@task`, `@workflow`) to define structured sequences of tasks as directed acyclic graphs (DAGs).
+
+Workflow **definition** uses Python SDK (`@task`/`@workflow` decorators). Workflow **deployment** uses `tfy deploy workflow` CLI command. Alternative: `tfy apply` with a YAML manifest. REST API fallback when CLI unavailable.
 
 ## When to Use
 
@@ -38,14 +40,31 @@ Create, configure, and deploy workflows on TrueFoundry. Workflows are built on [
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
 2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
-3. **Python** — Python 3.9+ required
-4. **SDK** — Install the TrueFoundry SDK with workflow extras:
+3. **SDK** — Install the TrueFoundry SDK with workflow extras (required for defining tasks/workflows):
    ```bash
    pip install "truefoundry[workflow]"
    ```
-5. **Cluster setup** — The Flyte data plane must be installed on the target cluster. The control plane ships with TrueFoundry (no additional setup). If the user gets errors about Flyte not being available, they need to contact their platform admin to install the data plane components.
+4. **CLI login** — Authenticate the CLI (required for deployment):
+   ```bash
+   tfy login --host "$TFY_BASE_URL"
+   ```
+5. **Python** — Python 3.9+ required for workflow definition code
+6. **Cluster setup** — The Flyte data plane must be installed on the target cluster. The control plane ships with TrueFoundry (no additional setup). If the user gets errors about Flyte not being available, they need to contact their platform admin to install the data plane components.
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
+
+### CLI Detection
+
+```bash
+tfy --version
+```
+
+| CLI Output | Status | Action |
+|-----------|--------|--------|
+| `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` for deployment as documented below. |
+| `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade: `pip install -U truefoundry`. Core `tfy apply` should still work. |
+| Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
+| CLI unavailable (no pip/Python) | Fallback | Use REST API via `tfy-api.sh`. See `references/cli-fallback.md`. |
 
 ## Core Concepts
 
@@ -63,36 +82,31 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 ## Basic Workflow Example
 
 ```python
-from truefoundry.workflow import task, workflow, PythonTaskConfig, TaskPythonBuild
+from truefoundry.workflow import (
+    PythonTaskConfig,
+    TaskPythonBuild,
+    conditional,
+    task,
+    workflow,
+)
 from truefoundry.deploy import Resources
 
 # Define task configuration
-task_config = PythonTaskConfig(
+cpu_task_config = PythonTaskConfig(
     image=TaskPythonBuild(
-        python_version="3.11",
-        pip_packages=[
-            "truefoundry[workflow]",
-            "pandas",
-            "scikit-learn",
-        ],
+        python_version="3.9",
+        pip_packages=["truefoundry[workflow]"],
     ),
-    resources=Resources(
-        cpu_request=0.5,
-        cpu_limit=1.0,
-        memory_request=512,
-        memory_limit=1024,
-    ),
+    resources=Resources(cpu_request=0.5, memory_request=500),
 )
 
-@task(task_config=task_config)
+@task(task_config=cpu_task_config)
 def fetch_data(source: str) -> dict:
     """Fetch and return raw data."""
-    import pandas as pd
-    # Your data fetching logic here
     data = {"records": 1000, "source": source}
     return data
 
-@task(task_config=task_config)
+@task(task_config=cpu_task_config)
 def process_data(raw_data: dict) -> dict:
     """Clean and transform the data."""
     processed = {
@@ -102,10 +116,9 @@ def process_data(raw_data: dict) -> dict:
     }
     return processed
 
-@task(task_config=task_config)
+@task(task_config=cpu_task_config)
 def train_model(data: dict) -> str:
     """Train a model on processed data."""
-    # Your training logic here
     return f"model_trained_on_{data['records']}_records"
 
 @workflow
@@ -116,6 +129,8 @@ def ml_pipeline(source: str = "default") -> str:
     result = train_model(data=processed)
     return result
 ```
+
+**Note:** Workflows REQUIRE the Python SDK for definition -- this is the exception to the CLI-first approach. Only the deploy step uses CLI.
 
 ## Task Configuration
 
@@ -130,7 +145,7 @@ from truefoundry.deploy import Resources
 # CPU task
 cpu_task_config = PythonTaskConfig(
     image=TaskPythonBuild(
-        python_version="3.11",
+        python_version="3.9",
         pip_packages=[
             "truefoundry[workflow]",
             "pandas==2.1.0",
@@ -141,16 +156,14 @@ cpu_task_config = PythonTaskConfig(
     ),
     resources=Resources(
         cpu_request=0.5,
-        cpu_limit=1.0,
-        memory_request=512,
-        memory_limit=1024,
+        memory_request=500,
     ),
 )
 
 # GPU task (for training or inference steps)
 gpu_task_config = PythonTaskConfig(
     image=TaskPythonBuild(
-        python_version="3.11",
+        python_version="3.9",
         pip_packages=[
             "truefoundry[workflow]",
             "torch",
@@ -232,96 +245,13 @@ def daily_etl_pipeline() -> str:
 
 ## Advanced Patterns
 
-### Map Tasks (Parallel Execution)
-
-Process multiple inputs in parallel using map tasks. Useful for batch processing large datasets or running the same computation across many inputs.
-
-```python
-from truefoundry.workflow import task, workflow, map_task
-
-@task(task_config=task_config)
-def process_single_file(file_path: str) -> dict:
-    """Process one file -- this runs in its own container."""
-    # Heavy processing logic here
-    return {"file": file_path, "status": "done"}
-
-@workflow
-def batch_processing_pipeline(file_paths: list[str]) -> list[dict]:
-    """Process many files in parallel."""
-    results = map_task(process_single_file)(file_path=file_paths)
-    return results
-```
-
-Map tasks automatically parallelize across the input list. Each invocation gets its own container with the resources defined in the task config.
-
-### Conditional Tasks (Branching Logic)
-
-Execute different tasks based on runtime conditions:
-
-```python
-from truefoundry.workflow import task, workflow, conditional
-
-@task(task_config=task_config)
-def evaluate_data(data: dict) -> bool:
-    """Check if data meets quality threshold."""
-    return data["records"] > 500
-
-@task(task_config=task_config)
-def full_training(data: dict) -> str:
-    return "full_model_trained"
-
-@task(task_config=task_config)
-def lightweight_training(data: dict) -> str:
-    return "lightweight_model_trained"
-
-@workflow
-def adaptive_pipeline(source: str = "default") -> str:
-    raw = fetch_data(source=source)
-    processed = process_data(raw_data=raw)
-    is_large = evaluate_data(data=processed)
-    result = (
-        conditional("training_branch")
-        .if_(is_large.is_true())
-        .then(full_training(data=processed))
-        .else_()
-        .then(lightweight_training(data=processed))
-    )
-    return result
-```
-
-### Spark Tasks
-
-Run PySpark jobs as workflow tasks for large-scale data processing:
-
-```python
-from truefoundry.workflow import task
-from flytekitplugins.spark import Spark
-
-@task(
-    task_config=Spark(
-        spark_conf={
-            "spark.executor.instances": "3",
-            "spark.executor.memory": "4g",
-            "spark.executor.cores": "2",
-        }
-    ),
-)
-def spark_etl(input_path: str) -> str:
-    from pyspark.sql import SparkSession
-    spark = SparkSession.builder.getOrCreate()
-    df = spark.read.parquet(input_path)
-    # Transform data
-    df_processed = df.filter(df["value"] > 0)
-    output_path = input_path.replace("raw", "processed")
-    df_processed.write.parquet(output_path)
-    return output_path
-```
-
-**Note:** Spark tasks require the Spark operator to be installed on the cluster. Check with your platform admin if Spark tasks fail.
+For map tasks (parallel execution), conditional tasks (branching logic), and Spark tasks (large-scale data processing), see [references/workflow-advanced-patterns.md](references/workflow-advanced-patterns.md).
 
 ## Deploying Workflows
 
-### Using the TrueFoundry CLI
+After the user writes their workflow code (Python file with `@task` and `@workflow` decorators), deploy using `tfy deploy workflow`.
+
+### Approach A: Via `tfy deploy workflow` (CLI -- Primary)
 
 ```bash
 tfy deploy workflow \
@@ -330,7 +260,33 @@ tfy deploy workflow \
   --workspace_fqn "$TFY_WORKSPACE_FQN"
 ```
 
-### Using the Python SDK
+**Important:** After deployment, the workflow must be triggered manually. The TrueFoundry UI shows a yellow banner indicating the workflow is deployed but not yet running. The user can trigger it from the dashboard or via a launch plan.
+
+### Approach B: Via `tfy apply` (YAML Manifest -- Alternative)
+
+**1. Generate the workflow deployment manifest:**
+
+```yaml
+# workflow-manifest.yaml
+name: my-ml-pipeline
+type: workflow
+workflow_file: workflow.py
+workspace_fqn: "YOUR_WORKSPACE_FQN"
+```
+
+**2. Preview:**
+
+```bash
+tfy apply -f workflow-manifest.yaml --dry-run --show-diff
+```
+
+**3. Apply:**
+
+```bash
+tfy apply -f workflow-manifest.yaml
+```
+
+### Approach C: Via Python SDK
 
 ```python
 from truefoundry.workflow import WorkflowDeployment
@@ -353,6 +309,8 @@ Before deploying, confirm with the user:
 - [ ] **Pip packages** -- `truefoundry[workflow]` is included in every task's packages
 - [ ] **Schedule** -- if cron, confirm the cron expression and timezone (always UTC)
 - [ ] **Workflow file** -- path to the Python file containing `@workflow` and `@task` definitions
+
+**Post-deploy:** Remind the user that the workflow must be triggered manually after deployment. The TrueFoundry dashboard shows a yellow banner for newly deployed workflows that have not been triggered yet.
 
 ## Monitoring Workflow Runs
 
@@ -380,10 +338,9 @@ After deployment, monitor runs through:
 
 <success_criteria>
 
-- The agent has verified that the TrueFoundry SDK with workflow extras is installed
 - The user has a workflow file with properly decorated @task and @workflow functions
 - The agent has confirmed that all @task functions include truefoundry[workflow] in their pip_packages
-- The workflow was successfully deployed to the specified workspace
+- The workflow was successfully deployed to the specified workspace using `tfy deploy workflow` (or `tfy apply` as alternative)
 - The user can monitor workflow runs via the dashboard or applications skill
 - The agent has set up a cron schedule if the user requested recurring execution
 
@@ -406,9 +363,26 @@ After deployment, monitor runs through:
 
 ## Error Handling
 
+### CLI Errors
+
+```
+tfy: command not found
+Install the TrueFoundry CLI:
+  pip install truefoundry
+  tfy login --host "$TFY_BASE_URL"
+```
+
+```
+Manifest validation failed.
+Check:
+- YAML syntax is valid
+- Required fields: name, type, workflow_file, workspace_fqn
+- Workflow file path is correct and accessible
+```
+
 ### SDK Not Installed
 ```
-Install the TrueFoundry SDK with workflow extras:
+The truefoundry[workflow] package is required for defining tasks and workflows:
   pip install "truefoundry[workflow]"
 ```
 
@@ -467,6 +441,14 @@ Check the task logs in the TrueFoundry dashboard for details.
 Cron schedules use UTC timezone. Verify your cron expression accounts for
 UTC offset from your local timezone.
 Use https://crontab.guru to validate your cron expression.
+```
+
+### REST API Fallback Errors
+
+```
+401 Unauthorized — Check TFY_API_KEY is valid
+404 Not Found — Check TFY_BASE_URL and API endpoint path
+422 Validation Error — Check manifest fields match expected schema
 ```
 
 </troubleshooting>

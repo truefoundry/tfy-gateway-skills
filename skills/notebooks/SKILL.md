@@ -1,16 +1,16 @@
 ---
 name: notebooks
-description: This skill should be used when the user asks "launch a notebook", "deploy jupyter", "start a notebook", "jupyter notebook", "create notebook", "notebook for development", "start jupyterlab", "GPU notebook", "notebook with GPU", "data exploration environment", "ML development environment", "run jupyter on cloud", or wants to run Jupyter notebooks on TrueFoundry infrastructure.
+description: Deploys Jupyter notebooks on TrueFoundry infrastructure with optional GPU support. Use when launching JupyterLab environments, setting up ML development workspaces, or running cloud-hosted notebooks for data exploration.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-allowed-tools: Bash(*/tfy-api.sh *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
 
 # Jupyter Notebooks
 
-Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, auto-shutdown, and VS Code integration.
+Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, auto-shutdown, and VS Code integration. Write a YAML manifest and apply with `tfy apply`. REST API fallback when CLI unavailable.
 
 ## When to Use
 
@@ -27,6 +27,33 @@ Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, au
 
 </objective>
 
+<context>
+
+## Prerequisites
+
+**Always verify before launching a notebook:**
+
+1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
+2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
+3. **CLI** — Check `tfy --version`. Install if missing: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"`
+
+For credential check commands and .env setup, see `references/prerequisites.md`.
+
+### CLI Detection
+
+```bash
+tfy --version
+```
+
+| CLI Output | Status | Action |
+|-----------|--------|--------|
+| `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` as documented below. |
+| `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade: `pip install -U truefoundry`. Core `tfy apply` should still work. |
+| Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
+| CLI unavailable (no pip/Python) | Fallback | Use REST API via `tfy-api.sh`. See `references/cli-fallback.md`. |
+
+</context>
+
 <instructions>
 
 ## Launch Notebook via UI
@@ -36,89 +63,145 @@ The fastest way is through the TrueFoundry dashboard:
 2. Select workspace and configure resources
 3. Click Deploy
 
-## Launch Notebook via API
+## Launch Notebook via `tfy apply` (CLI — Recommended)
 
-When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
+### Configuration Questions
+
+Before generating the manifest, ask the user:
+
+1. **Name** — What to call the notebook
+2. **GPU needed?** — CPU notebook (default) or GPU notebook (for ML/training)
+3. **Home directory size** — How much persistent storage in GB (default: 20)
+4. **Auto-shutdown** — Enable auto-shutdown after inactivity? If yes, how many minutes? (default: 30 minutes). Set `cull_timeout: 0` to disable.
+
+### CPU Notebook
+
+**1. Generate the manifest:**
+
+```yaml
+# tfy-manifest.yaml — Jupyter Notebook
+name: my-notebook
+type: notebook
+image:
+  image_uri: public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo
+home_directory_size: 20
+cull_timeout: 30
+resources:
+  node:
+    type: node_selector
+    capacity_type: on_demand
+  cpu_request: 1
+  cpu_limit: 3
+  memory_request: 4000
+  memory_limit: 6000
+  ephemeral_storage_request: 5000
+  ephemeral_storage_limit: 10000
+workspace_fqn: "YOUR_WORKSPACE_FQN"
+```
+
+**2. Preview:**
+
+```bash
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+```
+
+**3. Apply:**
+
+```bash
+tfy apply -f tfy-manifest.yaml
+```
+
+### GPU Notebook
+
+```yaml
+# tfy-manifest.yaml — GPU Jupyter Notebook
+name: gpu-notebook
+type: notebook
+image:
+  image_uri: public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo
+home_directory_size: 20
+cull_timeout: 30
+resources:
+  node:
+    type: node_selector
+    capacity_type: on_demand
+  cpu_request: 4
+  cpu_limit: 8
+  memory_request: 16000
+  memory_limit: 32000
+  ephemeral_storage_request: 10000
+  ephemeral_storage_limit: 20000
+  devices:
+    - type: nvidia_gpu
+      name: T4
+      count: 1
+workspace_fqn: "YOUR_WORKSPACE_FQN"
+```
+
+## Launch Notebook via REST API (Fallback)
+
+When CLI is not available, use `tfy-api.sh`. Set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ### Create Notebook
 
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-notebooks/scripts/tfy-api.sh
 
-$TFY_API_SH POST /api/svc/v1/applications -d '{
+$TFY_API_SH PUT /api/svc/v1/apps -d '{
   "name": "my-notebook",
   "type": "notebook",
-  "workspace_fqn": "WORKSPACE_FQN",
-  "manifest": {
-    "name": "my-notebook",
-    "components": {
-      "image": {
-        "type": "image",
-        "image_uri": "public.ecr.aws/truefoundrycloud/jupyter:0.4.6-py3.11.14-sudo"
-      },
-      "resources": {
-        "cpu_request": 2,
-        "cpu_limit": 4,
-        "memory_request": 4000,
-        "memory_limit": 8000,
-        "ephemeral_storage_request": 5000,
-        "ephemeral_storage_limit": 10000,
-        "storage": 20000
-      },
-      "auto_shutdown": {
-        "wait_time": 30
-      }
-    }
-  }
+  "image": {
+    "image_uri": "public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo"
+  },
+  "home_directory_size": 20,
+  "cull_timeout": 30,
+  "resources": {
+    "node": {"type": "node_selector", "capacity_type": "on_demand"},
+    "cpu_request": 1,
+    "cpu_limit": 3,
+    "memory_request": 4000,
+    "memory_limit": 6000,
+    "ephemeral_storage_request": 5000,
+    "ephemeral_storage_limit": 10000
+  },
+  "workspace_fqn": "WORKSPACE_FQN"
 }'
 ```
 
-### GPU Notebook
+### GPU Notebook (REST API)
 
 ```bash
-$TFY_API_SH POST /api/svc/v1/applications -d '{
+$TFY_API_SH PUT /api/svc/v1/apps -d '{
   "name": "gpu-notebook",
   "type": "notebook",
-  "workspace_fqn": "WORKSPACE_FQN",
-  "manifest": {
-    "name": "gpu-notebook",
-    "components": {
-      "image": {
-        "type": "image",
-        "image_uri": "public.ecr.aws/truefoundrycloud/jupyter:0.4.6-cu129-py3.11.14-sudo"
-      },
-      "resources": {
-        "cpu_request": 4,
-        "cpu_limit": 8,
-        "memory_request": 16000,
-        "memory_limit": 32000,
-        "ephemeral_storage_request": 10000,
-        "ephemeral_storage_limit": 20000,
-        "storage": 50000,
-        "devices": [
-          {"type": "nvidia_gpu", "name": "T4", "count": 1}
-        ]
-      },
-      "auto_shutdown": {
-        "wait_time": 60
-      }
-    }
-  }
+  "image": {
+    "image_uri": "public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo"
+  },
+  "home_directory_size": 20,
+  "cull_timeout": 30,
+  "resources": {
+    "node": {"type": "node_selector", "capacity_type": "on_demand"},
+    "cpu_request": 4,
+    "cpu_limit": 8,
+    "memory_request": 16000,
+    "memory_limit": 32000,
+    "ephemeral_storage_request": 10000,
+    "ephemeral_storage_limit": 20000,
+    "devices": [
+      {"type": "nvidia_gpu", "name": "T4", "count": 1}
+    ]
+  },
+  "workspace_fqn": "WORKSPACE_FQN"
 }'
 ```
 
 ## Available Base Images
 
-| Image | Python | CUDA | Size |
-|-------|--------|------|------|
-| `public.ecr.aws/truefoundrycloud/jupyter:0.4.6-py3.12.12-sudo` | 3.12 | No | ~0.9 GB |
-| `public.ecr.aws/truefoundrycloud/jupyter:0.4.6-py3.11.14-sudo` | 3.11 | No | ~0.9 GB |
-| `public.ecr.aws/truefoundrycloud/jupyter:0.4.6-py3.10.19-sudo` | 3.10 | No | ~0.9 GB |
-| `public.ecr.aws/truefoundrycloud/jupyter:0.4.6-cu129-py3.12.12-sudo` | 3.12 | 12.9 | ~7 GB |
-| `public.ecr.aws/truefoundrycloud/jupyter:0.4.6-cu129-py3.11.14-sudo` | 3.11 | 12.9 | ~7 GB |
-| `public.ecr.aws/truefoundrycloud/jupyter:0.4.6-cu129-py3.10.19-sudo` | 3.10 | 12.9 | ~7 GB |
+Default: `public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo`
 
 **Full image registry**: https://gallery.ecr.aws/truefoundrycloud/jupyter
+
+See `references/container-versions.md` for latest versions.
 
 ### Choosing an Image
 
@@ -130,7 +213,7 @@ $TFY_API_SH POST /api/svc/v1/applications -d '{
 
 Notebooks auto-stop after inactivity to save costs. Default: 30 minutes.
 
-Configure `wait_time` in minutes in the `auto_shutdown` section.
+Configure `cull_timeout` in minutes in the manifest (default: 30). Set to `0` to disable auto-shutdown.
 
 **What counts as activity**: Active Jupyter sessions, running cells, terminal sessions.
 **What doesn't count**: Background processes, idle kernels.
@@ -256,6 +339,24 @@ Notebooks:
 
 ## Error Handling
 
+### CLI Errors
+
+```
+tfy: command not found
+Install the TrueFoundry CLI:
+  pip install truefoundry
+  tfy login --host "$TFY_BASE_URL"
+```
+
+```
+Manifest validation failed.
+Check:
+- YAML syntax is valid
+- Required fields: name, type, workspace_fqn
+- Image URI exists and is accessible
+- Resource values use correct units (memory in MB)
+```
+
 ### Notebook Not Starting
 ```
 Notebook stuck in pending. Check:
@@ -278,6 +379,14 @@ Notebook storage full. Options:
 - Clean up unused files in /home/jovyan/
 - Increase storage allocation
 - Mount an external volume for large datasets
+```
+
+### REST API Fallback Errors
+
+```
+401 Unauthorized — Check TFY_API_KEY is valid
+404 Not Found — Check TFY_BASE_URL and API endpoint path
+422 Validation Error — Check manifest fields match expected schema
 ```
 
 </troubleshooting>

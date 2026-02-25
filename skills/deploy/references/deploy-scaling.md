@@ -6,24 +6,16 @@ TrueFoundry supports horizontal pod autoscaling (HPA) based on CPU, memory, or c
 
 ### Replica Configuration
 
-**REST API manifest:**
-```json
-{
-  "replicas": {
-    "min": 2,
-    "max": 10
-  }
-}
+**YAML manifest:**
+```yaml
+replicas:
+  min: 2
+  max: 10
 ```
 
-**SDK:**
-```python
-from truefoundry.deploy import Replicas
-
-service = Service(
-    # ...
-    replicas=Replicas(min=2, max=10),
-)
+**Fixed replicas (no autoscaling):**
+```yaml
+replicas: 1
 ```
 
 ### Scaling Guidelines
@@ -36,7 +28,7 @@ service = Service(
 | High-traffic | 3 | 20+ | Based on load testing |
 
 **Key considerations:**
-- `min: 1` means no high availability — if the pod dies, there's downtime
+- `min: 1` means no high availability -- if the pod dies, there's downtime
 - `min: 2` ensures at least one pod is always available during rolling updates
 - `max` should be set based on cluster capacity and expected peak traffic
 - TrueFoundry auto-scales based on CPU utilization by default
@@ -50,30 +42,12 @@ Control how new versions are deployed to minimize downtime and risk.
 
 ### Rolling Update (Default, Recommended)
 
-**REST API manifest:**
-```json
-{
-  "rollout_strategy": {
-    "type": "rolling_update",
-    "max_surge_percentage": 25,
-    "max_unavailable_percentage": 0
-  }
-}
-```
-
-**SDK:**
-```python
-from truefoundry.deploy import RolloutStrategy, RollingUpdate
-
-service = Service(
-    # ...
-    rollout_strategy=RolloutStrategy(
-        type=RollingUpdate(
-            max_surge_percentage=25,
-            max_unavailable_percentage=0,
-        )
-    ),
-)
+**YAML manifest:**
+```yaml
+rollout_strategy:
+  type: rolling_update
+  max_surge_percentage: 25
+  max_unavailable_percentage: 0
 ```
 
 ### Strategy Options
@@ -87,3 +61,21 @@ service = Service(
 **Recommendation:** Use `max_surge: 25%, max_unavailable: 0%` for production (zero-downtime deploys).
 
 See: [Rollout Strategy](https://truefoundry.com/docs/rollout-strategy)
+
+## REST API Fallback
+
+For REST API format, wrap the YAML fields in a JSON manifest body:
+
+```json
+{
+  "replicas": {
+    "min": 2,
+    "max": 10
+  },
+  "rollout_strategy": {
+    "type": "rolling_update",
+    "max_surge_percentage": 25,
+    "max_unavailable_percentage": 0
+  }
+}
+```
