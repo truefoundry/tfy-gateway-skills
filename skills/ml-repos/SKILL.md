@@ -14,7 +14,7 @@ Browse TrueFoundry ML repositories and model registry. List ML repos, get repo d
 
 ## Scope
 
-Browse ML repositories, list models and artifacts, and retrieve FQNs for use with other skills (prompts, llm-finetuning, llm-deploy).
+Browse ML repositories, list models and artifacts, and retrieve FQNs for use with other skills (prompts, llm-deploy).
 
 </objective>
 
@@ -100,7 +100,7 @@ Models in "my-models":
 - The user can list all ML repos and see them in a formatted table
 - The user can get details for a specific ML repo by ID
 - The user can list models within a repo, filtered by repo ID, name, or FQN
-- The agent has provided FQN values that can be used with other skills (prompts, llm-finetuning)
+- The agent has provided FQN values that can be used with other skills (prompts, llm-deploy)
 
 </success_criteria>
 
@@ -110,7 +110,7 @@ Models in "my-models":
 
 - **Preflight**: Use `status` skill to verify TFY_BASE_URL and TFY_API_KEY
 - **Prompts**: ML repo FQN is needed when creating prompts (`prompts` skill)
-- **Fine-tuning**: Fine-tuned model outputs are saved to ML repos (`llm-finetuning` skill)
+- **Fine-tuning**: Fine-tuned model outputs are saved to ML repos
 - **Deploy**: Models from the registry can be deployed using `llm-deploy` skill
 
 ## API Endpoints
