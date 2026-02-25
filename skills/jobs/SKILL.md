@@ -1,6 +1,6 @@
 ---
 name: jobs
-description: Deploys, schedules, and monitors TrueFoundry jobs. Supports one-time and cron jobs with retry, GPU, and volume mounts. For listing job apps, use applications skill.
+description: This skill should be used when the user asks "deploy a job", "create a job", "run a batch task", "schedule a job", "show job runs", "list runs", "job status", "is my job running", "run a batch job", "execute a task", "cron job", "one-time job", "trigger a run", "check job run", "failed job", or wants to deploy or monitor TrueFoundry job executions. Uses YAML manifests with `tfy apply`. For listing job applications, use applications skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
@@ -17,7 +17,12 @@ Deploy, schedule, and monitor TrueFoundry job runs. Two paths:
 
 ## When to Use
 
-Deploy, schedule, trigger, or monitor TrueFoundry job runs. Covers one-time jobs, cron-scheduled jobs, and job run status/history.
+- User asks "deploy a job", "create a job", "run a batch task"
+- User asks "schedule a job", "run a cron job"
+- User asks "show job runs", "list runs for my job"
+- User asks "is my job running", "job status"
+- User wants to check a specific job run
+- Debugging a failed job run
 
 ## When NOT to Use
 
@@ -41,137 +46,12 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 <instructions>
 
-## Quick Deploy Flow
+### Step 1: Analyze the Job
 
-**For the fastest deployment, present a single plan instead of asking questions one by one.**
-
-### 1. Check Preferences
-
-```bash
-PREFS_FILE=~/.config/truefoundry/preferences.yml
-if [ -f "$PREFS_FILE" ]; then
-  cat "$PREFS_FILE"
-fi
-```
-
-If preferences exist, pre-fill: workspace, environment, resources.
-If no preferences file, the only mandatory question is **workspace**.
-
-### 2. Auto-Detect + Pre-fill
-
-Combine preferences + project scanning to fill every field:
-
-| Field | Source (priority order) |
-|-------|----------------------|
-| Workspace | 1. Preferences 2. Ask user |
-| Job name | Auto-detect from script/project name |
-| Image + command | Auto-detect from Dockerfile, requirements.txt, project structure |
-| Schedule | Default manual trigger (ask if cron needed) |
-| Resources | 1. Preferences 2. Codebase analysis defaults |
-| Environment | 1. Preferences 2. Default "dev" |
-| Env vars | Auto-detect from .env/code |
-| GPU | Only if ML libs detected |
-
-### 3. Present One Plan
-
-Present ALL values in a single summary and ask for confirmation:
-
-```
-I'll deploy your job to TrueFoundry:
-
-| Setting        | Value                          | Source      |
-|----------------|--------------------------------|-------------|
-| Workspace      | my-cluster:dev-ws              | saved pref  |
-| Job name       | training-job                   | auto        |
-| Image          | PythonBuild                    | auto        |
-| Command        | python train.py                | auto        |
-| Schedule       | Manual trigger                 | default     |
-| CPU            | 0.5 / 1.0                      | dev default |
-| Memory         | 512 / 1024 MB                  | dev default |
-| GPU            | None                           | default     |
-| Env vars       | 2 from .env                    | auto        |
-
-Deploy with these settings? (say "yes" to deploy, or tell me what to change)
-```
-
-### 4. Handle Response
-
-- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
-- **"change X to Y"** → update that one field, re-confirm
-- **"I want to customize"** → fall through to the full checklist flow below
-
-### 5. After Deploy — Offer to Save Preferences
-
-If no preferences file exists or new values were used:
-
-```
-Deployed successfully! Want me to save these settings as defaults?
-- Workspace: my-cluster:dev-ws
-- Environment: dev
-- Resources: dev profile
-
-This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
-```
-
-Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
-
----
-
-### Step 1: Auto-Detect Before Asking
-
-**Before asking the user anything**, scan the project to auto-detect as much as possible:
-
-1. **Image source** — Check for `deploy.py`, `Dockerfile`, `requirements.txt`, `setup.py`. Determine if PythonBuild, Dockerfile, or pre-built image.
-2. **Command** — Detect entrypoint from `Dockerfile` CMD/ENTRYPOINT, or infer from project structure (e.g., `python train.py`, `python main.py`).
-3. **Python version** — Detect from `.python-version`, `pyproject.toml`, `Dockerfile FROM` line, or `runtime.txt`.
-4. **Environment variables** — Scan `.env`, `config.py` for env var patterns.
-5. **GPU** — Only suggest if ML/GPU libraries detected (`torch`, `transformers`, `tensorflow`).
-
-Present auto-detected values as confirmations ("I detected X — correct?") rather than open-ended questions.
-
-### Step 1b: User Confirmation Checklist
-
-**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
-
-- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
-- [ ] **Job name** — Suggest based on project directory or script name (e.g., `training-job`, `data-pipeline`).
-- [ ] **Image source + command** — Auto-detect from project (Dockerfile, PythonBuild, or pre-built image). Confirm with user.
-- [ ] **Schedule** — One-time (manual trigger) or cron? If cron, ask for schedule expression.
-- [ ] **Resources** — Present a suggestion table based on codebase analysis (see below). Include CPU, memory, storage, GPU (if detected). Let user adjust.
-- [ ] **Environment variables & secrets** — Auto-detect from `.env`/code. Confirm found vars, ask if any others needed.
-
-### Resource Suggestion Table
-
-Present resources based on the job type:
-
-```
-Based on your job ({script}, {job_type}):
-
-| Resource       | Default    | Suggested  | Notes                          |
-|----------------|------------|------------|--------------------------------|
-| CPU request    | 0.5 cores  | {value}    | {reasoning}                    |
-| CPU limit      | 1.0 cores  | {value}    | {reasoning}                    |
-| Memory request | 512 MB     | {value}    | {reasoning}                    |
-| Memory limit   | 1024 MB    | {value}    | 1.5-2x request                 |
-| Storage        | 1000 MB    | {value}    | {reasoning}                    |
-| GPU            | None       | {value}    | Only if ML libs detected       |
-
-Use suggested values, or customize?
-```
-
-### Defaults Applied Silently (do not ask unless user raises)
-
-These use sensible defaults. Only surface if the user asks or the situation requires it:
-
-| Field | Default | When to Ask |
-|-------|---------|-------------|
-| Retries | 0 | Only ask if user mentions retry or fault tolerance |
-| Timeout | None (no limit) | Only ask if user mentions max duration |
-| Concurrency policy | Forbid (skip if previous still running) | Only ask for cron jobs if user mentions overlap handling |
-| Capacity type | any | Only ask if user mentions spot/cost optimization |
-| Volume mounts | None | Only ask if user mentions persistent data or shared storage |
-| Python version (PythonBuild) | 3.11 | Only ask if user mentions specific version |
-| Requirements path | `requirements.txt` | Only confirm if auto-detected path differs |
+- What does the job do? (training, batch processing, data pipeline, maintenance)
+- One-time or scheduled?
+- Resource requirements (CPU/GPU/memory)
+- Expected duration
 
 ### Step 2: Generate YAML Manifest
 
@@ -179,59 +59,95 @@ Based on the job requirements, create a YAML manifest.
 
 #### Option A: Pre-built Image
 
-```python
-from truefoundry.deploy import Build, Job, PythonBuild, Resources, LocalSource, DockerFileBuild, Image
-
-# Option A: PythonBuild (local code, no Dockerfile)
-job = Job(
-    name="<JOB_NAME>",
-    image=Build(
-        build_source=LocalSource(local_build=False),
-        build_spec=PythonBuild(
-            command="<COMMAND>",
-            python_version="3.11",
-            requirements_path="requirements.txt",
-        ),
-    ),
-    resources=Resources(
-        cpu_request=0.5, cpu_limit=1.0,
-        memory_request=512, memory_limit=1024,
-        ephemeral_storage_request=1000, ephemeral_storage_limit=2000,
-    ),
-    env={},
-)
-
-# Option B: DockerFileBuild — replace image=Build(...) with:
-#   image=Build(
-#       build_spec=DockerFileBuild(dockerfile_path="Dockerfile", command="python job.py"),
-#       build_source=LocalSource(local_build=False),
-#   )
-
-# Option C: Pre-built image — replace image=Build(...) with:
-#   image=Image(image_uri="<IMAGE_URI>", command="<COMMAND>")
-
-job.deploy(workspace_fqn="<WORKSPACE_FQN>")
+```yaml
+name: my-batch-job
+type: job
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  ENVIRONMENT: production
+workspace_fqn: cluster-id:workspace-name
 ```
 
-Adjust resource values using the resource suggestion table above.
+#### Option B: Git Repo + Dockerfile
 
-**Parameterized jobs**: Use argparse in your script, then set the command with args (e.g., `command="python train.py --epochs 50"`).
+```yaml
+name: my-batch-job
+type: job
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    branch_name: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: Dockerfile
+    build_context_path: "."
+    command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+env:
+  ENVIRONMENT: production
+workspace_fqn: cluster-id:workspace-name
+```
 
-**GPU jobs**: Add `devices=[NvidiaGPU(name=GPUType.<TYPE>, count=1)]` to Resources. Import `NvidiaGPU, GPUType` from `truefoundry.deploy`.
+#### Option C: Git Repo + PythonBuild (No Dockerfile)
 
-**Volume mounts**: Add `mounts=[VolumeMount(mount_path="/data", volume_fqn="cluster:ws:vol")]` to Job. Import `VolumeMount` from `truefoundry.deploy`.
+```yaml
+name: my-batch-job
+type: job
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    branch_name: main
+  build_spec:
+    type: python
+    python_version: "3.11"
+    requirements_path: requirements.txt
+    command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+workspace_fqn: cluster-id:workspace-name
+```
 
 ### Scheduled Jobs (Cron)
 
 Add a `trigger` section for scheduled execution:
 
-job = Job(
-    name="<JOB_NAME>",                              # ← ask user
-    # ... image and resources ...
-    trigger=CronTrigger(
-        schedule="<CRON_EXPRESSION>",                # ← ask user
-    ),
-)
+```yaml
+name: nightly-retrain
+type: job
+trigger:
+  type: cron
+  schedule: "0 2 * * *"  # 2 AM daily
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+workspace_fqn: cluster-id:workspace-name
 ```
 
 Cron format: `minute hour day_of_month month day_of_week`
@@ -246,16 +162,22 @@ Common schedules:
 
 ### Manual Trigger with Retries
 
-```python
-from truefoundry.deploy import Job, ManualTrigger
-
-job = Job(
-    name="<JOB_NAME>",                              # ← ask user
-    trigger=ManualTrigger(
-        num_retries=<NUM_RETRIES>,                   # ← ask user
-    ),
-    # ... rest of config
-)
+```yaml
+name: my-job
+type: job
+trigger:
+  type: manual
+  num_retries: 3
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python job.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+workspace_fqn: cluster-id:workspace-name
 ```
 
 ### Concurrency Policies
@@ -265,7 +187,63 @@ Three options for scheduled jobs when a run overlaps:
 - **Allow**: Run in parallel
 - **Replace**: Kill current, start new
 
-### Step 3: Deploy
+### Parameterized Jobs
+
+```python
+import argparse
+# In your job script, use argparse for dynamic params
+parser = argparse.ArgumentParser()
+parser.add_argument("--epochs", type=int, default=10)
+parser.add_argument("--batch-size", type=int, default=32)
+args = parser.parse_args()
+```
+
+Then set command: `python train.py --epochs 50 --batch-size 64`
+
+### GPU Jobs
+
+```yaml
+name: gpu-training-job
+type: job
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 4
+  cpu_limit: 8
+  memory_request: 16000
+  memory_limit: 32000
+  devices:
+    - type: nvidia_gpu
+      name: A10_24GB
+      count: 1
+workspace_fqn: cluster-id:workspace-name
+```
+
+### Job with Volume Mounts
+
+```yaml
+name: training-job
+type: job
+image:
+  type: image
+  image_uri: my-registry/my-image:latest
+  command: python train.py
+resources:
+  cpu_request: 2
+  cpu_limit: 4
+  memory_request: 4000
+  memory_limit: 8000
+mounts:
+  - mount_path: /data
+    volume_fqn: your-volume-fqn
+workspace_fqn: cluster-id:workspace-name
+```
+
+### Step 3: Write and Apply Manifest
+
+Write the manifest to `tfy-manifest.yaml`:
 
 ```bash
 # Preview
@@ -294,7 +272,7 @@ After deployment, trigger manually via API:
 
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
-$TFY_API_SH POST /api/svc/v1/jobs/trigger '{"applicationId":"JOB_APP_ID"}'
+$TFY_API_SH POST /api/svc/v1/jobs/JOB_ID/runs -d '{}'
 ```
 
 ## After Deploy -- Report Status
@@ -324,7 +302,7 @@ Schedule: {cron expression if scheduled, or "Manual trigger"}
 
 To trigger the job:
   - Dashboard: Click "Run Job" on the job page
-  - API: POST /api/svc/v1/jobs/trigger with {"applicationId":"JOB_APP_ID"}
+  - API: POST /api/svc/v1/jobs/{JOB_ID}/runs
 
 To monitor runs:
   - Use the job monitoring commands below
@@ -333,36 +311,6 @@ To monitor runs:
 
 **For scheduled jobs**, also show when the next run will execute.
 **For manually triggered jobs**, remind the user how to trigger them.
-
-### Via API Manifest
-
-```bash
-TFY_API_SH=~/.claude/skills/truefoundry-jobs/scripts/tfy-api.sh
-
-# First, get workspace ID from FQN
-$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
-
-# Then deploy
-$TFY_API_SH PUT /api/svc/v1/apps '{
-  "manifest": {
-    "name": "<JOB_NAME>",
-    "type": "job",
-    "image": {
-      "type": "image",
-      "image_uri": "<IMAGE_URI>",
-      "command": "<COMMAND>"
-    },
-    "resources": {
-      "cpu_request": <CPU_REQUEST>,
-      "cpu_limit": <CPU_LIMIT>,
-      "memory_request": <MEMORY_REQUEST>,
-      "memory_limit": <MEMORY_LIMIT>
-    },
-    "workspace_fqn": "<WORKSPACE_FQN>"
-  },
-  "workspaceId": "<WORKSPACE_ID>"
-}'
-```
 
 ### .tfyignore
 
@@ -416,8 +364,8 @@ $TFY_API_SH GET '/api/svc/v1/jobs/JOB_ID/runs?sortBy=createdAt&searchPrefix=my-r
 ```
 Job Runs for data-pipeline:
 | Run Name       | Status    | Started            | Duration |
-|----------------|-----------|--------------------|---------| 
-| run-20260210-1 | FINISHED  | 2026-02-10 09:00   | 5m 32s  |
+|----------------|-----------|--------------------|---------|
+| run-20260210-1 | SUCCEEDED | 2026-02-10 09:00   | 5m 32s  |
 | run-20260210-2 | FAILED    | 2026-02-10 10:00   | 1m 05s  |
 | run-20260210-3 | RUNNING   | 2026-02-10 11:00   | --       |
 ```

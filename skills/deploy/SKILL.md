@@ -1,10 +1,11 @@
 ---
 name: deploy
-description: Deploys code or images to TrueFoundry as services. Supports REST API manifests, Git-based builds, pre-built images, and Python SDK. NOT for listing apps (use applications) or LLMs (use llm-deploy).
+description: This skill should be used when the user says "deploy to truefoundry", "deploy this app", "ship to tfy", "push to truefoundry", "publish my app", "host this service", "deploy to cloud", "put this in production", "launch my service", "release this app", or wants to deploy code or images to TrueFoundry. Supports YAML manifests with `tfy apply`, Git-based remote builds, and pre-built images.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-disable-model-invocation: true
-allowed-tools: Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
+metadata:
+  disable-model-invocation: "true"
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
 ---
 
 <objective>
@@ -20,7 +21,9 @@ Use the CLI path by default. Fall back to REST API only if `tfy` CLI is not inst
 
 ## When to Use
 
-Deploy code, Docker images, or Git repos to TrueFoundry as HTTP services. Defaults to REST API path; falls back to Python SDK if user has deploy.py or requests it.
+- User says "deploy", "deploy to truefoundry", "ship this"
+- User wants to push code or images to TrueFoundry
+- User says "deploy and check status"
 
 ## When NOT to Use
 
@@ -89,83 +92,6 @@ pip install truefoundry
 
 <instructions>
 
-## Quick Deploy Flow
-
-**For the fastest deployment, present a single plan instead of asking questions one by one.**
-
-### 1. Check Preferences
-
-```bash
-PREFS_FILE=~/.config/truefoundry/preferences.yml
-if [ -f "$PREFS_FILE" ]; then
-  cat "$PREFS_FILE"
-fi
-```
-
-If preferences exist, pre-fill: workspace, environment, resources, expose, base domain.
-If no preferences file, the only mandatory question is **workspace**.
-
-### 2. Auto-Detect + Pre-fill
-
-Combine preferences + project scanning to fill every field:
-
-| Field | Source (priority order) |
-|-------|----------------------|
-| Workspace | 1. Preferences 2. Ask user |
-| Service name | Auto-detect from project/repo name |
-| Image source | Auto-detect from project (Git repo, Dockerfile, local code) |
-| Port | Auto-detect from code (uvicorn, EXPOSE, app.listen, etc.) |
-| Resources | 1. Preferences 2. Codebase analysis defaults |
-| Environment | 1. Preferences 2. Default "dev" |
-| Public URL | 1. Preferences (`expose_services`) 2. Default false |
-| Env vars | Auto-detect from .env/code |
-
-### 3. Present One Plan
-
-Present ALL values in a single summary and ask for confirmation:
-
-```
-I'll deploy your service to TrueFoundry:
-
-| Setting        | Value                          | Source      |
-|----------------|--------------------------------|-------------|
-| Workspace      | my-cluster:dev-ws              | saved pref  |
-| Service name   | my-app                         | auto        |
-| Image          | Git + Dockerfile               | auto        |
-| Port           | 8000                           | auto        |
-| CPU            | 0.5 / 1.0                      | dev default |
-| Memory         | 512 / 1024 MB                  | dev default |
-| Replicas       | 1                              | dev default |
-| Public URL     | No                             | saved pref  |
-| Env vars       | 3 from .env                    | auto        |
-
-Deploy with these settings? (say "yes" to deploy, or tell me what to change)
-```
-
-### 4. Handle Response
-
-- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
-- **"change X to Y"** → update that one field, re-confirm
-- **"I want to customize"** → fall through to the full checklist flow below
-
-### 5. After Deploy — Offer to Save Preferences
-
-If no preferences file exists or new values were used:
-
-```
-Deployed successfully! Want me to save these settings as defaults?
-- Workspace: my-cluster:dev-ws
-- Environment: dev
-- Resources: dev profile
-- Expose: internal only
-
-This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
-```
-
-Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
-
----
-
 ## Step 1: Discover Cluster Capabilities
 
 **Before asking the user about resources, GPUs, or public URLs**, fetch the cluster's capabilities so you can present only what's actually available.
@@ -186,32 +112,74 @@ From the cluster response, extract:
 
 **Always discover before asking.** This prevents wasted round-trips with the user.
 
-## Step 2: Auto-Detect Before Asking
+## Step 2: Analyze Application & Suggest Resources
 
-**Before asking the user anything**, scan the project to auto-detect as much as possible:
+**Before asking about CPU/memory/GPU**, analyze the user's codebase and ask about expected load. This produces informed resource suggestions instead of arbitrary defaults.
 
-1. **Image source** — Auto-detect deployment path (see "Choose Deployment Path" above). Only confirm with user, don't ask from scratch.
-2. **Framework & app type** — Detect from dependency files (`requirements.txt`, `package.json`, `go.mod`, `Dockerfile`). Categorize as web API, ML inference, worker, frontend, or data pipeline.
-3. **Port** — Detect from code: `uvicorn --port`, `app.listen(`, `EXPOSE` in Dockerfile, `gunicorn -b 0.0.0.0:`, `server.port` in config.
-4. **Build details** — Auto-detect Dockerfile path, build context, Git repo URL + branch. Only confirm, don't ask each sub-field.
-5. **Environment variables** — Scan `.env`, `config.py`, `docker-compose.yml` for env var patterns.
-6. **GPU** — Only suggest if ML/GPU libraries detected (`torch`, `transformers`, `tensorflow`, `opencv-python`).
-7. **Health endpoint** — Look for `/health`, `/healthz`, `/ping` routes in the code.
+### 2a. Codebase Analysis
 
-Present auto-detected values as confirmations ("I detected X — correct?") rather than open-ended questions.
+Scan the project to determine:
 
-## Step 3: Analyze Application & Suggest Resources
+1. **Framework & runtime** -- Look at dependency files and entrypoints:
+   - `requirements.txt`, `pyproject.toml`, `setup.py` -> Python (check for FastAPI, Flask, Django, Celery, etc.)
+   - `package.json` -> Node.js (check for Express, Next.js, NestJS, etc.)
+   - `go.mod` -> Go
+   - `Dockerfile` -> check `FROM` image and `CMD`/`ENTRYPOINT`
 
-**Before asking about CPU/memory/GPU**, analyze the user's codebase. This produces informed resource suggestions instead of arbitrary defaults.
+2. **Application type** -- Categorize what the app does:
+   - **Web API / HTTP service** -- REST/GraphQL endpoint (FastAPI, Express, Django, etc.)
+   - **ML inference** -- Model serving (vLLM, TGI, Triton, transformers, torch, etc.)
+   - **Worker / queue consumer** -- Background processing (Celery, Bull, etc.)
+   - **Static site / frontend** -- Next.js SSR, React SPA, etc.
+   - **Data pipeline** -- Batch processing (Spark, pandas, etc.)
 
-For the full codebase analysis flow (framework detection, app categorization, load questions by app type, and resource suggestion table format), see [references/codebase-analysis.md](references/codebase-analysis.md).
+3. **Compute indicators** -- Check for signals that affect resource needs:
+   - ML libraries (`torch`, `transformers`, `vllm`, `tensorflow`) -> likely needs GPU + high memory
+   - Image/video processing (`Pillow`, `opencv`, `ffmpeg`) -> CPU-intensive
+   - In-memory caching or large datasets (`redis`, `pandas` with large files) -> memory-intensive
+   - Async/concurrent patterns (`asyncio`, `uvicorn workers`, `gunicorn`) -> can handle more load per CPU
+   - Database connections (`sqlalchemy`, `prisma`, `mongoose`) -> connection pooling matters
 
-For CPU, memory, GPU, and replica estimation rules of thumb, see `references/resource-estimation.md`. Key points:
+### 2b. Ask About Expected Load
+
+Based on the app type, ask the user targeted questions about expected TPS, concurrent users, latency targets, and environment (dev/staging/prod). For detailed question templates by app type (Web APIs, ML inference, workers), see [references/load-analysis-questions.md](references/load-analysis-questions.md).
+
+### 2c. Resource Suggestion Table
+
+Present a comparison table with defaults, suggested values, and let the user choose:
+
+```
+Based on your app (FastAPI web API, ~50 TPS, production):
+
+| Resource      | Default (min) | Suggested    | Notes                              |
+|---------------|---------------|--------------|-------------------------------------|
+| CPU request   | 0.25 cores    | 1.0 cores    | 50 TPS with async needs ~1 core    |
+| CPU limit     | 0.5 cores     | 2.0 cores    | Headroom for traffic spikes         |
+| Memory request| 256 MB        | 512 MB       | FastAPI + dependencies baseline     |
+| Memory limit  | 512 MB        | 1024 MB      | 2x request for safety margin        |
+| Replicas (min)| 1             | 2            | HA for production                   |
+| Replicas (max)| 1             | 4            | Autoscale for peak traffic          |
+| GPU           | None          | None         | Not needed for this workload        |
+
+Do you want to use the suggested values, or customize any of them?
+```
+
+### Resource Estimation Guidelines
+
+For detailed CPU, memory, GPU, and replica estimation rules of thumb, see `references/resource-estimation.md`. Key points:
 
 - Always check available GPU types on the cluster (Step 1)
 - Memory limit should be 1.5-2x the request
 - Production: min 2 replicas for high availability
-- GPU VRAM needed = model parameter count x 2 bytes (FP16)
+- GPU VRAM needed ~ model parameter count x 2 bytes (FP16)
+
+### Important Notes
+
+- **Always show the suggestion table** -- Don't just pick values silently. Users should see the reasoning.
+- **Let users override** -- Suggestions are starting points, not mandates.
+- **Mention trade-offs** -- More resources = higher cost, fewer = risk of OOM/throttling.
+- **Factor in environment** -- Dev gets minimal defaults, production gets HA suggestions.
+- **Reference cluster capabilities** -- Only suggest GPU types that are actually available (from Step 1).
 
 ## Deploy Flow
 
@@ -271,9 +239,11 @@ Show the preview output to the user. If this is an update to an existing service
 
 ### Step 4: Apply
 
-   **First**, run auto-detection (Step 2) and codebase analysis (Step 3) to identify framework, app type, port, and compute indicators.
+After user confirms:
 
-   **Then**, confirm with the user per the User Confirmation Checklist below. Most values should already be auto-detected — present them for confirmation rather than asking from scratch.
+```bash
+tfy apply -f tfy-manifest.yaml
+```
 
 ### Fallback: REST API
 
@@ -291,54 +261,26 @@ $TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WORKSPA
 
 ## User Confirmation Checklist
 
-**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
+**Before deploying, confirm these with the user:**
 
-- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
-- [ ] **Service name** — Suggest project directory name or repo name.
-- [ ] **Image source** — Auto-detect deployment path (Git repo + Dockerfile, pre-built image, SDK local build, etc.). Confirm with user.
-- [ ] **Port** — Auto-detect from code. Confirm: "I detected port {port} — correct?"
-- [ ] **Resources + scaling** — Present a suggestion table based on codebase analysis (see below). Include CPU, memory, storage, GPU (if detected), and min/max replicas. Let user adjust.
-- [ ] **Public URL** — Internal-only or public? If public, construct URL from cluster base domains and confirm.
-- [ ] **Environment variables & secrets** — Auto-detect from `.env`/code. Confirm found vars, ask if any others needed.
+- [ ] **Service name** -- what to call this deployment
+- [ ] **Image source** -- pre-built image, Git repo + Dockerfile, Git repo + PythonBuild, or local Docker build?
+- [ ] **Port** -- what port the application listens on
+- [ ] **Expected load** -- TPS, concurrent users, environment (dev/staging/prod) -> use Step 2 analysis
+- [ ] **CPU/Memory** -- show resource suggestion table from Step 2 (defaults vs suggested values)
+- [ ] **GPU** -- whether GPU is needed (only offer available types from Step 1)
+- [ ] **Replicas** -- min/max for autoscaling (suggest based on load analysis)
+- [ ] **Environment variables** -- check `.env`, `config.py`, or ask directly
+- [ ] **Health probes** -- configure startup/readiness/liveness probes (recommended for production)
+- [ ] **Public URL** -- internal-only or public? If public, look up cluster base domains and confirm the host
+- [ ] **Secrets** -- whether to mount TrueFoundry secret groups
+- [ ] **Auto-shutdown** -- does the user want the service to auto-stop after inactivity? Useful for dev/staging to save costs. Not recommended for production services that need to be always-on.
 
-### Resource Suggestion Table
-
-Present resources and scaling together based on the app type and environment:
-
-```
-Based on your app ({framework}, {app_type}):
-
-| Resource       | Default    | Suggested  | Notes                          |
-|----------------|------------|------------|--------------------------------|
-| CPU request    | 0.25 cores | {value}    | {reasoning}                    |
-| CPU limit      | 0.5 cores  | {value}    | {reasoning}                    |
-| Memory request | 256 MB     | {value}    | {reasoning}                    |
-| Memory limit   | 512 MB     | {value}    | 1.5-2x request                 |
-| GPU            | None       | {value}    | Only if ML libs detected       |
-| Replicas (min) | 1          | {value}    | Based on environment           |
-| Replicas (max) | 1          | {value}    | Based on expected load         |
-
-Use suggested values, or customize?
-```
-
-For detailed estimation rules, see `references/resource-estimation.md` and `references/codebase-analysis.md`.
-
-### Defaults Applied Silently (do not ask unless user raises)
-
-These use sensible defaults. Only surface if the user asks or the situation requires it:
-
-| Field | Default | When to Ask |
-|-------|---------|-------------|
-| Health probes | Auto-configured based on framework (liveness + readiness) | Only ask if user mentions custom health endpoints or slow startup |
-| Protocol | HTTP | Only ask if user mentions TCP/gRPC |
-| Expose | false | Already covered by Public URL question |
-| Rollout strategy | `max_surge: 25%, max_unavailable: 0%` (zero-downtime) | Only ask if user mentions rolling updates or canary deploys |
-| Build details (Dockerfile path, context, args) | Auto-detected from project | Only confirm if auto-detection finds multiple Dockerfiles or non-standard paths |
-| Capacity type | any | Only ask if user mentions spot/cost optimization |
+**Do NOT deploy with hardcoded defaults without asking.** Analyze the app (Step 2), suggest appropriate values, and let the user confirm or adjust.
 
 ## Health Probes
 
-**Auto-configure health probes for all services.** Do not ask the user about probes unless they mention custom health endpoints or slow startup. Without probes, Kubernetes may route traffic to unready pods or fail to restart crashed ones.
+**Always configure health probes for production services.** Without them, Kubernetes may route traffic to unready pods or fail to restart crashed ones.
 
 | Probe | Purpose | When to Use |
 |-------|---------|-------------|

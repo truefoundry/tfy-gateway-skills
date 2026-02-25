@@ -1,0 +1,23 @@
+name: example-redis
+type: helm
+source:
+  type: oci-repo
+  version: "20.6.2"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/redis
+values:
+  auth:
+    enabled: true
+    password: "${REDIS_PASSWORD}"
+  master:
+    persistence:
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+  replica:
+    replicaCount: 0
+workspace_fqn: ${TFY_WORKSPACE_FQN}

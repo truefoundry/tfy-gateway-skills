@@ -1,10 +1,11 @@
 ---
 name: llm-deploy
-description: Deploys LLMs and ML inference servers (vLLM, TGI, NVIDIA NIM) on TrueFoundry with GPU allocation, model caching, and health probes. NOT for regular apps (use deploy skill) or benchmarking (use llm-benchmarking skill).
+description: This skill should be used when the user asks "deploy a model", "deploy LLM", "serve a model", "deploy hugging face model", "deploy vLLM", "deploy TGI", "deploy NIM", "NVIDIA NIM", "inference server", "serve gemma", "serve llama", "serve mistral", "GPU model serving", "host a language model", "deploy ML model", or wants to deploy any ML/LLM model on TrueFoundry. Uses YAML manifests with `tfy apply`.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-disable-model-invocation: true
-allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
+metadata:
+  disable-model-invocation: "true"
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 ---
 
 <objective>
@@ -13,9 +14,18 @@ allowed-tools: Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 
 Deploy large language models and ML inference servers to TrueFoundry. Supports vLLM, TGI, and custom model servers with proper GPU allocation, model caching, health probes, and production-ready defaults.
 
-## Scope
+Two paths:
 
-Deploy LLMs and ML models for inference on TrueFoundry using vLLM, TGI, or NVIDIA NIM with proper GPU allocation and production defaults.
+1. **CLI** (`tfy apply`) -- Write a YAML manifest and apply it. Works everywhere.
+2. **REST API** (fallback) -- When CLI unavailable, use `tfy-api.sh`.
+
+## When to Use
+
+- User says "deploy a model", "deploy LLM", "serve Gemma/Llama/Mistral/..."
+- User says "deploy vLLM", "deploy TGI", "inference server"
+- User wants to deploy a HuggingFace model for inference
+- User wants GPU-accelerated model serving
+- User wants to deploy NVIDIA NIM (optimized inference containers)
 
 ## When NOT to Use
 
@@ -41,85 +51,7 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 <instructions>
 
-## Quick Deploy Flow
-
-**For the fastest deployment, present a single plan instead of asking questions one by one.**
-
-### 1. Check Preferences
-
-```bash
-PREFS_FILE=~/.config/truefoundry/preferences.yml
-if [ -f "$PREFS_FILE" ]; then
-  cat "$PREFS_FILE"
-fi
-```
-
-If preferences exist, pre-fill: workspace, environment, resources, GPU preferences.
-If no preferences file, the only mandatory questions are **workspace** and **model**.
-
-### 2. Auto-Detect + Pre-fill
-
-Combine preferences + model analysis to fill every field:
-
-| Field | Source (priority order) |
-|-------|----------------------|
-| Workspace | 1. Preferences 2. Ask user |
-| Model | Ask user (required) |
-| Framework | Default vLLM (recommended) |
-| Service name | Auto-generate from model name |
-| GPU + resources | Auto-calculate from model size + cluster availability |
-| DTYPE | Auto-select based on GPU capability |
-| Max model len | Model's default context window |
-| Access | 1. Preferences (`expose_services`) 2. Default internal |
-| Authentication | Auto-detect if model is gated (HF token needed) |
-
-### 3. Present One Plan
-
-Present ALL values in a single summary and ask for confirmation:
-
-```
-I'll deploy your LLM to TrueFoundry:
-
-| Setting        | Value                          | Source      |
-|----------------|--------------------------------|-------------|
-| Workspace      | my-cluster:dev-ws              | saved pref  |
-| Model          | meta-llama/Llama-3.2-1B        | user input  |
-| Framework      | vLLM                           | default     |
-| Service name   | llama-3-2-1b                   | auto        |
-| GPU            | 1x T4 (16 GB)                  | auto        |
-| DTYPE          | float16                        | auto (T4)   |
-| CPU / Memory   | 4 cores / 16 GB                | auto        |
-| Shared memory  | 15 GB                          | auto        |
-| Max model len  | 4096                           | model default|
-| Access         | Internal only                  | saved pref  |
-
-Deploy with these settings? (say "yes" to deploy, or tell me what to change)
-```
-
-### 4. Handle Response
-
-- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
-- **"change X to Y"** → update that one field, re-confirm
-- **"I want to customize"** → fall through to the full checklist flow below
-
-### 5. After Deploy — Offer to Save Preferences
-
-If no preferences file exists or new values were used:
-
-```
-Deployed successfully! Want me to save these settings as defaults?
-- Workspace: my-cluster:dev-ws
-- Environment: dev
-- Expose: internal only
-
-This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
-```
-
-Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
-
----
-
-## Step 0a: Detect Environment & Versions
+## Step 0a: Detect Environment
 
 **Before deploying**, check CLI availability and container image versions.
 
@@ -273,7 +205,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 }'
 ```
 
-#### Via Tool Call
+#### Via MCP
 
 ```
 tfy_applications_create_deployment(
@@ -372,49 +304,19 @@ Same as the `deploy` skill -- look up cluster base domains and construct the hos
 
 ## User Confirmation Checklist
 
-**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
+**Before deploying, confirm these with the user:**
 
-- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
-- [ ] **Model** — HuggingFace model ID. If user mentions a model name, resolve to the full HF ID (e.g., "llama 3.2 1B" → `meta-llama/Llama-3.2-1B-Instruct`).
-- [ ] **Service name** — Suggest based on model name (e.g., `llama-3-2-1b`).
-- [ ] **GPU + resources** — Present a suggestion table based on model size (see Step 2). Include GPU type & count, CPU, memory, shared memory, DTYPE, and max model length. Only show GPU types available on the cluster (Step 0). Let user adjust.
-- [ ] **Access** — Internal-only or public? If public, construct URL from cluster base domains and confirm.
-- [ ] **Authentication** — Only ask if model is gated (e.g., Llama, Gemma). Check if user already has an HF token in TrueFoundry secrets.
-- [ ] **Environment variables & secrets** — Auto-detect needed vars (HF_TOKEN for gated models). Confirm, ask if any others needed.
-
-### Resource Suggestion Table
-
-Present GPU, resources, and scaling together based on the model size:
-
-```
-Based on your model ({model_name}, {param_count} params):
-
-| Resource       | Suggested      | Notes                                  |
-|----------------|----------------|----------------------------------------|
-| GPU            | {type} x {n}   | {vram_needed} VRAM needed for {dtype}  |
-| DTYPE          | {value}        | Based on GPU capability                |
-| CPU            | {value} cores  | {reasoning}                            |
-| Memory         | {value} MB     | 2-4x VRAM footprint for model loading  |
-| Shared memory  | {value} MB     | ~90% of memory (required for vLLM/TGI) |
-| Max model len  | {value}        | Default context window for this model  |
-| Replicas       | {value}        | 1 for dev, 2+ for production           |
-
-Use suggested values, or customize?
-```
-
-### Defaults Applied Silently (do not ask unless user raises)
-
-These use sensible defaults. Only surface if the user asks or the situation requires it:
-
-| Field | Default | When to Ask |
-|-------|---------|-------------|
-| Framework | vLLM (recommended) | Only ask if user mentions TGI or NIM specifically |
-| DTYPE | auto (float16 for T4/A10, bfloat16 for A100/H100) | Only ask if user mentions quantization or specific dtype |
-| Max model length | Model's default context window | Only ask if user mentions custom context length |
-| Replicas | 1 (dev) or 2 (production) | Included in resource table |
-| Health probes | Auto-configured with LLM-tuned thresholds | Only ask if user mentions custom startup times |
-| Ephemeral storage | 50GB | Only ask if model is very large (70B+) |
-| Container image version | Latest stable from `references/container-versions.md` | Only ask if user mentions specific version |
+- [ ] **Model** -- HuggingFace model ID and revision
+- [ ] **Framework** -- vLLM, TGI, or NVIDIA NIM
+- [ ] **GPU type & count** -- from deployment-specs API or cluster GPUs (Step 2)
+- [ ] **Resources** -- CPU, memory, shared memory (deployment-specs recommendation + cluster availability)
+- [ ] **DTYPE** -- float16 or bfloat16 (based on GPU)
+- [ ] **Max model length** -- context window size
+- [ ] **Access** -- public URL or internal-only
+- [ ] **Authentication** -- HF token for gated models (from TrueFoundry secrets)
+- [ ] **Environment** -- dev (1 replica) or production (2+ replicas)
+- [ ] **Service name** -- what to call the deployment
+- [ ] **Auto-shutdown** -- Should the deployment auto-stop after inactivity? (useful for dev/staging to save GPU costs)
 
 </instructions>
 

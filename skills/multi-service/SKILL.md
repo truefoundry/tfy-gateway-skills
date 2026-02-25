@@ -1,10 +1,11 @@
 ---
 name: multi-service
-description: Orchestrates multi-service deployments on TrueFoundry. Builds dependency graphs, deploys in order, and wires services together (docker-compose translation, DNS, secrets). NOT for single services (use deploy skill).
+description: This skill should be used when the user asks "deploy my full app", "deploy frontend and backend", "multi-service deployment", "deploy all services", "microservices deployment", "deploy my docker-compose app", "deploy my monorepo", "deploy multiple containers", "deploy full stack", "deploy interconnected services", "orchestrate service deployment", or has a project with multiple interconnected services that need coordinated deployment on TrueFoundry. Uses YAML manifests with `tfy apply` for each service.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-disable-model-invocation: true
-allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
+metadata:
+  disable-model-invocation: "true"
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
@@ -13,9 +14,15 @@ allowed-tools: Bash(*/tfy-api.sh *) Bash(python*) Bash(pip*)
 
 Orchestrate the deployment of complex applications with multiple interconnected services on TrueFoundry. This skill builds a dependency graph, deploys services in the correct order, and wires them together so the full application works end-to-end.
 
-## Scope
+Each service gets its own YAML manifest, applied in dependency order with `tfy apply`.
 
-Orchestrate deployment of multi-service applications (frontend + backend + infra). Scans for docker-compose files, builds a dependency DAG, deploys in topological order, and wires services via Kubernetes DNS.
+## When to Use
+
+- User has a project with multiple services (e.g., frontend + backend + database)
+- User says "deploy my full app", "deploy everything", "deploy all services"
+- User has a monorepo with multiple deployable components
+- User needs microservices deployed together with inter-service communication
+- User wants to deploy an app that depends on infrastructure (DB, cache, queue)
 
 ## When NOT to Use
 
@@ -53,97 +60,6 @@ Same as other deploy skills:
 
 <instructions>
 
-## Quick Deploy Flow — Preferences Check
-
-**Before scanning the project, check for saved preferences to pre-fill workspace, environment, and resource defaults.**
-
-### Check Preferences
-
-```bash
-PREFS_FILE=~/.config/truefoundry/preferences.yml
-if [ -f "$PREFS_FILE" ]; then
-  cat "$PREFS_FILE"
-fi
-```
-
-If preferences exist, pre-fill these fields in the deployment plan (Step 3):
-- **Workspace** — from `default_workspace`
-- **Environment** — from `environment` (affects resource sizing: dev vs production)
-- **Expose** — from `expose_services` (which services get public URLs)
-- **Resource profiles** — from `resources` (CPU/memory defaults)
-
-If no preferences file, the only mandatory question is **workspace** — everything else is auto-detected from the project.
-
-After a successful multi-service deployment, offer to save preferences:
-
-```
-All services deployed! Want me to save these settings as defaults?
-- Workspace: my-cluster:dev-ws
-- Environment: dev
-
-This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
-```
-
-Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
-
----
-
-## Step 0: Auto-Detect Before Asking
-
-**The multi-service skill is heavily auto-detected.** The agent proactively scans the project to discover services, build the dependency graph, classify components, detect ports, env vars, and wiring — all before asking the user anything.
-
-The user's role is to **confirm the plan**, not answer individual questions per service.
-
-## User Confirmation Checklist
-
-**Confirm these with the user before deploying. Almost everything is auto-detected from the project.**
-
-- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
-- [ ] **Discovered services** — Present auto-detected services with their types (Helm/Service/LLM). Let user confirm or correct.
-- [ ] **Dependency graph + deploy order** — Show the DAG and topological deploy order. Let user confirm.
-- [ ] **Helm chart sources** — For infrastructure (DB, cache, queue): ask the user which chart registry and version to use. Cannot auto-detect — always ask.
-- [ ] **Public URLs** — Which services need public access? (typically frontend only). Construct URLs from cluster base domains and confirm.
-- [ ] **Credentials** — Generate strong passwords for infra (DB, Redis, etc.) and confirm. Store in TrueFoundry secrets.
-
-### Per-Service Details (auto-detected, confirm in plan)
-
-These are auto-detected from docker-compose or project structure and included in the plan. Do not ask each one individually — show them in the plan table and let the user adjust:
-
-| Field | Auto-Detected From |
-|-------|-------------------|
-| Service names | Compose service names or directory names |
-| Ports | Compose `ports:`, Dockerfile `EXPOSE`, code detection |
-| Environment variables | Compose `environment:`, `.env` files, code patterns |
-| Build context / Dockerfile | Compose `build:`, project Dockerfiles |
-| Resources (CPU/memory) | Sensible defaults per service type (see below) |
-| Replicas | 1 per service (dev default) |
-| Health probes | Auto-configured per framework |
-
-### Default Resources by Service Type
-
-Apply these defaults silently. Show in the plan table, let user adjust:
-
-| Service Type | CPU req/lim | Memory req/lim | Storage |
-|---|---|---|---|
-| Database (Helm) | Chart defaults | Chart defaults | 10Gi (dev), 50Gi (prod) |
-| Cache (Helm) | Chart defaults | Chart defaults | 1Gi |
-| Queue (Helm) | Chart defaults | Chart defaults | 5Gi |
-| Backend API | 0.5 / 1.0 | 512 / 1024 MB | 1 GB |
-| Frontend | 0.25 / 0.5 | 256 / 512 MB | 1 GB |
-| Worker | 0.5 / 1.0 | 512 / 1024 MB | 2 GB |
-| LLM | Per `llm-deploy` skill | Per `llm-deploy` skill | 50 GB |
-
-### Defaults Applied Silently (do not ask unless user raises)
-
-| Field | Default | When to Ask |
-|-------|---------|-------------|
-| Per-service resources | Defaults from table above | Only if user mentions sizing or production |
-| Replicas | 1 per service | Only if user mentions HA or production |
-| Health probes | Auto-configured per framework | Only if user mentions custom probes |
-| Rollout strategy | Zero-downtime (`max_surge: 25%, max_unavailable: 0%`) | Never for multi-service |
-| Capacity type | any | Only if user mentions spot/cost |
-| Network protocol | HTTP | Only if user mentions TCP/gRPC |
-
 ## Step 1: Discover Services
 
 **Proactively scan the project** to find all deployable components. Do NOT wait for the user to list them.
@@ -173,65 +89,117 @@ For each discovered service, determine its **type**:
 
 | Type | How to Detect | Deploy Method |
 |------|--------------|---------------|
-| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (ask user for chart source) |
-| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (ask user for chart source) |
-| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (ask user for chart source) |
-| **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service |
+| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (Bitnami) via `tfy apply` |
+| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (Bitnami) via `tfy apply` |
+| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (Bitnami) via `tfy apply` |
+| **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service via `tfy apply` |
 | **LLM** | Image contains `vllm`, `tgi`, `triton`, `ollama` | `llm-deploy` skill |
-| **MCP Server** | Exposes `/mcp` endpoint, uses MCP protocol | `deploy` skill (service with mcp-proxy) |
-| **Application** | Has `build:` context or custom image with code | Service deployment |
+| **Application** | Has `build:` context or custom image with code | Service deployment via `tfy apply` |
 
 ## Step 2: Build Dependency Graph
 
-Construct a directed acyclic graph (DAG) of service dependencies. For dependency detection sources (compose, env vars, code analysis), dependency rules, circular dependency handling, infrastructure readiness polling, and topological sort examples, see [references/dependency-graph.md](references/dependency-graph.md).
+Construct a directed acyclic graph (DAG) of service dependencies.
+
+### Sources of Dependency Information
+
+**From docker-compose.yml:**
+```yaml
+services:
+  backend:
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # "db" is a dependency
+      - REDIS_URL=redis://redis:6379                           # "redis" is a dependency
+      - FRONTEND_ORIGIN=http://frontend:3000                   # NOT a dependency (frontend depends on backend, not the reverse)
+```
+
+**From environment variables:**
+Scan env var values for references to other service names. A hostname in a connection string (`@db:5432`, `redis:6379`) implies a dependency.
+
+**From code analysis (if no compose file):**
+Look at code for connection patterns:
+- `DATABASE_URL`, `MONGO_URI` -> depends on database
+- `REDIS_URL`, `CACHE_URL` -> depends on cache
+- `BROKER_URL`, `AMQP_URL` -> depends on message queue
+- `API_URL`, `BACKEND_URL` -> depends on another service
+
+### Dependency Rules
+
+1. **Infrastructure has no dependencies** -- databases, caches, queues are leaf nodes
+2. **Backend services depend on infrastructure** -- and potentially on other backends
+3. **Frontends depend on backends** -- never on infrastructure directly
+4. **Workers depend on queues + databases** -- same tier as backends
+5. **If A's env vars reference B's hostname -> A depends on B**
+6. **`depends_on` in compose is explicit** -- always respect it
+
+### Detect Circular Dependencies
+
+If the graph has a cycle, **stop and tell the user:**
+
+```
+Detected circular dependency: service-a -> service-b -> service-a
+
+This cannot be deployed in sequence. Options:
+1. Break the cycle by making one service start without the other (add retry logic)
+2. Use async communication (message queue) instead of direct HTTP calls
+3. Merge the tightly coupled services
+```
+
+### CRITICAL: Poll Infrastructure Readiness Before Next Tier
+
+> **Tested 2026-02-14**: `DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
+
+**Between each deployment tier, poll the actual pods for readiness:**
+
+1. After deploying Helm infra (DB, Redis, etc.), poll the application status API repeatedly (every 15s, up to 5 min)
+2. Check `applicationComponentStatuses` for pod readiness, not just deployment status
+3. For databases: attempt a TCP connection to the service DNS + port before deploying dependent services
+4. **Have fallback logic**: If infra isn't ready after 5 min, warn the user rather than deploying dependent services that will crash-loop
+
+```bash
+# Example: poll PostgreSQL readiness
+TFY_API_SH=~/.claude/skills/truefoundry-multi-service/scripts/tfy-api.sh
+for i in $(seq 1 20); do
+  $TFY_API_SH GET '/api/svc/v1/apps/APP_ID' | jq '.applicationComponentStatuses[0].status'
+  sleep 15
+done
+```
+
+### Compute Deploy Order
+
+Topologically sort the DAG. Services with no dependencies deploy first. Services at the same level in the graph can deploy in parallel.
+
+**Example:**
+```
+Graph:
+  frontend -> backend
+  backend  -> db, redis, worker
+  worker   -> db, redis, rabbitmq
+  db       -> (none)
+  redis    -> (none)
+  rabbitmq -> (none)
+
+Deploy order:
+  Level 0: db, redis, rabbitmq     (parallel -- no dependencies)
+  Level 1: backend, worker         (parallel -- both depend only on level 0)
+  Level 2: frontend                (depends on backend from level 1)
+```
 
 ## Step 3: Present Plan and Ask User
 
 **ALWAYS present the discovered architecture and ask the user to confirm before deploying.**
 
-Present a single comprehensive plan that covers the User Confirmation Checklist. The plan should include:
+Show:
+1. What services were found (and how -- compose file, directory scan, etc.)
+2. The dependency graph
+3. The deploy order
+4. What will be deployed as Helm vs. Service vs. LLM
 
-```
-## Deployment Plan for {project-name}
+The plan should include: dependency graph (tree format), deploy order with levels, environment wiring (which env vars connect which services), and questions about workspace, public URLs, secrets, and **auto-shutdown** (should services auto-stop after inactivity? useful for dev/staging). Always end with "Shall I proceed with this plan?"
 
-### Discovered Services
-| Service    | Type       | Deploy As    | Port | Image/Build          |
-|------------|------------|--------------|------|----------------------|
-| db         | Database   | Helm chart   | 5432 | PostgreSQL           |
-| redis      | Cache      | Helm chart   | 6379 | Redis                |
-| backend    | App        | Service      | 8000 | Git + Dockerfile     |
-| frontend   | App        | Service      | 3000 | Git + Dockerfile     |
-
-### Dependency Graph
-  frontend → backend → db, redis
-
-### Deploy Order
-  Level 0: db, redis (parallel)
-  Level 1: backend (after infra healthy)
-  Level 2: frontend (after backend healthy)
-
-### Environment Wiring
-  backend.DATABASE_URL → db (PostgreSQL DNS)
-  backend.REDIS_URL → redis (Redis DNS)
-  frontend.API_URL → backend (public URL or internal DNS)
-
-### Resources (defaults — adjust as needed)
-| Service  | CPU req/lim | Memory req/lim | GPU  | Replicas |
-|----------|-------------|----------------|------|----------|
-| db       | chart       | chart          | —    | 1        |
-| redis    | chart       | chart          | —    | 1        |
-| backend  | 0.5/1.0     | 512/1024 MB    | —    | 1        |
-| frontend | 0.25/0.5    | 256/512 MB     | —    | 1        |
-
-### Questions
-1. **Helm chart sources** — Which registry/version for PostgreSQL and Redis?
-2. **Public URLs** — Frontend public? Backend internal or public?
-3. **Credentials** — I'll generate strong passwords for DB and Redis. OK?
-
-Shall I proceed with this plan?
-```
-
-**Do NOT deploy until the user confirms.** The plan is the user's single point of review — all auto-detected values, resources, wiring, and questions are presented together.
+**Do NOT deploy until the user confirms.**
 
 ## Step 4: Resolve Namespace and DNS
 
@@ -283,9 +251,48 @@ Each service gets its own YAML manifest file (e.g., `tfy-manifest-db.yaml`, `tfy
 
 ### For Infrastructure (Helm Charts)
 
-Use the `helm` skill approach. All charts use `PUT /api/svc/v1/apps` with `type: "helm"`. **Ask the user for the chart source URL, chart name, and version.** Do not assume a specific chart registry.
+Use `tfy apply` with a Helm manifest. Common charts:
 
-Name each chart `APP_NAME-{service}` (e.g., `myapp-db`, `myapp-redis`). See the `helm` skill for full manifest examples and source type formats (`oci-repo`, `helm-repo`, `git-helm-repo`).
+| Service | `chart_name` | Key Values |
+|---------|-------------|------------|
+| PostgreSQL | `postgresql` (v16.4.1) | `auth.postgresPassword`, `auth.database`, `primary.persistence.size: "10Gi"` |
+| Redis | `redis` (v20.6.2) | `auth.password`, `architecture: "standalone"` |
+| RabbitMQ | `rabbitmq` (v15.1.2) | `auth.username`, `auth.password` |
+| MongoDB | `mongodb` | `auth.rootUser`, `auth.rootPassword` |
+
+Example Helm manifest for PostgreSQL:
+
+```yaml
+# tfy-manifest-db.yaml
+name: myapp-db
+type: helm
+source:
+  type: oci-repo
+  version: "16.4.1"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+values:
+  auth:
+    postgresPassword: GENERATED_PASSWORD
+    database: myapp
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      requests:
+        cpu: "0.5"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+workspace_fqn: cluster-id:workspace-name
+```
+
+```bash
+tfy apply -f tfy-manifest-db.yaml
+```
+
+Name each chart `APP_NAME-{service}` (e.g., `myapp-db`, `myapp-redis`). See the `helm` skill for full manifest examples.
 
 ### Verify Infrastructure is Running
 
@@ -300,39 +307,32 @@ $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=APP
 
 Deploy each service using its own YAML manifest with wired env vars:
 
-```bash
-$TFY_API_SH PUT /api/svc/v1/apps '{
-  "manifest": {
-    "kind": "Service",
-    "name": "<APP_NAME>-<SERVICE_NAME>",
-    "image": {
-      "type": "image",
-      "image_uri": "<IMAGE_URI>",
-      "command": "<COMMAND>"
-    },
-    "ports": [
-      {
-        "port": <PORT>,
-        "protocol": "<PROTOCOL>",
-        "expose": <EXPOSE>,
-        "host": "<APP_NAME>-<SERVICE_NAME>-<WORKSPACE>.<BASE_DOMAIN>",
-        "app_protocol": "http"
-      }
-    ],
-    "resources": {
-      "cpu_request": <CPU_REQUEST>,
-      "cpu_limit": <CPU_LIMIT>,
-      "memory_request": <MEMORY_REQUEST>,
-      "memory_limit": <MEMORY_LIMIT>
-    },
-    "env": {
-      "DATABASE_URL": "postgresql://postgres:PASSWORD@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/DB_NAME",
-      "REDIS_URL": "redis://:PASSWORD@APP_NAME-redis-redis-master.NAMESPACE.svc.cluster.local:6379/0"
-    },
-    "replicas": { "min": <MIN_REPLICAS>, "max": <MAX_REPLICAS> }
-  },
-  "workspaceId": "WORKSPACE_ID"
-}'
+```yaml
+# tfy-manifest-backend.yaml
+name: myapp-backend
+type: service
+image:
+  type: image
+  image_uri: PREBUILT_IMAGE_OR_REGISTRY_IMAGE
+  command: uvicorn main:app --host 0.0.0.0 --port 8000
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: true
+    host: myapp-backend-ws.BASE_DOMAIN
+    app_protocol: http
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+env:
+  DATABASE_URL: postgresql://postgres:PASSWORD@myapp-db-postgresql.NAMESPACE.svc.cluster.local:5432/DB_NAME
+  REDIS_URL: redis://:PASSWORD@myapp-redis-redis-master.NAMESPACE.svc.cluster.local:6379/0
+replicas:
+  min: 1
+  max: 1
+workspace_fqn: cluster-id:workspace-name
 ```
 
 ```bash
@@ -360,7 +360,37 @@ If the dependency graph includes an LLM, use the `llm-deploy` skill's approach w
 
 ## Step 6: Wire Environment Variables
 
-**This is the most critical step.** Every cross-service reference must be translated from compose service names to Kubernetes DNS. For the translation rule, common wiring patterns (DB, Redis, RabbitMQ, etc.), DNS patterns, and secrets management, see [references/service-wiring.md](references/service-wiring.md).
+**This is the most critical step.** Every cross-service reference must be translated from compose service names to Kubernetes DNS.
+
+### Translation Rule
+
+In docker-compose, services reference each other by service name:
+```yaml
+DATABASE_URL=postgresql://postgres:pass@db:5432/myapp
+```
+
+In TrueFoundry, replace the service name with Kubernetes DNS:
+```
+DATABASE_URL=postgresql://postgres:pass@APP_NAME-db-postgresql.NAMESPACE.svc.cluster.local:5432/myapp
+```
+
+### Common Wiring Patterns
+
+| Compose Env Var | TrueFoundry Env Var |
+|----------------|---------------------|
+| `@db:5432` | `@{name}-db-postgresql.{ns}.svc.cluster.local:5432` |
+| `@redis:6379` | `@{name}-redis-redis-master.{ns}.svc.cluster.local:6379` |
+| `@rabbitmq:5672` | `@{name}-rabbitmq-rabbitmq.{ns}.svc.cluster.local:5672` |
+| `@mongo:27017` | `@{name}-mongo-mongodb.{ns}.svc.cluster.local:27017` |
+| `http://backend:8000` | `http://{name}-backend.{ns}.svc.cluster.local:8000` |
+| `http://frontend:3000` | `https://{name}-frontend-{ws}.{base_domain}` (if public) |
+
+### Secrets for Credentials
+
+For passwords shared between infrastructure and services:
+
+1. **Generate strong passwords** -- `openssl rand -base64 24` for each
+2. **Store in TrueFoundry secrets** (using `secrets` skill) and reference in YAML manifests as `tfy-secret://DOMAIN:SECRET_GROUP:KEY`
 
 ## Step 7: Verify Connectivity
 
@@ -388,9 +418,9 @@ The summary must include:
 See `references/compose-translation.md` for the full translation reference. Key points:
 
 - **Always scan for compose files first** before asking the user about architecture
-- `build:` services -> TrueFoundry Service with `DockerFileBuild`
-- `image:` services (custom) -> TrueFoundry Service with pre-built image
-- `image:` services (postgres, redis, etc.) -> Helm charts (ask user for chart source)
+- `build:` services -> YAML manifest with git build source + `tfy apply`
+- `image:` services (custom) -> YAML manifest with pre-built image + `tfy apply`
+- `image:` services (postgres, redis, etc.) -> Helm manifests via `tfy apply`
 - `depends_on` -> deploy order in the dependency graph
 - `healthcheck` -> TrueFoundry liveness/readiness probes in YAML
 - `volumes` -> Helm persistence or TrueFoundry Volumes
@@ -429,7 +459,6 @@ This skill orchestrates other skills:
 - **Infrastructure**: Uses `helm` skill patterns for databases, caches, queues
 - **Services**: Uses `deploy` skill patterns for application services
 - **LLMs**: Uses `llm-deploy` skill patterns if the app includes model serving
-- **MCP Servers**: Uses `deploy` skill for MCP servers (service with mcp-proxy wrapper)
 - **Secrets**: Uses `secrets` skill to create shared credential groups
 - **Workspaces**: Uses `workspaces` skill to get workspace FQN and namespace
 - **Verification**: Uses `applications` skill to check status, `logs` skill to debug, `service-test` skill to validate endpoints

@@ -1,10 +1,11 @@
 ---
 name: helm
-description: Deploys Helm charts to TrueFoundry for infrastructure components (databases, caches, queues, vector DBs, monitoring). Supports any OCI-compatible chart. NOT for application code (use deploy skill).
+description: This skill should be used when the user asks "deploy a database", "install redis", "helm chart", "deploy postgres", "deploy mongodb", "install a helm chart", "deploy vector database", "deploy qdrant", "deploy milvus", "deploy elasticsearch", "install a chart", "deploy infrastructure", "set up a database", "add redis to my cluster", "deploy rabbitmq", "install kafka", "deploy monitoring stack", or wants to deploy any infrastructure component via Helm on TrueFoundry. Supports ANY public or private OCI Helm chart. Uses YAML manifests with `tfy apply`.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-disable-model-invocation: true
-allowed-tools: Bash(*/tfy-api.sh *)
+metadata:
+  disable-model-invocation: "true"
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
@@ -20,7 +21,15 @@ Two paths:
 
 ## When to Use
 
-Deploy infrastructure via Helm charts: databases, caches, message queues, vector DBs, monitoring, or any custom OCI chart.
+- User wants to deploy a database (PostgreSQL, MySQL, MongoDB, etc.)
+- User wants to install a cache (Redis, Memcached)
+- User wants to deploy a message queue (RabbitMQ, Kafka, NATS)
+- User says "install helm chart", "deploy via helm"
+- User wants infrastructure components, not application code
+- User wants to deploy a vector database (Qdrant, Milvus, Weaviate, Chroma)
+- User wants to deploy monitoring tools (Prometheus, Grafana)
+- User has a custom/private Helm chart to deploy
+- User wants to deploy ANY infrastructure component available as a Helm chart
 
 ## When NOT to Use
 
@@ -44,183 +53,106 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 ## User Confirmation Checklist
 
-**Confirm these with the user before deploying. Show defaults based on chart type, let user adjust.**
+**Before deploying a Helm chart, ALWAYS confirm these with the user:**
 
-- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
-- [ ] **Chart source + version** — Which chart, registry URL, and version? Always ask — charts can't be auto-detected. Suggest searching https://artifacthub.io if user is unsure.
-- [ ] **Release name** — Suggest `{app-name}-{chart-type}` (e.g., `myapp-postgres`, `myapp-redis`).
-- [ ] **Configuration values** — Critical values that depend on chart type. Present as a focused checklist based on what the chart needs (see below).
+- [ ] **Chart source** -- Which chart? (suggest from common charts table)
+- [ ] **Chart registry** -- Public (Bitnami, official) or private registry?
+- [ ] **Chart version** -- Specific version or latest?
+- [ ] **Release name** -- What to call this deployment? (default: chart name + random suffix)
+- [ ] **Namespace/Workspace** -- Which workspace FQN? (never auto-pick)
+- [ ] **Environment** -- Is this for dev, staging, or production? (affects resource defaults)
+- [ ] **Configuration** -- Critical values to set:
+  - **Passwords/credentials** -- Use strong random values or reference TrueFoundry secrets
+  - **Storage size** -- Persistent volume size (e.g., 10Gi, 20Gi)
+  - **Resources** -- CPU/memory limits and requests
+  - **Replicas** -- Number of instances (1 for dev, 3+ for prod)
+  - **Network** -- Expose externally or internal-only?
+- [ ] **Auto-shutdown** -- Should the deployment auto-stop after inactivity? (useful for dev/staging to save costs)
 
-### Configuration by Chart Type
-
-Ask only the values relevant to the specific chart:
-
-**Databases (PostgreSQL, MySQL, MongoDB):**
-- Password (generate strong default, confirm)
-- Database name
-- Storage size (suggest: 10Gi dev, 50Gi+ prod)
-- Replicas (1 dev, 3 prod HA)
-
-**Caches (Redis, Memcached, Valkey):**
-- Password (generate strong default, confirm)
-- Storage size (suggest: 1Gi dev, 10Gi prod)
-- Memory limit
-
-**Queues (RabbitMQ, NATS, Kafka):**
-- Credentials
-- Persistence enabled? Storage size
-- Replicas
-
-**Vector DBs (Qdrant, Milvus, Elasticsearch):**
-- Storage size
-- Replicas
-- Resource limits
-
-**Other/custom charts:**
-- Ask user which values to set
-
-### Defaults Applied Silently (do not ask unless user raises)
-
-These use sensible defaults. Only surface if the user asks or the situation requires it:
-
-| Field | Default | When to Ask |
-|-------|---------|-------------|
-| Resources (CPU/memory) | Chart defaults | Only ask for production or if chart has no defaults |
-| Network access | Internal-only | Only ask if user mentions external access |
-| Environment | Dev sizing | Only ask if user mentions production |
-| Storage class | Cluster default | Only ask if user mentions specific storage requirements |
+**Do NOT deploy with minimal defaults without asking.** Production databases need proper sizing, credentials, and persistence configuration.
 
 </context>
 
 <instructions>
 
-## Quick Deploy Flow
-
-**For the fastest deployment, present a single plan instead of asking questions one by one.**
-
-### 1. Check Preferences
-
-```bash
-PREFS_FILE=~/.config/truefoundry/preferences.yml
-if [ -f "$PREFS_FILE" ]; then
-  cat "$PREFS_FILE"
-fi
-```
-
-If preferences exist, pre-fill: workspace, environment.
-If no preferences file, the only mandatory questions are **workspace**, **chart source**, and **chart version**.
-
-### 2. Auto-Detect + Pre-fill
-
-Combine preferences + user request to fill every field:
-
-| Field | Source (priority order) |
-|-------|----------------------|
-| Workspace | 1. Preferences 2. Ask user |
-| Chart source + version | Ask user (required — cannot auto-detect) |
-| Release name | Auto-suggest from chart name + context |
-| Config values | Sensible defaults per chart type (passwords auto-generated) |
-| Storage size | 1. Preferences 2. Default dev sizing (10Gi DB, 1Gi cache) |
-| Replicas | Default 1 (dev) |
-
-### 3. Present One Plan
-
-Present ALL values in a single summary and ask for confirmation:
-
-```
-I'll deploy a Helm chart to TrueFoundry:
-
-| Setting        | Value                          | Source      |
-|----------------|--------------------------------|-------------|
-| Workspace      | my-cluster:dev-ws              | saved pref  |
-| Chart          | oci://registry/postgresql      | user input  |
-| Version        | 15.5.0                         | user input  |
-| Release name   | myapp-postgres                 | auto        |
-| Password       | (auto-generated, 32 chars)     | auto        |
-| Database       | myapp                          | auto        |
-| Storage        | 10Gi                           | dev default |
-| Replicas       | 1                              | dev default |
-
-Deploy with these settings? (say "yes" to deploy, or tell me what to change)
-```
-
-### 4. Handle Response
-
-- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
-- **"change X to Y"** → update that one field, re-confirm
-- **"I want to customize"** → fall through to the full checklist flow below
-
-### 5. After Deploy — Offer to Save Preferences
-
-If no preferences file exists or new values were used:
-
-```
-Deployed successfully! Want me to save these settings as defaults?
-- Workspace: my-cluster:dev-ws
-- Environment: dev
-
-This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
-```
-
-Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
-
----
-
 ## Finding & Sourcing Helm Charts
 
 For chart sources, OCI URLs, registries, version discovery, and the chart selection guide, see [references/helm-chart-sources.md](references/helm-chart-sources.md).
 
-Key points: TrueFoundry supports `oci-repo` (recommended), `helm-repo`, and `git-helm-repo` source types. Always ask the user for the chart source. Do not assume or recommend specific chart registries.
+Key points: TrueFoundry supports `oci-repo` (recommended), `helm-repo`, and `git-helm-repo` source types. Bitnami charts (`oci://registry-1.docker.io/bitnamicharts/{chart}`) are recommended for most use cases.
 
 ## Deploy Flow
 
 ### 1. Gather Configuration
 
-Ask the user for the chart source and critical configuration values:
+Ask the user for critical configuration values. For a **PostgreSQL** example:
 
 ```
-I'll deploy a Helm chart to TrueFoundry. Let me confirm a few things:
+I'll deploy PostgreSQL to TrueFoundry. Let me confirm a few things:
 
-1. Chart source: What is the chart registry URL? (e.g., an OCI registry URL, Helm repo URL, or Git repo)
-   - If you're unsure, you can search https://artifacthub.io for available charts.
-2. Chart name: What is the chart name? (e.g., postgresql, redis, my-custom-chart)
-3. Chart version: What version should I use? (always pin a specific version for production)
-4. Configuration values: What values do you need to set?
-   - Credentials (passwords, usernames)
-   - Storage size (e.g., 10Gi for dev, 50Gi+ for prod)
-   - Resources (CPU/memory requests and limits)
-   - Replicas (1 for dev, 3+ for prod high availability)
-   - Network access (internal-only or expose externally)
+1. Chart version: Use postgresql 15.x (latest stable)? Or specific version?
+2. Database name: What should the default database be called? (default: postgres)
+3. Password: I'll generate a strong random password. Or do you have a TrueFoundry secret group to reference?
+4. Storage: How much persistent storage? (default: 10Gi for dev, 50Gi+ for prod)
+5. Resources:
+   - CPU: 0.5 cores for dev, 2+ for prod?
+   - Memory: 512Mi for dev, 2Gi+ for prod?
+6. Replicas: 1 for dev, 3+ for prod high availability?
+7. Access: Internal-only (default) or expose externally?
 ```
 
 ### 2. Generate YAML Manifest
 
 Create a YAML manifest with user-confirmed values:
 
-```json
-{
-  "manifest": {
-    "name": "my-release-name",
-    "type": "helm",
-    "source": {
-      "type": "oci-repo",
-      "version": "CHART_VERSION",
-      "oci_chart_url": "oci://REGISTRY/CHART_NAME"
-    },
-    "values": {
-      "YOUR_CHART_VALUES": "See the chart's values.yaml for available options"
-    },
-    "workspace_fqn": "cluster-id:workspace-name"
-  },
-  "workspaceId": "WORKSPACE_ID_FROM_FQN"
-}
+```yaml
+name: postgres-prod
+type: helm
+source:
+  type: oci-repo
+  version: "16.7.21"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+values:
+  auth:
+    postgresPassword: GENERATED_OR_SECRET_REF
+    database: myapp
+  primary:
+    persistence:
+      enabled: true
+      size: 50Gi
+    resources:
+      requests:
+        cpu: "2"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 4Gi
+  readReplicas:
+    replicaCount: 2
+workspace_fqn: cluster-id:workspace-name
 ```
 
 ### 3. Write and Preview Manifest
 
-> **Note:** The `version` field in `source` is required. Omitting it will cause a validation error. Find the latest version using the chart discovery methods described above.
+Write the manifest to `tfy-manifest.yaml`:
 
-### 3. Deploy via MCP or API
+```bash
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+```
+
+Show the preview output to the user.
+
+### 4. Apply
+
+After user confirms:
+
+```bash
+tfy apply -f tfy-manifest.yaml
+```
+
+### Fallback: REST API
+
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
 
 **Important:** The `workspaceId` must be the internal workspace ID (not the FQN). Get it from the `workspaces` skill: `GET /api/svc/v1/workspaces?fqn=WORKSPACE_FQN` -> use the `id` field.
 
@@ -231,12 +163,12 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 ```
 tfy_applications_create_deployment(
     manifest={
-        "name": "my-release-name",
+        "name": "postgres-prod",
         "type": "helm",
         "source": {
             "type": "oci-repo",
-            "version": "CHART_VERSION",
-            "oci_chart_url": "oci://REGISTRY/CHART_NAME"
+            "version": "16.7.21",
+            "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
         },
         "values": {...},
         "workspace_fqn": "cluster-id:workspace-name"
@@ -261,15 +193,22 @@ $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 # Then deploy (JSON body)
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "name": "my-release-name",
+    "name": "postgres-prod",
     "type": "helm",
     "source": {
       "type": "oci-repo",
-      "version": "CHART_VERSION",
-      "oci_chart_url": "oci://REGISTRY/CHART_NAME"
+      "version": "16.7.21",
+      "oci_chart_url": "oci://registry-1.docker.io/bitnamicharts/postgresql"
     },
     "values": {
-      "YOUR_CHART_VALUES": "See the chart values.yaml for available options"
+      "auth": {"postgresPassword": "...", "database": "myapp"},
+      "primary": {
+        "persistence": {"enabled": true, "size": "50Gi"},
+        "resources": {
+          "requests": {"cpu": "2", "memory": "2Gi"},
+          "limits": {"cpu": "4", "memory": "4Gi"}
+        }
+      }
     },
     "workspace_fqn": "cluster-id:workspace-name"
   },

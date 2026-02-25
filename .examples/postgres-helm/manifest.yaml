@@ -1,0 +1,14 @@
+name: example-postgres
+type: helm
+source:
+  type: oci-repo
+  version: "16.4.3"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+values:
+  auth:
+    postgresPassword: "example-password-change-me"
+    database: salesdb
+  primary:
+    persistence:
+      size: 10Gi
+workspace_fqn: ${TFY_WORKSPACE_FQN}

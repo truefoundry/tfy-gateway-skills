@@ -1,10 +1,11 @@
 ---
 name: async-service
-description: Deploys queue-based async services on TrueFoundry. Supports SQS, NATS, Kafka, and Google AMQP with scale-to-zero. NOT for HTTP services (use deploy skill).
+description: This skill should be used when the user asks "deploy async service", "queue-based service", "async worker", "message queue processing", "deploy SQS consumer", "deploy Kafka consumer", "deploy NATS consumer", "scale to zero", "async processing", "background job processor", "event-driven service", "queue consumer", or wants to deploy a TrueFoundry Async Service that processes messages from queues via worker_config with scale-to-zero support. Uses YAML manifests with `tfy apply`. NOT for regular HTTP services -- use deploy skill for that.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-disable-model-invocation: true
-allowed-tools: Bash(*/tfy-api.sh *)
+metadata:
+  disable-model-invocation: "true"
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>
@@ -20,7 +21,14 @@ Two paths:
 
 ## When to Use
 
-Deploy services that consume messages from queues (SQS, NATS, Kafka, Google AMQP) with optional scale-to-zero. Best for long-running tasks, large payloads, or decoupled processing.
+- User wants to process messages from a queue (SQS, NATS, Kafka, AMQP)
+- User says "deploy async service", "queue consumer", "async worker"
+- User needs scale-to-zero capability (no traffic = no pods running)
+- User has workloads with large payloads stored in S3/blob storage
+- User has long-running processing tasks (seconds to minutes per request)
+- User needs resilience against traffic surges (queue buffers prevent 5XX errors)
+- User wants to decouple request receipt from processing
+- User wants at-least-once message processing guarantees
 
 ## When NOT to Use
 
@@ -85,145 +93,23 @@ The service connects directly to the queue through `worker_config.input_config`.
 
 <instructions>
 
-## Quick Deploy Flow
-
-**For the fastest deployment, present a single plan instead of asking questions one by one.**
-
-### 1. Check Preferences
-
-```bash
-PREFS_FILE=~/.config/truefoundry/preferences.yml
-if [ -f "$PREFS_FILE" ]; then
-  cat "$PREFS_FILE"
-fi
-```
-
-If preferences exist, pre-fill: workspace, environment, resources, expose, base domain.
-If no preferences file, the only mandatory question is **workspace**.
-
-### 2. Auto-Detect + Pre-fill
-
-Combine preferences + project scanning to fill every field:
-
-| Field | Source (priority order) |
-|-------|----------------------|
-| Workspace | 1. Preferences 2. Ask user |
-| Service name | Auto-detect from project/repo name |
-| Image source | Auto-detect from project (Git repo, Dockerfile, local code) |
-| Port | Auto-detect from code |
-| Endpoint path | Auto-detect from POST handler routes |
-| Queue type + URL | Ask user (cannot auto-detect) |
-| Resources | 1. Preferences 2. Codebase analysis defaults |
-| Environment | 1. Preferences 2. Default "dev" |
-| Env vars | Auto-detect from .env/code |
-
-### 3. Present One Plan
-
-Present ALL values in a single summary and ask for confirmation:
-
-```
-I'll deploy your async service to TrueFoundry:
-
-| Setting        | Value                          | Source      |
-|----------------|--------------------------------|-------------|
-| Workspace      | my-cluster:dev-ws              | saved pref  |
-| Service name   | my-worker                      | auto        |
-| Image          | Git + Dockerfile               | auto        |
-| Port           | 8000                           | auto        |
-| Endpoint       | /process                       | auto        |
-| Queue          | NATS (nats://...)              | user input  |
-| CPU            | 0.2 / 0.5                      | dev default |
-| Memory         | 200 / 500 MB                   | dev default |
-| Replicas       | 0 / 2 (scale-to-zero)          | dev default |
-| Env vars       | 2 from .env                    | auto        |
-
-Deploy with these settings? (say "yes" to deploy, or tell me what to change)
-```
-
-### 4. Handle Response
-
-- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
-- **"change X to Y"** → update that one field, re-confirm
-- **"I want to customize"** → fall through to the full checklist flow below
-
-### 5. After Deploy — Offer to Save Preferences
-
-If no preferences file exists or new values were used:
-
-```
-Deployed successfully! Want me to save these settings as defaults?
-- Workspace: my-cluster:dev-ws
-- Environment: dev
-- Resources: dev profile
-
-This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
-```
-
-Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
-
----
-
-## Step 0: Auto-Detect Before Asking
-
-**Before asking the user anything**, scan the project to auto-detect as much as possible:
-
-1. **Pattern** — Default to sidecar. Only suggest Python library if: Python project + processing time signals > 1 min (e.g., ML inference, video processing, large file transforms).
-2. **Image source** — Check `git remote -v` for repo URL, look for `Dockerfile`, detect framework from dependency files.
-3. **Build details** — Auto-detect Dockerfile path (`./Dockerfile`), build context (`./`), branch (`main`). Only confirm with user, don't ask each sub-field.
-4. **Port** — Detect from code: `uvicorn --port`, `app.listen(`, `EXPOSE` in Dockerfile, `gunicorn -b 0.0.0.0:`.
-5. **Endpoint path** — Scan for POST handler routes (e.g., `@app.post("/process")`, `router.post("/predict")`).
-6. **Environment variables** — Scan `.env`, `config.py`, `docker-compose.yml` for env var patterns.
-7. **GPU** — Only suggest if ML/GPU libraries detected (`torch`, `transformers`, `tensorflow`, `opencv-python`).
-
-Present auto-detected values as confirmations ("I detected X — correct?") rather than open-ended questions.
-
 ## User Confirmation Checklist
 
-**Confirm these with the user before deploying. Auto-detect where possible, show defaults, let user adjust.**
+**Before deploying an Async Service, ALWAYS confirm these with the user:**
 
-- [ ] **Workspace** — `TFY_WORKSPACE_FQN`. Never auto-pick. Ask the user if missing.
-- [ ] **Service name** — Suggest project directory name or repo name.
-- [ ] **Image source** — Auto-detect (Git repo + Dockerfile, pre-built image, etc.). Confirm with user.
-- [ ] **Queue type + connection details** — SQS, NATS, Kafka, or Google AMQP? Queue URL, credentials, and queue-specific fields (region for SQS, stream/subject for NATS, topic/consumer group for Kafka). Ask as one question. See `references/async-queue-configs.md` for required fields per queue type.
-- [ ] **Port + endpoint path** — Auto-detect from code. Confirm: "Sidecar will forward to `http://0.0.0.0:{port}/{path}` — correct?"
-- [ ] **Resources + scaling** — Present a suggestion table based on codebase analysis (see below). Include CPU, memory, storage, GPU (if detected), concurrent workers (default 1), and min/max replicas. Let user adjust.
-- [ ] **Environment variables & secrets** — Auto-detect from `.env`/code. Confirm found vars, ask if any others needed.
+- [ ] **Queue type** -- SQS, NATS, Kafka, or AMQP?
+- [ ] **Queue details** -- Queue URL/topic name, credentials
+- [ ] **Service name** -- What to call this deployment
+- [ ] **Port** -- What port the service listens on
+- [ ] **Concurrent workers** -- `num_concurrent_workers` (default: 1)
+- [ ] **Resources** -- CPU, memory (defaults: cpu_request=0.2, cpu_limit=0.5, memory_request=200, memory_limit=500)
+- [ ] **Autoscaling** -- Min/max replicas, scale-to-zero?
+- [ ] **Environment** -- Dev, staging, or production?
+- [ ] **Environment variables** -- Queue credentials, app-specific config
+- [ ] **Secrets** -- Whether to mount TrueFoundry secret groups
+- [ ] **Auto-shutdown** -- Should the service auto-stop after inactivity? (useful for dev/staging to save costs)
 
-### Resource Suggestion Table
-
-Present resources and scaling together based on the app type and environment:
-
-```
-Based on your app ({framework}, {app_type}):
-
-| Resource           | Default    | Suggested  | Notes                          |
-|--------------------|------------|------------|--------------------------------|
-| CPU request        | 0.2 cores  | {value}    | {reasoning}                    |
-| CPU limit          | 0.5 cores  | {value}    | {reasoning}                    |
-| Memory request     | 200 MB     | {value}    | {reasoning}                    |
-| Memory limit       | 500 MB     | {value}    | 1.5-2x request                 |
-| Storage            | 1000 MB    | {value}    | {reasoning}                    |
-| GPU                | None       | {value}    | Only if ML libs detected       |
-| Concurrent workers | 1          | {value}    | Messages processed in parallel |
-| Replicas (min)     | 0          | {value}    | 0 = scale-to-zero              |
-| Replicas (max)     | 2          | {value}    | Based on expected load         |
-
-Use suggested values, or customize?
-```
-
-### Defaults Applied Silently (do not ask unless user raises)
-
-These use sensible defaults. Only surface if the user asks or the situation requires it:
-
-| Field | Default | When to Ask |
-|-------|---------|-------------|
-| Pattern | Sidecar | Only ask if Python + long-running processing detected |
-| Protocol | HTTP | Only ask if user mentions TCP/gRPC |
-| Expose | false | Only ask if user mentions public access |
-| Capacity type | any | Only ask if user mentions spot/cost optimization |
-| Output queue | None | Only ask if user mentions output/results queue |
-| Visibility timeout (SQS) | 30s | Only ask if user mentions redelivery or timeout concerns |
-| Build args / secrets | None | Only ask if Dockerfile has ARG directives or build needs secrets |
+**Do NOT deploy with hardcoded defaults without asking.**
 
 ## Queue Configuration
 
@@ -254,7 +140,49 @@ async def health():
 
 ### Step 2: Generate YAML Manifest
 
-For the complete SDK deploy.py template with all configuration options (image source, resources, ports, queue config, scaling), see [references/async-sidecar-deploy.md](references/async-sidecar-deploy.md).
+Create a manifest using `worker_config.input_config` for queue connection:
+
+```yaml
+type: async-service
+name: my-async-worker
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    ref: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: ./Dockerfile
+    build_context_path: ./
+    command: uvicorn server:app --host 0.0.0.0 --port 8000
+  docker_registry: my-registry
+ports:
+  - expose: true
+    port: 8000
+    protocol: TCP
+    app_protocol: http
+resources:
+  node:
+    type: node_selector
+  cpu_request: 0.2
+  cpu_limit: 0.5
+  memory_request: 200
+  memory_limit: 500
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+worker_config:
+  input_config:
+    type: sqs
+    queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue
+    region_name: us-east-1
+    wait_time_seconds: 19
+    visibility_timeout: 1
+  num_concurrent_workers: 1
+workspace_fqn: cluster-id:workspace-name
+replicas: 1
+env: {}
+```
 
 **For pre-built images**, replace the `image` section:
 
@@ -330,52 +258,91 @@ tfy apply -f tfy-manifest.yaml
 
 If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
 
+### Queue type examples
+
+**SQS:**
+```yaml
+worker_config:
+  input_config:
+    type: sqs
+    queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-queue
+    region_name: us-east-1
+    wait_time_seconds: 19
+    visibility_timeout: 1
+  num_concurrent_workers: 1
+```
+
+**NATS:**
+```yaml
+worker_config:
+  input_config:
+    type: nats
+    nats_url: nats://nats.namespace.svc.cluster.local:4222
+    stream_name: my-stream
+    root_subject: my-subject
+    consumer_name: my-consumer
+    nats_metrics_url: http://nats-metrics:7777
+    wait_time_seconds: 10
+  num_concurrent_workers: 1
+```
+
+**Kafka:**
+```yaml
+worker_config:
+  input_config:
+    type: kafka
+    bootstrap_servers: kafka.namespace.svc.cluster.local:9092
+    topic_name: my-topic
+    consumer_group: my-group
+    tls: false
+    wait_time_seconds: 10
+  num_concurrent_workers: 1
+```
+
+**AMQP:**
+```yaml
+worker_config:
+  input_config:
+    type: amqp
+    url: amqp://user:pass@rabbitmq.namespace.svc.cluster.local:5672
+    queue_name: my-queue
+    wait_time_seconds: 10
+  num_concurrent_workers: 1
+```
+
+### Step 3: Write and Apply Manifest
+
+```bash
+# Preview
+tfy apply -f tfy-manifest.yaml --dry-run --show-diff
+
+# Apply after user confirms
+tfy apply -f tfy-manifest.yaml
+```
+
+### Fallback: REST API
+
+If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
+
 #### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
     manifest={
-        "name": "<SERVICE_NAME>",                    # ← confirmed with user
+        "name": "my-async-worker",
         "type": "async-service",
-        "image": {
-            "type": "build",
-            "build_source": {"type": "local", "project_root_path": "."},
-            "build_spec": {
-                "type": "dockerfile",
-                "dockerfile_path": "<DOCKERFILE_PATH>",    # ← auto-detect, confirm
-                "build_context_path": "<BUILD_CONTEXT>",   # ← auto-detect, default "./"
-                "build_args": {},                          # ← only if Dockerfile has ARG
-                "build_secrets": {}                        # ← only if build needs secrets
-            }
-        },
-        "resources": {
-            "cpu_request": <CPU_REQUEST>,             # ← from resource suggestion table
-            "cpu_limit": <CPU_LIMIT>,                 # ← from resource suggestion table
-            "memory_request": <MEMORY_REQUEST>,       # ← from resource suggestion table (MB)
-            "memory_limit": <MEMORY_LIMIT>,           # ← from resource suggestion table (MB)
-            "ephemeral_storage_request": <STORAGE_REQUEST>,  # ← from resource suggestion table (MB)
-            "ephemeral_storage_limit": <STORAGE_LIMIT>       # ← from resource suggestion table (MB)
-            # "devices": [{"type": "nvidia_gpu", "name": "<GPU_TYPE>", "count": <COUNT>}]  # ← only if ML libs detected
-            # "node": {"capacity_type": "any"}       # ← default "any", only ask if user mentions spot
-        },
-        "ports": [{"port": <PORT>, "protocol": "HTTP", "expose": false, "app_protocol": "http"}],  # ← port auto-detected; protocol default HTTP; expose default false
-        "replicas": {"min": <MIN_REPLICAS>, "max": <MAX_REPLICAS>},  # ← from resource suggestion table
-        "sidecar": {
-            "destination_url": "http://0.0.0.0:<PORT>/<ENDPOINT_PATH>"  # ← auto-detect from code, confirm
-        },
+        "image": { ... },
+        "resources": { "cpu_request": 0.2, "cpu_limit": 0.5, "memory_request": 200, "memory_limit": 500 },
+        "ports": [{"port": 8000, "protocol": "TCP", "expose": true, "app_protocol": "http"}],
+        "replicas": 1,
         "worker_config": {
-            "concurrent_workers": <CONCURRENT_WORKERS>  # ← default 1, shown in resource table
+            "input_config": { "type": "sqs", "queue_url": "...", "region_name": "us-east-1", "wait_time_seconds": 19, "visibility_timeout": 1 },
+            "num_concurrent_workers": 1
         },
-        "input_queue": {
-            "type": "<QUEUE_TYPE>",                  # ← ask user: "sqs" | "nats" | "kafka" | "google_amqp"
-            "queue_url": "<QUEUE_URL>",              # ← ask user
-            "aws_region": "<REGION>",                # ← ask user (SQS only)
-            "visibility_timeout": 30                 # ← default 30s (SQS only), ask if user mentions timeout
-        },
-        "workspace_fqn": "<WORKSPACE_FQN>"           # ← ask user, never auto-pick
+        "workspace_fqn": "cluster-id:workspace-name"
     },
     options={
-        "workspace_id": "<WORKSPACE_ID>",            # ← from workspace FQN lookup
+        "workspace_id": "ws-internal-id",
         "force_deploy": false
     }
 )
@@ -392,57 +359,13 @@ $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 # Then deploy (JSON body)
 $TFY_API_SH PUT /api/svc/v1/apps '{
   "manifest": {
-    "name": "<SERVICE_NAME>",
+    "name": "my-async-worker",
     "type": "async-service",
-    "image": {
-      "type": "build",
-      "build_source": {"type": "local", "project_root_path": "."},
-      "build_spec": {
-        "type": "dockerfile",
-        "dockerfile_path": "<DOCKERFILE_PATH>",
-        "build_context_path": "./",
-        "build_args": {},
-        "build_secrets": {}
-      }
-    },
-    "resources": {
-      "cpu_request": <CPU_REQUEST>,
-      "cpu_limit": <CPU_LIMIT>,
-      "memory_request": <MEMORY_REQUEST>,
-      "memory_limit": <MEMORY_LIMIT>,
-      "ephemeral_storage_request": <STORAGE_REQUEST>,
-      "ephemeral_storage_limit": <STORAGE_LIMIT>
-    },
-    "ports": [{"port": <PORT>, "protocol": "HTTP", "expose": false, "app_protocol": "http"}],
-    "replicas": {"min": <MIN_REPLICAS>, "max": <MAX_REPLICAS>},
-    "sidecar": {
-      "destination_url": "http://0.0.0.0:<PORT>/<ENDPOINT_PATH>"
-    },
-    "worker_config": {
-      "concurrent_workers": 1
-    },
-    "input_queue": {
-      "type": "<QUEUE_TYPE>",
-      "queue_url": "<QUEUE_URL>",
-      "aws_region": "<REGION>",
-      "visibility_timeout": 30
-    },
-    "workspace_fqn": "<WORKSPACE_FQN>"
+    ...
   },
-  "workspaceId": "<WORKSPACE_ID>"
+  "workspaceId": "WORKSPACE_ID_HERE"
 }'
 ```
-
-> **Note (NATS):** For NATS queue configs, the actual API field names differ from SDK names:
-> - SDK `stream` → API `stream_name`
-> - SDK `subject` → API `root_subject`
-> - SDK `consumer` → API `consumer_name`
-> - SDK `input_queue` + `sidecar` → API `worker_config.input_config` + `worker_config.sidecar_config`
-> When in doubt, use the SDK deploy.py approach which handles the mapping automatically.
-
-## Deploying with the Python Library Pattern
-
-For the Python library implementation (handler class, install steps, and deploy configuration), see [references/async-python-library.md](references/async-python-library.md). Use this pattern when processing time exceeds 1 minute per message or you need direct queue consumption control.
 
 ## Autoscaling and Scale-to-Zero
 

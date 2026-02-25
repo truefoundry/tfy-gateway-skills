@@ -1,0 +1,19 @@
+name: google-checker
+type: job
+image:
+  type: build
+  build_source:
+    type: local
+    local_build: false
+  build_spec:
+    type: dockerfile
+    dockerfile_path: Dockerfile
+    command: "python checker.py"
+resources:
+  cpu_request: 0.25
+  cpu_limit: 0.5
+  memory_request: 256
+  memory_limit: 512
+trigger:
+  type: manual
+workspace_fqn: ${TFY_WORKSPACE_FQN}
