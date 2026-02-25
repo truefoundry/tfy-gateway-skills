@@ -1,6 +1,6 @@
 # TrueFoundry Agent Skills
 
-Agent skills for [TrueFoundry](https://truefoundry.com) following the [Agent Skills](https://agentskills.io) open format. 25 skills that let AI coding assistants deploy, monitor, and manage ML infrastructure.
+Agent skills for [TrueFoundry](https://truefoundry.com) following the [Agent Skills](https://agentskills.io) open format. 27 skills that let AI coding assistants deploy, monitor, and manage ML infrastructure.
 
 Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
@@ -30,8 +30,8 @@ Example workflow:
 | **Infrastructure** | [helm](skills/helm/SKILL.md), [volumes](skills/volumes/SKILL.md), [secrets](skills/secrets/SKILL.md) |
 | **Jobs & Async** | [jobs](skills/jobs/SKILL.md), [workflows](skills/workflows/SKILL.md), [async-service](skills/async-service/SKILL.md) |
 | **Dev Environments** | [notebooks](skills/notebooks/SKILL.md), [ssh-server](skills/ssh-server/SKILL.md) |
-| **Observe & Test** | [logs](skills/logs/SKILL.md), [service-test](skills/service-test/SKILL.md), [applications](skills/applications/SKILL.md) |
-| **Utility** | [status](skills/status/SKILL.md), [workspaces](skills/workspaces/SKILL.md), [prompts](skills/prompts/SKILL.md), [docs](skills/docs/SKILL.md), [preferences](skills/preferences/SKILL.md) |
+| **Observe & Test** | [logs](skills/logs/SKILL.md), [service-test](skills/service-test/SKILL.md), [applications](skills/applications/SKILL.md), [tracing](skills/tracing/SKILL.md) |
+| **Utility** | [status](skills/status/SKILL.md), [workspaces](skills/workspaces/SKILL.md), [prompts](skills/prompts/SKILL.md), [docs](skills/docs/SKILL.md), [preferences](skills/preferences/SKILL.md), [access-tokens](skills/access-tokens/SKILL.md), [ml-repos](skills/ml-repos/SKILL.md) |
 
 Skills are model-invoked — your agent picks the right one from your prompt. Five skills (`deploy`, `helm`, `llm-deploy`, `async-service`, `multi-service`) require explicit invocation.
 
