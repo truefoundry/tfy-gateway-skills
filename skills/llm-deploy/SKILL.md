@@ -41,7 +41,85 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 <instructions>
 
-## Step 0a: Detect Environment
+## Quick Deploy Flow
+
+**For the fastest deployment, present a single plan instead of asking questions one by one.**
+
+### 1. Check Preferences
+
+```bash
+PREFS_FILE=~/.config/truefoundry/preferences.yml
+if [ -f "$PREFS_FILE" ]; then
+  cat "$PREFS_FILE"
+fi
+```
+
+If preferences exist, pre-fill: workspace, environment, resources, GPU preferences.
+If no preferences file, the only mandatory questions are **workspace** and **model**.
+
+### 2. Auto-Detect + Pre-fill
+
+Combine preferences + model analysis to fill every field:
+
+| Field | Source (priority order) |
+|-------|----------------------|
+| Workspace | 1. Preferences 2. Ask user |
+| Model | Ask user (required) |
+| Framework | Default vLLM (recommended) |
+| Service name | Auto-generate from model name |
+| GPU + resources | Auto-calculate from model size + cluster availability |
+| DTYPE | Auto-select based on GPU capability |
+| Max model len | Model's default context window |
+| Access | 1. Preferences (`expose_services`) 2. Default internal |
+| Authentication | Auto-detect if model is gated (HF token needed) |
+
+### 3. Present One Plan
+
+Present ALL values in a single summary and ask for confirmation:
+
+```
+I'll deploy your LLM to TrueFoundry:
+
+| Setting        | Value                          | Source      |
+|----------------|--------------------------------|-------------|
+| Workspace      | my-cluster:dev-ws              | saved pref  |
+| Model          | meta-llama/Llama-3.2-1B        | user input  |
+| Framework      | vLLM                           | default     |
+| Service name   | llama-3-2-1b                   | auto        |
+| GPU            | 1x T4 (16 GB)                  | auto        |
+| DTYPE          | float16                        | auto (T4)   |
+| CPU / Memory   | 4 cores / 16 GB                | auto        |
+| Shared memory  | 15 GB                          | auto        |
+| Max model len  | 4096                           | model default|
+| Access         | Internal only                  | saved pref  |
+
+Deploy with these settings? (say "yes" to deploy, or tell me what to change)
+```
+
+### 4. Handle Response
+
+- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
+- **"change X to Y"** → update that one field, re-confirm
+- **"I want to customize"** → fall through to the full checklist flow below
+
+### 5. After Deploy — Offer to Save Preferences
+
+If no preferences file exists or new values were used:
+
+```
+Deployed successfully! Want me to save these settings as defaults?
+- Workspace: my-cluster:dev-ws
+- Environment: dev
+- Expose: internal only
+
+This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
+```
+
+Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
+
+---
+
+## Step 0a: Detect Environment & Versions
 
 **Before deploying**, check CLI availability and container image versions.
 

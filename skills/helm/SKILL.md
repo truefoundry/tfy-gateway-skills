@@ -94,6 +94,78 @@ These use sensible defaults. Only surface if the user asks or the situation requ
 
 <instructions>
 
+## Quick Deploy Flow
+
+**For the fastest deployment, present a single plan instead of asking questions one by one.**
+
+### 1. Check Preferences
+
+```bash
+PREFS_FILE=~/.config/truefoundry/preferences.yml
+if [ -f "$PREFS_FILE" ]; then
+  cat "$PREFS_FILE"
+fi
+```
+
+If preferences exist, pre-fill: workspace, environment.
+If no preferences file, the only mandatory questions are **workspace**, **chart source**, and **chart version**.
+
+### 2. Auto-Detect + Pre-fill
+
+Combine preferences + user request to fill every field:
+
+| Field | Source (priority order) |
+|-------|----------------------|
+| Workspace | 1. Preferences 2. Ask user |
+| Chart source + version | Ask user (required — cannot auto-detect) |
+| Release name | Auto-suggest from chart name + context |
+| Config values | Sensible defaults per chart type (passwords auto-generated) |
+| Storage size | 1. Preferences 2. Default dev sizing (10Gi DB, 1Gi cache) |
+| Replicas | Default 1 (dev) |
+
+### 3. Present One Plan
+
+Present ALL values in a single summary and ask for confirmation:
+
+```
+I'll deploy a Helm chart to TrueFoundry:
+
+| Setting        | Value                          | Source      |
+|----------------|--------------------------------|-------------|
+| Workspace      | my-cluster:dev-ws              | saved pref  |
+| Chart          | oci://registry/postgresql      | user input  |
+| Version        | 15.5.0                         | user input  |
+| Release name   | myapp-postgres                 | auto        |
+| Password       | (auto-generated, 32 chars)     | auto        |
+| Database       | myapp                          | auto        |
+| Storage        | 10Gi                           | dev default |
+| Replicas       | 1                              | dev default |
+
+Deploy with these settings? (say "yes" to deploy, or tell me what to change)
+```
+
+### 4. Handle Response
+
+- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
+- **"change X to Y"** → update that one field, re-confirm
+- **"I want to customize"** → fall through to the full checklist flow below
+
+### 5. After Deploy — Offer to Save Preferences
+
+If no preferences file exists or new values were used:
+
+```
+Deployed successfully! Want me to save these settings as defaults?
+- Workspace: my-cluster:dev-ws
+- Environment: dev
+
+This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
+```
+
+Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
+
+---
+
 ## Finding & Sourcing Helm Charts
 
 For chart sources, OCI URLs, registries, version discovery, and the chart selection guide, see [references/helm-chart-sources.md](references/helm-chart-sources.md).

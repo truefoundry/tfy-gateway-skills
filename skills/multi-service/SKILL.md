@@ -53,6 +53,41 @@ Same as other deploy skills:
 
 <instructions>
 
+## Quick Deploy Flow — Preferences Check
+
+**Before scanning the project, check for saved preferences to pre-fill workspace, environment, and resource defaults.**
+
+### Check Preferences
+
+```bash
+PREFS_FILE=~/.config/truefoundry/preferences.yml
+if [ -f "$PREFS_FILE" ]; then
+  cat "$PREFS_FILE"
+fi
+```
+
+If preferences exist, pre-fill these fields in the deployment plan (Step 3):
+- **Workspace** — from `default_workspace`
+- **Environment** — from `environment` (affects resource sizing: dev vs production)
+- **Expose** — from `expose_services` (which services get public URLs)
+- **Resource profiles** — from `resources` (CPU/memory defaults)
+
+If no preferences file, the only mandatory question is **workspace** — everything else is auto-detected from the project.
+
+After a successful multi-service deployment, offer to save preferences:
+
+```
+All services deployed! Want me to save these settings as defaults?
+- Workspace: my-cluster:dev-ws
+- Environment: dev
+
+This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
+```
+
+Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
+
+---
+
 ## Step 0: Auto-Detect Before Asking
 
 **The multi-service skill is heavily auto-detected.** The agent proactively scans the project to discover services, build the dependency graph, classify components, detect ports, env vars, and wiring — all before asking the user anything.

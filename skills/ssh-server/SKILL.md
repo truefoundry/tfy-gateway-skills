@@ -60,6 +60,80 @@ tfy --version
 
 <instructions>
 
+## Quick Deploy Flow
+
+**For the fastest setup, present a single plan instead of asking questions one by one.**
+
+### 1. Check Preferences
+
+```bash
+PREFS_FILE=~/.config/truefoundry/preferences.yml
+if [ -f "$PREFS_FILE" ]; then
+  cat "$PREFS_FILE"
+fi
+```
+
+If preferences exist, pre-fill: workspace, environment, resources, GPU preferences.
+If no preferences file, the only mandatory questions are **workspace** and **SSH key**.
+
+### 2. Auto-Detect + Pre-fill
+
+Combine preferences + local environment to fill every field:
+
+| Field | Source (priority order) |
+|-------|----------------------|
+| Workspace | 1. Preferences 2. Ask user |
+| Server name | Auto-suggest (e.g., `dev-server`) |
+| SSH public key | Auto-detect from `~/.ssh/id_rsa.pub` or `~/.ssh/id_ed25519.pub` |
+| GPU needed | 1. Preferences 2. Default no |
+| Resources | 1. Preferences 2. "Light Dev" profile default |
+| Auto-shutdown | 1. Preferences 2. Default 1 hour |
+| Home dir storage | 1. Preferences 2. Default 20 GB |
+
+### 3. Present One Plan
+
+Present ALL values in a single summary and ask for confirmation:
+
+```
+I'll launch an SSH server on TrueFoundry:
+
+| Setting        | Value                          | Source      |
+|----------------|--------------------------------|-------------|
+| Workspace      | my-cluster:dev-ws              | saved pref  |
+| Server name    | dev-server                     | auto        |
+| SSH key        | ssh-ed25519 AAAA...            | auto (~/.ssh)|
+| CPU            | 2 / 4 cores                    | dev default |
+| Memory         | 4 / 8 GB                       | dev default |
+| Home storage   | 20 GB                          | dev default |
+| Auto-shutdown  | 1 hour                         | default     |
+| GPU            | None                           | default     |
+
+Launch with these settings? (say "yes" to launch, or tell me what to change)
+```
+
+### 4. Handle Response
+
+- **"yes" / "looks good" / "launch"** → launch immediately using the steps below
+- **"change X to Y"** → update that one field, re-confirm
+- **"I want to customize"** → fall through to the full checklist flow below
+
+### 5. After Launch — Offer to Save Preferences
+
+If no preferences file exists or new values were used:
+
+```
+SSH server launched! Want me to save these settings as defaults?
+- Workspace: my-cluster:dev-ws
+- Resources: Light Dev profile
+- Auto-shutdown: 1 hour
+
+This saves to ~/.config/truefoundry/preferences.yml so future launches are even faster.
+```
+
+Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
+
+---
+
 ## User Confirmation Checklist
 
 **Confirm these with the user before launching. Show defaults, let user adjust.**

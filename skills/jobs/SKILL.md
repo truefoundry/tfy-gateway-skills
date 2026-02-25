@@ -41,6 +41,82 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 <instructions>
 
+## Quick Deploy Flow
+
+**For the fastest deployment, present a single plan instead of asking questions one by one.**
+
+### 1. Check Preferences
+
+```bash
+PREFS_FILE=~/.config/truefoundry/preferences.yml
+if [ -f "$PREFS_FILE" ]; then
+  cat "$PREFS_FILE"
+fi
+```
+
+If preferences exist, pre-fill: workspace, environment, resources.
+If no preferences file, the only mandatory question is **workspace**.
+
+### 2. Auto-Detect + Pre-fill
+
+Combine preferences + project scanning to fill every field:
+
+| Field | Source (priority order) |
+|-------|----------------------|
+| Workspace | 1. Preferences 2. Ask user |
+| Job name | Auto-detect from script/project name |
+| Image + command | Auto-detect from Dockerfile, requirements.txt, project structure |
+| Schedule | Default manual trigger (ask if cron needed) |
+| Resources | 1. Preferences 2. Codebase analysis defaults |
+| Environment | 1. Preferences 2. Default "dev" |
+| Env vars | Auto-detect from .env/code |
+| GPU | Only if ML libs detected |
+
+### 3. Present One Plan
+
+Present ALL values in a single summary and ask for confirmation:
+
+```
+I'll deploy your job to TrueFoundry:
+
+| Setting        | Value                          | Source      |
+|----------------|--------------------------------|-------------|
+| Workspace      | my-cluster:dev-ws              | saved pref  |
+| Job name       | training-job                   | auto        |
+| Image          | PythonBuild                    | auto        |
+| Command        | python train.py                | auto        |
+| Schedule       | Manual trigger                 | default     |
+| CPU            | 0.5 / 1.0                      | dev default |
+| Memory         | 512 / 1024 MB                  | dev default |
+| GPU            | None                           | default     |
+| Env vars       | 2 from .env                    | auto        |
+
+Deploy with these settings? (say "yes" to deploy, or tell me what to change)
+```
+
+### 4. Handle Response
+
+- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
+- **"change X to Y"** → update that one field, re-confirm
+- **"I want to customize"** → fall through to the full checklist flow below
+
+### 5. After Deploy — Offer to Save Preferences
+
+If no preferences file exists or new values were used:
+
+```
+Deployed successfully! Want me to save these settings as defaults?
+- Workspace: my-cluster:dev-ws
+- Environment: dev
+- Resources: dev profile
+
+This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
+```
+
+Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
+
+---
+
 ### Step 1: Auto-Detect Before Asking
 
 **Before asking the user anything**, scan the project to auto-detect as much as possible:

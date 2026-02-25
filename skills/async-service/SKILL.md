@@ -85,6 +85,84 @@ The service connects directly to the queue through `worker_config.input_config`.
 
 <instructions>
 
+## Quick Deploy Flow
+
+**For the fastest deployment, present a single plan instead of asking questions one by one.**
+
+### 1. Check Preferences
+
+```bash
+PREFS_FILE=~/.config/truefoundry/preferences.yml
+if [ -f "$PREFS_FILE" ]; then
+  cat "$PREFS_FILE"
+fi
+```
+
+If preferences exist, pre-fill: workspace, environment, resources, expose, base domain.
+If no preferences file, the only mandatory question is **workspace**.
+
+### 2. Auto-Detect + Pre-fill
+
+Combine preferences + project scanning to fill every field:
+
+| Field | Source (priority order) |
+|-------|----------------------|
+| Workspace | 1. Preferences 2. Ask user |
+| Service name | Auto-detect from project/repo name |
+| Image source | Auto-detect from project (Git repo, Dockerfile, local code) |
+| Port | Auto-detect from code |
+| Endpoint path | Auto-detect from POST handler routes |
+| Queue type + URL | Ask user (cannot auto-detect) |
+| Resources | 1. Preferences 2. Codebase analysis defaults |
+| Environment | 1. Preferences 2. Default "dev" |
+| Env vars | Auto-detect from .env/code |
+
+### 3. Present One Plan
+
+Present ALL values in a single summary and ask for confirmation:
+
+```
+I'll deploy your async service to TrueFoundry:
+
+| Setting        | Value                          | Source      |
+|----------------|--------------------------------|-------------|
+| Workspace      | my-cluster:dev-ws              | saved pref  |
+| Service name   | my-worker                      | auto        |
+| Image          | Git + Dockerfile               | auto        |
+| Port           | 8000                           | auto        |
+| Endpoint       | /process                       | auto        |
+| Queue          | NATS (nats://...)              | user input  |
+| CPU            | 0.2 / 0.5                      | dev default |
+| Memory         | 200 / 500 MB                   | dev default |
+| Replicas       | 0 / 2 (scale-to-zero)          | dev default |
+| Env vars       | 2 from .env                    | auto        |
+
+Deploy with these settings? (say "yes" to deploy, or tell me what to change)
+```
+
+### 4. Handle Response
+
+- **"yes" / "looks good" / "deploy"** → deploy immediately using the steps below
+- **"change X to Y"** → update that one field, re-confirm
+- **"I want to customize"** → fall through to the full checklist flow below
+
+### 5. After Deploy — Offer to Save Preferences
+
+If no preferences file exists or new values were used:
+
+```
+Deployed successfully! Want me to save these settings as defaults?
+- Workspace: my-cluster:dev-ws
+- Environment: dev
+- Resources: dev profile
+
+This saves to ~/.config/truefoundry/preferences.yml so future deploys are even faster.
+```
+
+Use the `preferences` skill to save. If the user wants to edit preferences later, tell them to use the `preferences` skill directly.
+
+---
+
 ## Step 0: Auto-Detect Before Asking
 
 **Before asking the user anything**, scan the project to auto-detect as much as possible:
