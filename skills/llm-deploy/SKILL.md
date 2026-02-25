@@ -1,6 +1,6 @@
 ---
 name: llm-deploy
-description: This skill should be used when the user asks "deploy a model", "deploy LLM", "serve a model", "deploy hugging face model", "deploy vLLM", "deploy TGI", "deploy NIM", "NVIDIA NIM", "inference server", "serve gemma", "serve llama", "serve mistral", "GPU model serving", "host a language model", "deploy ML model", or wants to deploy any ML/LLM model on TrueFoundry. Uses YAML manifests with `tfy apply`.
+description: Deploys ML and LLM models on TrueFoundry with GPU inference servers (vLLM, TGI, NVIDIA NIM). Uses YAML manifests with `tfy apply`. Use when serving language models, deploying Hugging Face models, or hosting GPU-accelerated inference endpoints.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
@@ -205,7 +205,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 }'
 ```
 
-#### Via MCP
+#### Via Tool Call
 
 ```
 tfy_applications_create_deployment(

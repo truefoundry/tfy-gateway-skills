@@ -28,7 +28,7 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 
 ## Step 2: List ML Repos
 
-### Via MCP
+### Via Tool Call
 ```
 tfy_ml_repos_list()
 ```
@@ -52,7 +52,7 @@ ML Repos:
 
 ## Step 3: Get ML Repo Details
 
-### Via MCP
+### Via Tool Call
 ```
 tfy_ml_repos_get(id="REPO_ID")
 ```
@@ -65,7 +65,7 @@ $TFY_API_SH GET /api/ml/v1/ml-repos/REPO_ID
 
 ## Step 4: List Models in a Repo
 
-### Via MCP
+### Via Tool Call
 ```
 tfy_models_list(ml_repo_id="REPO_ID")
 ```

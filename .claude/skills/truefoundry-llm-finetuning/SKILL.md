@@ -1,6 +1,6 @@
 ---
 name: llm-finetuning
-description: This skill should be used when the user asks "finetune a model", "fine-tune LLM", "train a model", "LoRA finetuning", "QLoRA finetuning", "full finetuning", "fine-tune on my data", "customize a model", "adapt a model", "retrain a language model", "train on my dataset", "custom model training", or wants to fine-tune, adapt, or retrain a large language model on their own data using TrueFoundry.
+description: Fine-tunes large language models on custom datasets using TrueFoundry. Supports LoRA, QLoRA, and full finetuning methods. Use when adapting, retraining, or customizing LLMs on user-provided data.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)

@@ -147,7 +147,7 @@ Note: Size can be expanded later but not reduced.
 Proceed?
 ```
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
@@ -156,7 +156,7 @@ tfy_applications_create_deployment(
 )
 ```
 
-For Volume Browser fields and static volume MCP examples, use the same fields as the Direct API examples below.
+For Volume Browser fields and static volume tool-call examples, use the same fields as the Direct API examples below.
 
 ### Via Direct API
 
@@ -220,7 +220,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{
 
 ## Listing Volumes
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list(filters={"workspace_fqn": "my-cluster:my-workspace", "application_type": "volume"})

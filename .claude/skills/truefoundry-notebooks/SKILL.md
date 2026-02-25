@@ -1,6 +1,6 @@
 ---
 name: notebooks
-description: This skill should be used when the user asks "launch a notebook", "deploy jupyter", "start a notebook", "jupyter notebook", "create notebook", "notebook for development", "start jupyterlab", "GPU notebook", "notebook with GPU", "data exploration environment", "ML development environment", "run jupyter on cloud", or wants to run Jupyter notebooks on TrueFoundry infrastructure.
+description: Deploys Jupyter notebooks on TrueFoundry infrastructure with optional GPU support. Use when launching JupyterLab environments, setting up ML development workspaces, or running cloud-hosted notebooks for data exploration.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)

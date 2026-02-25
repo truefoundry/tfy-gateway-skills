@@ -24,7 +24,7 @@ List, create, update, or delete secret groups and individual secrets on TrueFoun
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_secrets_list()
@@ -65,13 +65,13 @@ Secret Groups:
 
 ## Create Secret Group
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_secret_groups_create(payload={"name": "my-secrets", ...})
 ```
 
-**Note:** Requires human approval (HITL) via MCP.
+**Note:** Requires human approval (HITL) via tool call.
 
 ### Via Direct API
 
@@ -83,13 +83,13 @@ $TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets","integrationId"
 
 Updates secrets in a group. A new version is created for every secret with a modified value. Secrets omitted from the array are deleted. At least one secret is required.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_secret_groups_update(id="GROUP_ID", payload={"secrets": [{"key": "DB_PASSWORD", "value": "new-value"}, {"key": "API_KEY", "value": "new-key"}]})
 ```
 
-**Note:** Requires human approval (HITL) via MCP.
+**Note:** Requires human approval (HITL) via tool call.
 
 ### Via Direct API
 
@@ -99,13 +99,13 @@ $TFY_API_SH PUT /api/svc/v1/secret-groups/GROUP_ID '{"secrets":[{"key":"DB_PASSW
 
 ## Delete Secret Group
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_secret_groups_delete(id="GROUP_ID")
 ```
 
-**Note:** Requires human approval (HITL) via MCP.
+**Note:** Requires human approval (HITL) via tool call.
 
 ### Via Direct API
 
@@ -115,13 +115,13 @@ $TFY_API_SH DELETE /api/svc/v1/secret-groups/GROUP_ID
 
 ## Delete Individual Secret
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_secrets_delete(id="SECRET_ID")
 ```
 
-**Note:** Requires human approval (HITL) via MCP.
+**Note:** Requires human approval (HITL) via tool call.
 
 ### Via Direct API
 

@@ -1,6 +1,6 @@
 ---
 name: jobs
-description: This skill should be used when the user asks "deploy a job", "create a job", "run a batch task", "schedule a job", "show job runs", "list runs", "job status", "is my job running", "run a batch job", "execute a task", "cron job", "one-time job", "trigger a run", "check job run", "failed job", or wants to deploy or monitor TrueFoundry job executions. Uses YAML manifests with `tfy apply`. For listing job applications, use applications skill.
+description: Deploys and monitors TrueFoundry batch jobs, scheduled cron jobs, and one-time tasks. Uses YAML manifests with `tfy apply`. Use when deploying jobs, scheduling cron tasks, checking job run status, or viewing execution history. For listing job applications, use applications skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)

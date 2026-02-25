@@ -1,6 +1,6 @@
 # tfy-api.sh Setup
 
-When MCP is unavailable, skills use `tfy-api.sh` for direct API calls. This is an authenticated curl wrapper that handles credentials, headers, and error formatting.
+Skills use `tfy-api.sh` for direct API calls. This is an authenticated curl wrapper that handles credentials, headers, and error formatting.
 
 ## Script Location
 

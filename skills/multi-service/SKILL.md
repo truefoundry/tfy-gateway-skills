@@ -1,6 +1,6 @@
 ---
 name: multi-service
-description: This skill should be used when the user asks "deploy my full app", "deploy frontend and backend", "multi-service deployment", "deploy all services", "microservices deployment", "deploy my docker-compose app", "deploy my monorepo", "deploy multiple containers", "deploy full stack", "deploy interconnected services", "orchestrate service deployment", or has a project with multiple interconnected services that need coordinated deployment on TrueFoundry. Uses YAML manifests with `tfy apply` for each service.
+description: Coordinates deployment of multiple interconnected services on TrueFoundry. Uses YAML manifests with `tfy apply` for each service. Use when deploying full-stack apps, microservices, monorepos, or docker-compose projects with frontend and backend components.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
@@ -149,7 +149,7 @@ This cannot be deployed in sequence. Options:
 
 ### CRITICAL: Poll Infrastructure Readiness Before Next Tier
 
-> **Tested 2026-02-14**: `DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
+`DEPLOY_SUCCESS` from the TrueFoundry API does NOT mean Helm chart pods are ready to accept connections. PostgreSQL and Redis charts may show DEPLOY_SUCCESS while pods are still initializing (PVC binding, image pull, startup).
 
 **Between each deployment tier, poll the actual pods for readiness:**
 
@@ -431,7 +431,7 @@ See `references/compose-translation.md` for the full translation reference. Key 
 
 See `references/multi-service-patterns.md` for ready-made dependency graphs and deploy orders for:
 - **RAG applications** (LLM + vector DB + API + frontend)
-- **AI Agent with tools** (LLM + MCP server + DB)
+- **AI Agent with tools** (LLM + tool server + DB)
 - **Full-Stack SaaS with AI** (frontend + backend + workers + infra + LLM)
 - **Monorepo support** (detecting structure, shared code, build contexts)
 

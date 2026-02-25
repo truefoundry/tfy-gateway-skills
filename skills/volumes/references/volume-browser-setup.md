@@ -29,7 +29,7 @@ The `volume_browser` object is optional on the volume manifest. Omit it entirely
 
 2. **Get the cluster's base domain** for the endpoint host:
    ```bash
-   # Via MCP
+   # Via Tool Call
    tfy_clusters_list(cluster_id="CLUSTER_ID")
 
    # Via Direct API

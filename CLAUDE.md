@@ -29,7 +29,6 @@ Deploy skills use a CLI-first approach with REST API as fallback:
 
 1. **CLI** (`tfy apply`) — Primary. Write a YAML manifest and apply it. Works everywhere `tfy` CLI is installed.
 2. **REST API** (fallback) — When CLI is unavailable, convert YAML to JSON and use `tfy-api.sh`. See `cli-fallback.md`.
-3. **MCP tools** — When `tfy-mcp-server` is configured, non-deploy skills reference tool names like `tfy_applications_list`.
 
 All modes use `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
 
@@ -75,7 +74,7 @@ allowed-tools: Bash(*/tfy-api.sh *)
 - The repo root `skills/` directory is the source of truth for development.
 - Skills reference each other for composability (e.g. deploy tells users to check `workspaces` skill first). Common flows: `status → workspaces → deploy → applications`, `applications → logs`.
 - `TFY_WORKSPACE_FQN` is never auto-picked by any skill — always ask the user.
-- When adding a new skill, include both MCP and direct API instructions, reference the `status` skill for preflight checks, and run `sync-shared.sh` afterward.
+- When adding a new skill, include CLI-first instructions with direct API fallback, reference the `status` skill for preflight checks, and run `sync-shared.sh` afterward.
 
 ## Version Awareness
 

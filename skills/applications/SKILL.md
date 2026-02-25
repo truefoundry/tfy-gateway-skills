@@ -29,7 +29,7 @@ List, inspect, or manage deployed applications and their deployment history. Als
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list()
@@ -75,13 +75,13 @@ Show as a table. Use `updatedAt` from the API response for "Last Deployed" (ISO 
 Applications in my-cluster:my-workspace:
 | Name           | Type    | Status   | Last Deployed      |
 |----------------|---------|----------|--------------------|
-| tfy-mcp-server | service | RUNNING  | 2026-02-10 14:30   |
+| tfy-tool-server | service | RUNNING  | 2026-02-10 14:30   |
 | data-pipeline  | job     | STOPPED  | 2026-02-08 09:15   |
 ```
 
 ## List Deployments
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list_deployments(app_id="app-id")
@@ -172,7 +172,7 @@ A basic TrueFoundry service manifest looks like this:
 
 Present this summary and ask for confirmation before making the API call.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
@@ -189,7 +189,7 @@ tfy_applications_create_deployment(
 )
 ```
 
-**Note:** This requires human approval (HITL) when using MCP.
+**Note:** This requires human approval (HITL) when using tool calls.
 
 ### Via Direct API
 

@@ -34,7 +34,7 @@ cd tfy-agent-skills
    - `description` controls auto-invocation — include the phrases users would say
    - Add `disable-model-invocation: true` if the skill should only run on explicit request (e.g., deploy actions)
 
-3. **Include both MCP and Direct API instructions.** Every skill should work with or without the MCP server.
+3. **Use CLI-first instructions with Direct API fallback.** Every skill should work when CLI is available, with API fallback when needed.
 
 4. **Reference shared files** instead of duplicating content:
    - `references/prerequisites.md` — credential checks, env vars
@@ -69,7 +69,7 @@ Every skill should have:
 - **When to Use** — clear triggers for invocation
 - **When NOT to Use** — redirect to the correct skill
 - **Prerequisites** — what's needed before the skill runs (reference `prerequisites.md`)
-- **API instructions** — both MCP tool calls and direct API via `tfy-api.sh`
+- **API instructions** — CLI-first flow and direct API fallback via `tfy-api.sh`
 - **Error handling** — common errors and how to resolve them
 - **Composability** — links to related skills
 
@@ -112,7 +112,7 @@ Before submitting a PR:
 - **Keep decision logic inline** in skills — only extract lookup tables and boilerplate to shared refs
 - **Don't hardcode environment-specific values** in examples — use placeholders or env vars
 - **Never commit secrets** (`.env`, API keys, tokens) — use `.env.example` placeholders only
-- **Both MCP and API paths** must be documented in every skill that makes API calls
+- **CLI-first and API fallback paths** must be documented in every skill that makes API calls
 
 ## Questions?
 

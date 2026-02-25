@@ -40,9 +40,9 @@ Verify TrueFoundry credentials and connectivity, or diagnose authentication issu
 
 ## Check Credentials
 
-### Via MCP (if tfy-mcp-server is configured)
+### Via Tool Call (if tfy-tool-server is configured)
 
-If the TrueFoundry MCP server is available, use the MCP tool:
+If the TrueFoundry tool server is available, use this tool call:
 
 ```
 tfy_config_status
@@ -135,6 +135,6 @@ Set them via environment variables or add to .env in project root.
 
 - **After status OK**: Use any other skill (workspaces, applications, deploy, etc.)
 - **To set credentials**: Export env vars or create .env file
-- **If using MCP**: Use `tfy_config_set` to persist credentials
+- **If using tool calls**: Use `tfy_config_set` to persist credentials
 
 </references>

@@ -24,7 +24,7 @@ View, download, and search application and job logs from TrueFoundry. Useful for
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_logs_download(payload={
@@ -68,9 +68,9 @@ $TFY_API_SH GET '/api/svc/v1/logs/WORKSPACE_ID/download?applicationId=APP_ID&sea
 Show logs in chronological order. For long output, show the last N lines or summarize errors:
 
 ```
-Logs for tfy-mcp-server (last 20 lines):
+Logs for tfy-tool-server (last 20 lines):
 2026-02-10 14:30:01 INFO  Server starting on port 8000
-2026-02-10 14:30:02 INFO  MCP endpoint ready at /mcp
+2026-02-10 14:30:02 INFO  Tools endpoint ready at /tools
 2026-02-10 14:30:05 INFO  Health check: OK
 ```
 

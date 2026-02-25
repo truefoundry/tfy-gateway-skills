@@ -19,7 +19,7 @@ Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure a
 ## When NOT to Use
 
 - User wants to deploy a self-hosted model → use `llm-deploy` skill (then connect to gateway)
-- User wants to deploy MCP servers → use `deploy` skill (service with mcp-proxy)
+- User wants to deploy tool servers → use `deploy` skill (service with tool-proxy)
 - User wants to manage TrueFoundry platform credentials → use `status` skill
 
 </objective>
@@ -407,7 +407,7 @@ Usage:
 - **Need API key**: Create PAT/VAT in TrueFoundry dashboard → Access
 - **Rate limiting**: Configure in dashboard → AI Gateway → Rate Limiting
 - **Routing config**: Use `tfy-apply` skill to apply routing YAML via GitOps
-- **MCP servers**: Use `deploy` skill to deploy MCP servers (service with mcp-proxy), register in gateway
+- **tool servers**: Use `deploy` skill to deploy tool servers (service with tool-proxy), register in gateway
 - **Check deployed models**: Use `applications` skill to see running model services
 - **Benchmark through gateway**: Use `llm-benchmarking` skill to test gateway performance
 

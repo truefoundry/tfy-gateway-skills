@@ -2,7 +2,7 @@
 
 **Note:** All examples below use placeholder registry URLs (`oci://YOUR_REGISTRY/YOUR_CHART`). Replace these with your actual chart registry URL. Ask the user for the chart source — do not assume a specific registry.
 
-All examples use `oci-repo`. You can also use `helm-repo` or `git-helm-repo` -- see [helm-chart-sources.md](helm-chart-sources.md) for all source types.
+All examples use `oci-repo`. You can also use `helm-repo` or `git-helm-repo`.
 
 ## Redis (Cache)
 

@@ -24,7 +24,7 @@ List workspaces and clusters, find workspace FQNs for deployment, check cluster 
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_workspaces_list(filters={"cluster_id": "optional-cluster-id"})
@@ -49,7 +49,7 @@ $TFY_API_SH GET '/api/svc/v1/workspaces?fqn=my-cluster:my-workspace'
 ### Get Specific Workspace
 
 ```bash
-# Via MCP
+# Via Tool Call
 tfy_workspaces_list(workspace_id="ws-id-here")
 
 # Via API
@@ -72,7 +72,7 @@ Workspaces:
 
 ## List Clusters
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_clusters_list()

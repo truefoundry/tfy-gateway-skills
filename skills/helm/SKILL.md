@@ -1,6 +1,6 @@
 ---
 name: helm
-description: This skill should be used when the user asks "deploy a database", "install redis", "helm chart", "deploy postgres", "deploy mongodb", "install a helm chart", "deploy vector database", "deploy qdrant", "deploy milvus", "deploy elasticsearch", "install a chart", "deploy infrastructure", "set up a database", "add redis to my cluster", "deploy rabbitmq", "install kafka", "deploy monitoring stack", or wants to deploy any infrastructure component via Helm on TrueFoundry. Supports ANY public or private OCI Helm chart. Uses YAML manifests with `tfy apply`.
+description: Deploys infrastructure components via Helm charts on TrueFoundry. Supports any public or private OCI Helm chart including databases (Postgres, MongoDB, Redis), message brokers (Kafka, RabbitMQ), and vector databases (Qdrant, Milvus). Uses YAML manifests with `tfy apply`. Use when installing Helm charts or deploying infrastructure on TrueFoundry.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
@@ -158,7 +158,7 @@ If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via 
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-#### Via MCP
+#### Via Tool Call
 
 ```
 tfy_applications_create_deployment(
@@ -180,7 +180,7 @@ tfy_applications_create_deployment(
 )
 ```
 
-**Note:** This requires human approval (HITL) when using MCP.
+**Note:** This requires human approval (HITL) when using tool calls.
 
 #### Via Direct API
 

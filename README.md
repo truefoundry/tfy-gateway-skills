@@ -37,12 +37,12 @@ Skills are model-invoked — your agent picks the right one from your prompt. Fi
 
 ## How It Works
 
-Each skill is a `SKILL.md` with YAML frontmatter + markdown instructions. Skills operate in two modes:
+Each skill is a `SKILL.md` with YAML frontmatter + markdown instructions. Execution model is CLI-first:
 
-- **Standalone** — bundled `tfy-api.sh` curl wrapper talks to the REST API directly
-- **With MCP** — pair with [tfy-mcp-server](https://github.com/truefoundry/tfy-mcp-server) for structured tool calls and no Bash prompts
+- **Primary** — use `tfy` CLI commands (for example `tfy apply`) for deployment and management flows
+- **Fallback** — use bundled `tfy-api.sh` for REST API calls only when CLI is unavailable or missing a required operation
 
-Both use `TFY_BASE_URL` and `TFY_API_KEY`. Skills auto-detect which mode is available.
+Both use `TFY_BASE_URL` and `TFY_API_KEY`.
 
 ## Development
 

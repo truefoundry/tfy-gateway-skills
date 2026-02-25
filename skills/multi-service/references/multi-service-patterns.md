@@ -28,11 +28,11 @@ env = {
 ```
 Dependency Graph:
   agent-api -> llm
-            -> mcp-server
+            -> tool-server
             -> db
 ```
 
-**Deploy order:** db -> mcp-server, llm (parallel) -> agent-api
+**Deploy order:** db -> tool-server, llm (parallel) -> agent-api
 
 ## Full-Stack SaaS with AI
 

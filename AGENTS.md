@@ -40,14 +40,12 @@ Available skills in this repo:
 
 ## Architecture
 
-Skills can use either the **MCP server** or **direct API**:
+Skills are **CLI-first**:
 
-**MCP tools** — When `tfy-mcp-server` is configured in the agent, skills reference MCP
-tool names like `tfy_applications_list`, `tfy_workspaces_list`, etc. The agent calls
-these tools directly.
+**CLI path** — Prefer `tfy` CLI commands (`tfy apply`, `tfy deploy workflow`, etc.) for
+deployment and infrastructure workflows.
 
-**Direct API** — Each skill includes `scripts/tfy-api.sh` for authenticated REST calls
-when MCP is not available. It reads `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
+**Direct API fallback** — Use `scripts/tfy-api.sh` only when CLI is unavailable or a required operation is not yet exposed in CLI. It reads `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
 
 **Script path:** Agents usually run commands from the project root, not the skill
 directory. Invoke `tfy-api.sh` with a full path or `cd` into the skill directory first.
@@ -61,7 +59,7 @@ cd ~/.codex/skills/truefoundry-workspaces && scripts/tfy-api.sh GET /api/svc/v1/
 ```
 
 **TrueFoundry SDK** — The `deploy` skill uses the Python SDK (`truefoundry` package)
-for deploying local code. This is separate from MCP and direct API.
+for deploying local code. This is separate from the `tfy` CLI and REST fallback flow.
 
 ## Credentials
 
@@ -72,7 +70,7 @@ All skills need:
 For deploy:
 - `TFY_WORKSPACE_FQN` — required, never auto-picked
 
-Set via env vars, `.env` file, or MCP server headers.
+Set via env vars or `.env` file.
 
 ## Composability
 
@@ -104,7 +102,7 @@ Shared files:
 ## Adding New Skills
 
 1. Create `skills/{name}/SKILL.md` with YAML frontmatter
-2. Include both MCP and direct API instructions
+2. Include CLI-first instructions and direct API fallback where needed
 3. Reference the `status` skill for preflight checks
 4. Run `./scripts/sync-shared.sh` to copy shared files
 5. Test locally with `./scripts/install.sh` and reload your agent

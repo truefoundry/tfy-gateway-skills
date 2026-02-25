@@ -72,7 +72,7 @@ truefoundry-configs/
 ├── gateway/
 │   ├── models.yaml
 │   ├── guardrails.yaml
-│   └── mcp-servers.yaml
+│   └── tool-servers.yaml
 ├── integrations/
 │   └── custom-integration.yaml
 ├── teams/

@@ -1,6 +1,6 @@
 ---
 name: service-test
-description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs, MCP servers, and web apps. NOT for LLM benchmarking or log viewing.
+description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs and web apps. NOT for LLM benchmarking or log viewing.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl *)
@@ -42,7 +42,7 @@ Layer 4: Load Soak         → (Optional) Does it hold up under repeated request
 
 Verify the application is running on TrueFoundry before hitting any endpoints.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "APP_NAME"})
@@ -118,59 +118,6 @@ Health Check: https://my-app.example.cloud/health
 ## Layer 3: Endpoint Smoke Tests
 
 Test the service's actual functionality based on its type. Auto-detect the type, or ask the user.
-
-### MCP Server
-
-MCP servers expose an `/mcp` endpoint. Test the MCP protocol handshake:
-
-```bash
-# Test MCP initialize (streamable HTTP)
-curl -s --max-time 15 \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2025-03-26",
-      "capabilities": {},
-      "clientInfo": {"name": "service-test", "version": "1.0.0"}
-    }
-  }' \
-  "https://HOST/mcp"
-```
-
-**What to verify:**
-- Response contains `"result"` with `"serverInfo"` and `"capabilities"`
-- No `"error"` field in response
-
-Then list tools:
-
-```bash
-# List available tools
-curl -s --max-time 15 \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -H "Mcp-Session-Id: SESSION_ID_FROM_INIT" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 2,
-    "method": "tools/list",
-    "params": {}
-  }' \
-  "https://HOST/mcp"
-```
-
-**Report format:**
-
-```
-MCP Server Test: https://mcp-server.example.cloud/mcp
-  Protocol: OK (initialized)
-  Server: tfy-mcp-server v1.0.0
-  Tools: 16 registered
-  Tool list: tfy_applications_list, tfy_workspaces_list, ...
-```
 
 ### REST API (FastAPI / Flask / Express)
 

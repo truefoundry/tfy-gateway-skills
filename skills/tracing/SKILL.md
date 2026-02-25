@@ -32,7 +32,7 @@ Ask the user: **"Do you already have a tracing project FQN, or should I create o
 
 ### List Existing Projects
 
-#### Via MCP
+#### Via Tool Call
 ```
 tfy_tracing_list_projects()
 ```
@@ -49,7 +49,7 @@ $TFY_API_SH GET /api/ml/v1/tracing-projects
 
 Ask for a project name, then create:
 
-#### Via MCP
+#### Via Tool Call
 ```
 tfy_tracing_create_project(name="my-tracing-project")
 ```
@@ -66,7 +66,7 @@ Save the returned project `id` for the next step.
 
 Each tracing project can have multiple applications (e.g., "chatbot", "rag-pipeline").
 
-#### Via MCP
+#### Via Tool Call
 ```
 tfy_tracing_create_application(project_id="PROJECT_ID", name="my-app")
 ```

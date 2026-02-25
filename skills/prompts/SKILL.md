@@ -24,7 +24,7 @@ List, create, update, delete, or tag prompts and prompt versions in the TrueFoun
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
-### Via MCP
+### Via Tool Call
 
 ```
 tfy_prompts_list()

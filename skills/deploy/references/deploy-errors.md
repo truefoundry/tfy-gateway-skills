@@ -36,7 +36,7 @@ Review the diff carefully before applying.
 ```
 TFY_WORKSPACE_FQN is required. Get it from:
 - TrueFoundry dashboard -> Workspaces
-- Or run: tfy_workspaces_list (if MCP server is available)
+- Or run: tfy_workspaces_list (if tool server is available)
 Do not auto-pick a workspace.
 ```
 
