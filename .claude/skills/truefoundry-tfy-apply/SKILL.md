@@ -1,6 +1,6 @@
 ---
 name: tfy-apply
-description: This skill should be used when the user says "tfy apply", "apply manifest", "deploy from yaml", "declarative deployment", "apply yaml to truefoundry", "gitops deploy", "apply tfy manifest", "deploy from manifest file", "apply config file", "reconcile manifest", "tfy apply dry run", "preview manifest changes", or wants to create/update TrueFoundry resources from YAML manifest files using the tfy CLI.
+description: Creates and updates TrueFoundry resources from YAML manifest files using the `tfy` CLI. Supports dry-run previews and declarative deployments. Use when applying manifests, reconciling configurations, or performing GitOps-style deployments with `tfy apply`.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)

@@ -1,6 +1,6 @@
 ---
 name: service-test
-description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs, MCP servers, and web apps. NOT for LLM benchmarking or log viewing.
+description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs and web apps. NOT for LLM benchmarking or log viewing.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl *)

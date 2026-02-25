@@ -147,20 +147,6 @@ Note: Size can be expanded later but not reduced.
 Proceed?
 ```
 
-For volumes without Volume Browser:
-```
-Volume to create:
-  Type:          Create new (dynamic)
-  Name:          training-data
-  Size:          100 GB
-  Storage class: efs-sc
-  Workspace:     my-cluster:my-workspace
-  Volume Browser: Disabled
-
-Note: Size can be expanded later but not reduced.
-Proceed?
-```
-
 ### Via Tool Call
 
 ```
@@ -170,7 +156,7 @@ tfy_applications_create_deployment(
 )
 ```
 
-For Volume Browser fields and static volume MCP examples, use the same fields as the Direct API examples below.
+For Volume Browser fields and static volume tool-call examples, use the same fields as the Direct API examples below.
 
 ### Via Direct API
 

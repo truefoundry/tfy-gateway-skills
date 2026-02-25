@@ -29,7 +29,6 @@ Deploy skills use a CLI-first approach with REST API as fallback:
 
 1. **CLI** (`tfy apply`) — Primary. Write a YAML manifest and apply it. Works everywhere `tfy` CLI is installed.
 2. **REST API** (fallback) — When CLI is unavailable, convert YAML to JSON and use `tfy-api.sh`. See `cli-fallback.md`.
-3. **MCP tools** — When `tfy-mcp-server` is configured, non-deploy skills reference tool names like `tfy_applications_list`.
 
 All modes use `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
 

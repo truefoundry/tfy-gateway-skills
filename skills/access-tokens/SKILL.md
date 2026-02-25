@@ -28,7 +28,7 @@ When using direct API, set `TFY_API_SH` to the full path of this skill's `script
 
 ## Step 2: List Access Tokens
 
-### Via MCP
+### Via Tool Call
 ```
 tfy_access_tokens_list()
 ```
@@ -56,12 +56,12 @@ Personal Access Tokens:
 
 Ask the user for a token name before creating.
 
-### Via MCP
+### Via Tool Call
 ```
 tfy_access_tokens_create(payload={"name": "my-token"})
 ```
 
-**Note:** Requires human approval (HITL) via MCP.
+**Note:** Requires human approval (HITL) via tool call.
 
 ### Via Direct API
 ```bash
@@ -84,12 +84,12 @@ Token: tfy-XXXXXXXXXXXXXXXXXXXXXXXX
 
 Ask for confirmation before deleting — this is irreversible and will break any integrations using the token.
 
-### Via MCP
+### Via Tool Call
 ```
 tfy_access_tokens_delete(id="TOKEN_ID")
 ```
 
-**Note:** Requires human approval (HITL) via MCP.
+**Note:** Requires human approval (HITL) via tool call.
 
 ### Via Direct API
 ```bash

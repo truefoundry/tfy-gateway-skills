@@ -33,7 +33,7 @@ For models deployed on TrueFoundry, extract configuration from the deployment:
 
 ```bash
 # Get the deployment spec
-# Via MCP:
+# Via Tool Call:
 # tfy_applications_list(workspace_fqn="WORKSPACE_FQN", application_name="MODEL_NAME")
 
 # Via Direct API:

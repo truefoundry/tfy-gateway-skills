@@ -1,6 +1,6 @@
 ---
 name: multi-service
-description: This skill should be used when the user asks "deploy my full app", "deploy frontend and backend", "multi-service deployment", "deploy all services", "microservices deployment", "deploy my docker-compose app", "deploy my monorepo", "deploy multiple containers", "deploy full stack", "deploy interconnected services", "orchestrate service deployment", or has a project with multiple interconnected services that need coordinated deployment on TrueFoundry. Uses YAML manifests with `tfy apply` for each service.
+description: Coordinates deployment of multiple interconnected services on TrueFoundry. Uses YAML manifests with `tfy apply` for each service. Use when deploying full-stack apps, microservices, monorepos, or docker-compose projects with frontend and backend components.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:

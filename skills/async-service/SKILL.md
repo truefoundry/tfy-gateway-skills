@@ -1,6 +1,6 @@
 ---
 name: async-service
-description: This skill should be used when the user asks "deploy async service", "queue-based service", "async worker", "message queue processing", "deploy SQS consumer", "deploy Kafka consumer", "deploy NATS consumer", "scale to zero", "async processing", "background job processor", "event-driven service", "queue consumer", or wants to deploy a TrueFoundry Async Service that processes messages from queues via worker_config with scale-to-zero support. Uses YAML manifests with `tfy apply`. NOT for regular HTTP services -- use deploy skill for that.
+description: Deploys TrueFoundry Async Services that process messages from queues (SQS, Kafka, NATS) with scale-to-zero support. Uses YAML manifests with `tfy apply`. Use when deploying queue consumers, async workers, event-driven services, or background job processors. NOT for regular HTTP services — use deploy skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
@@ -191,72 +191,6 @@ image:
   type: image
   image_uri: my-registry/my-async-worker:latest
 ```
-
-### Queue type examples
-
-**SQS:**
-```yaml
-worker_config:
-  input_config:
-    type: sqs
-    queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-queue
-    region_name: us-east-1
-    wait_time_seconds: 19
-    visibility_timeout: 1
-  num_concurrent_workers: 1
-```
-
-**NATS:**
-```yaml
-worker_config:
-  input_config:
-    type: nats
-    nats_url: nats://nats.namespace.svc.cluster.local:4222
-    stream_name: my-stream
-    root_subject: my-subject
-    consumer_name: my-consumer
-    nats_metrics_url: http://nats-metrics:7777
-    wait_time_seconds: 10
-  num_concurrent_workers: 1
-```
-
-**Kafka:**
-```yaml
-worker_config:
-  input_config:
-    type: kafka
-    bootstrap_servers: kafka.namespace.svc.cluster.local:9092
-    topic_name: my-topic
-    consumer_group: my-group
-    tls: false
-    wait_time_seconds: 10
-  num_concurrent_workers: 1
-```
-
-**AMQP:**
-```yaml
-worker_config:
-  input_config:
-    type: amqp
-    url: amqp://user:pass@rabbitmq.namespace.svc.cluster.local:5672
-    queue_name: my-queue
-    wait_time_seconds: 10
-  num_concurrent_workers: 1
-```
-
-### Step 3: Write and Apply Manifest
-
-```bash
-# Preview
-tfy apply -f tfy-manifest.yaml --dry-run --show-diff
-
-# Apply after user confirms
-tfy apply -f tfy-manifest.yaml
-```
-
-### Fallback: REST API
-
-If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via REST API. See `references/cli-fallback.md` for the conversion process.
 
 ### Queue type examples
 

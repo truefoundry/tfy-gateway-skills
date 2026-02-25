@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: This skill should be used when the user says "deploy to truefoundry", "deploy this app", "ship to tfy", "push to truefoundry", "publish my app", "host this service", "deploy to cloud", "put this in production", "launch my service", "release this app", or wants to deploy code or images to TrueFoundry. Supports YAML manifests with `tfy apply`, Git-based remote builds, and pre-built images.
+description: Deploys code or container images to TrueFoundry as HTTP services. Supports YAML manifests with `tfy apply`, Git-based remote builds, and pre-built images. Use when deploying apps, shipping services to production, or hosting web services on TrueFoundry.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:

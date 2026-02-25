@@ -1,9 +1,9 @@
 ---
 name: workflows
-description: This skill should be used when the user asks "create a workflow", "deploy a workflow", "run a pipeline", "schedule a workflow", "cron workflow", "TrueFoundry workflow", "build a DAG", "orchestrate tasks", "create an ML pipeline", "Flyte workflow", "batch pipeline", "ETL pipeline on truefoundry", or wants to build data processing or ML training pipelines using TrueFoundry Workflows (built on Flyte).
+description: Builds and deploys data processing and ML training pipelines using TrueFoundry Workflows (built on Flyte). Use when creating DAGs, orchestrating multi-step tasks, scheduling ETL pipelines, or running ML training workflows.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
-allowed-tools: Bash(tfy*) Bash(python*) Bash(pip*)
+allowed-tools: Bash(tfy*) Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
 ---
 
 <objective>

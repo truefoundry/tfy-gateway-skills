@@ -1,6 +1,6 @@
 ---
 name: async-service
-description: This skill should be used when the user asks "deploy async service", "queue-based service", "async worker", "message queue processing", "deploy SQS consumer", "deploy Kafka consumer", "deploy NATS consumer", "scale to zero", "async processing", "background job processor", "event-driven service", "queue consumer", or wants to deploy a TrueFoundry Async Service that processes messages from queues via worker_config with scale-to-zero support. Uses YAML manifests with `tfy apply`. NOT for regular HTTP services -- use deploy skill for that.
+description: Deploys TrueFoundry Async Services that process messages from queues (SQS, Kafka, NATS) with scale-to-zero support. Uses YAML manifests with `tfy apply`. Use when deploying queue consumers, async workers, event-driven services, or background job processors. NOT for regular HTTP services — use deploy skill.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
