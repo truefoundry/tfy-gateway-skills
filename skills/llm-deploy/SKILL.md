@@ -349,8 +349,8 @@ After deploying, you can connect the model to TrueFoundry's AI Gateway for unifi
 - **View logs**: Use `logs` skill to debug startup issues
 - **Deploy database alongside**: Use `helm` skill for vector DBs, caches, etc.
 - **Connect to AI Gateway**: Add deployed model as a provider in the gateway (see above)
-- **Benchmark performance**: Use `llm-benchmarking` skill to test throughput/latency
-- **Fine-tune first**: Use `llm-finetuning` skill to customize a model before deploying
+- **Benchmark performance**: Run load tests against the deployed endpoint to measure throughput/latency
+- **Fine-tune first**: Fine-tune externally and deploy the resulting model artifact with this skill
 
 </references>
 

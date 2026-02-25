@@ -409,7 +409,7 @@ Usage:
 - **Routing config**: Use `tfy-apply` skill to apply routing YAML via GitOps
 - **tool servers**: Use `deploy` skill to deploy tool servers (service with tool-proxy), register in gateway
 - **Check deployed models**: Use `applications` skill to see running model services
-- **Benchmark through gateway**: Use `llm-benchmarking` skill to test gateway performance
+- **Benchmark through gateway**: Use your preferred load-testing tool against gateway endpoints
 
 </references>
 

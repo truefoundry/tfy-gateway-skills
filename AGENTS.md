@@ -21,9 +21,7 @@ Available skills in this repo:
 - `gitops`
 - `helm`
 - `jobs`
-- `llm-benchmarking`
 - `llm-deploy`
-- `llm-finetuning`
 - `logs`
 - `multi-service`
 - `notebooks`

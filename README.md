@@ -26,7 +26,7 @@ Example workflow:
 | Category | Skills |
 |----------|--------|
 | **Deploy** | [deploy](skills/deploy/SKILL.md), [multi-service](skills/multi-service/SKILL.md), [tfy-apply](skills/tfy-apply/SKILL.md), [gitops](skills/gitops/SKILL.md) |
-| **LLM & AI** | [llm-deploy](skills/llm-deploy/SKILL.md), [llm-finetuning](skills/llm-finetuning/SKILL.md), [llm-benchmarking](skills/llm-benchmarking/SKILL.md), [ai-gateway](skills/ai-gateway/SKILL.md) |
+| **LLM & AI** | [llm-deploy](skills/llm-deploy/SKILL.md), [ai-gateway](skills/ai-gateway/SKILL.md) |
 | **Infrastructure** | [helm](skills/helm/SKILL.md), [volumes](skills/volumes/SKILL.md), [secrets](skills/secrets/SKILL.md) |
 | **Jobs & Async** | [jobs](skills/jobs/SKILL.md), [workflows](skills/workflows/SKILL.md), [async-service](skills/async-service/SKILL.md) |
 | **Dev Environments** | [notebooks](skills/notebooks/SKILL.md), [ssh-server](skills/ssh-server/SKILL.md) |

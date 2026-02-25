@@ -2,3 +2,4 @@
 .venv-deploy/
 __pycache__/
 *.pyc
+.claude/

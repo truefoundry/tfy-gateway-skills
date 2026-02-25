@@ -18,7 +18,7 @@ Verify a deployed service is healthy and responding, run endpoint smoke tests, o
 
 ## When NOT to Use
 
-- User wants to benchmark LLM inference performance → use `llm-benchmarking` skill
+- User wants deep LLM inference benchmarking → use a dedicated benchmarking tool
 - User wants to view logs → use `logs` skill
 - User wants to check pod status only → use `applications` skill
 - User wants to deploy something → use `deploy` skill
@@ -167,7 +167,7 @@ curl -s -w '\n%{http_code} %{time_total}s' --max-time 10 "https://HOST/ENDPOINT"
 
 ## Layer 4: Load Soak (Optional)
 
-Only run if the user asks for it ("load test", "soak test", "stress test", "how fast is it"). This is NOT a full benchmark — use `llm-benchmarking` for LLM performance testing.
+Only run if the user asks for it ("load test", "soak test", "stress test", "how fast is it"). This is NOT a full benchmark — use a dedicated benchmarking tool for LLM performance testing.
 
 ### Sequential Soak (Default)
 
@@ -276,7 +276,7 @@ Result: FAILED at Layer 2 (Health Check)
 - **Before testing**: Use `workspaces` skill to get the workspace FQN
 - **On failure**: Use `logs` skill to investigate what went wrong
 - **After deploy**: Chain directly — `deploy` → `service-test`
-- **For LLMs**: Use `llm-benchmarking` skill instead for inference performance testing
+- **For LLMs**: Use a dedicated benchmarking tool for inference performance testing
 - **For status only**: Use `applications` skill if you just need pod status without endpoint testing
 
 </references>
