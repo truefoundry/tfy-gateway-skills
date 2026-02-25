@@ -27,7 +27,6 @@ Long-running HTTP/gRPC service with optional autoscaling, health probes, and ext
 | `mounts` | array | No | -- | Volume mounts. See [Mounts](#mounts). |
 | `labels` | object | No | `{}` | Key-value labels for the deployment. |
 | `allow_interception` | bool | No | `false` | Allow traffic interception for debugging. |
-| `artifacts_download` | object | No | -- | Artifact download config for model files. See [Artifacts Download](#artifacts-download). |
 
 ### Minimal Example
 
@@ -192,31 +191,18 @@ Deploy any OCI-compatible Helm chart (databases, caches, message queues, monitor
 | `values` | object | No | `{}` | Helm values passed to the chart. Chart-specific. |
 | `workspace_fqn` | string | Yes | -- | Workspace FQN. |
 
-### Source (Helm Repo)
+### Helm Source
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Must be `helm-repo` |
-| `repo_url` | string | Yes | Helm repository URL |
-| `chart` | string | Yes | Chart name |
-| `version` | string | Yes | Chart version |
-
-### Source (OCI Repo)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `oci-repo` |
-| `oci_chart_url` | string | Yes | OCI chart URL (e.g., `oci://registry-1.docker.io/bitnamicharts/postgresql`) |
-| `version` | string | Yes | Chart version |
-
-### Source (Git Helm Repo)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `git-helm-repo` |
-| `repo_url` | string | Yes | Git repository URL containing the Helm chart |
-| `chart_path` | string | Yes | Path to chart within the repo |
-| `version` | string | No | Git ref (branch, tag, commit) |
+| `type` | string | Yes | Source type: `oci-repo`, `helm-repo`, or `git-helm-repo` |
+| `oci_chart_url` | string | Yes (oci-repo) | OCI chart URL (e.g., `oci://registry-1.docker.io/bitnamicharts/postgresql`) |
+| `version` | string | Yes | Chart version (e.g., `"16.7.21"`) |
+| `repo_url` | string | Yes (helm-repo) | Helm repository URL |
+| `chart_name` | string | Yes (helm-repo) | Chart name in the repository |
+| `repo_url` | string | Yes (git-helm-repo) | Git repository URL |
+| `path` | string | Yes (git-helm-repo) | Path to chart within the repo |
+| `branch_name` | string | No (git-helm-repo) | Git branch (default: main) |
 
 ### Minimal Example
 
@@ -259,67 +245,22 @@ Queue-based processing service that consumes messages from SQS, NATS, Kafka, or 
 | `type` | string | Yes | -- | Must be `async-service` |
 | `image` | object | Yes | -- | Image source. See [Image](#image). |
 | `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
-| `ports` | array | No | -- | Port configurations. See [Port](#port). |
+| `ports` | array | No | -- | Port configurations. Required for sidecar pattern. See [Port](#port). |
 | `env` | object | No | `{}` | Environment variables as key-value pairs. |
 | `workspace_fqn` | string | Yes | -- | Workspace FQN. |
 | `replicas` | int or object | No | `1` | Fixed integer or `{"min": N, "max": M}`. Set `min: 0` for scale-to-zero. |
-| `worker_config` | object | Yes | -- | Worker and queue configuration. See [Worker Config](#worker-config). |
+| `sidecar` | object | No | -- | Sidecar pattern config. See [Sidecar](#sidecar). |
+| `input_queue` | object | Yes | -- | Input queue configuration. See [Queue Config](#queue-config). |
+| `output_queue` | object | No | -- | Output queue configuration. Same structure as input_queue. |
 | `mounts` | array | No | -- | Volume mounts. See [Mounts](#mounts). |
 
-### Worker Config
+### Sidecar
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `input_config` | object | Yes | Input queue configuration. See [Queue Input Config](#queue-input-config). |
-| `num_concurrent_workers` | int | No | Number of concurrent workers. Default: `1`. |
+| `destination_url` | string | Yes | HTTP endpoint for the sidecar to POST messages to (e.g., `http://0.0.0.0:8000/process`) |
 
-### Queue Input Config
-
-Four queue types are supported.
-
-**SQS:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `sqs` |
-| `queue_url` | string | Yes | SQS queue URL |
-| `region_name` | string | Yes | AWS region |
-| `wait_time_seconds` | int | No | Long polling wait time |
-| `visibility_timeout` | int | No | Message visibility timeout in seconds |
-
-**NATS:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `nats` |
-| `nats_url` | string | Yes | NATS server URL |
-| `stream_name` | string | Yes | NATS JetStream stream name |
-| `root_subject` | string | Yes | Root subject to subscribe to |
-| `consumer_name` | string | Yes | Consumer name |
-| `nats_metrics_url` | string | No | NATS metrics URL for autoscaling |
-| `wait_time_seconds` | int | No | Wait time |
-
-**Kafka:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `kafka` |
-| `bootstrap_servers` | string | Yes | Kafka bootstrap servers |
-| `topic_name` | string | Yes | Kafka topic |
-| `consumer_group` | string | Yes | Consumer group ID |
-| `tls` | bool | No | Enable TLS. Default: `false` |
-| `wait_time_seconds` | int | No | Wait time |
-
-**AMQP:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `amqp` |
-| `url` | string | Yes | AMQP connection URL |
-| `queue_name` | string | Yes | Queue name |
-| `wait_time_seconds` | int | No | Wait time |
-
-### Minimal Example
+### Minimal Example (Sidecar Pattern)
 
 ```yaml
 name: my-async-worker
@@ -333,21 +274,23 @@ ports:
     expose: false
     app_protocol: http
 resources:
-  cpu_request: 0.2
-  cpu_limit: 0.5
-  memory_request: 200
-  memory_limit: 500
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
   ephemeral_storage_request: 1000
   ephemeral_storage_limit: 2000
-worker_config:
-  input_config:
-    type: sqs
-    queue_url: "https://sqs.us-east-1.amazonaws.com/123456789/my-queue"
-    region_name: us-east-1
-    wait_time_seconds: 20
-    visibility_timeout: 30
-  num_concurrent_workers: 1
-replicas: 1
+replicas:
+  min: 0
+  max: 5
+sidecar:
+  destination_url: "http://0.0.0.0:8000/process"
+input_queue:
+  type: sqs
+  queue_url: "https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue"
+  aws_region: us-east-1
+  aws_access_key_id: "${AWS_ACCESS_KEY_ID}"
+  aws_secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
 workspace_fqn: cluster-id:workspace-name
 ```
 
@@ -367,10 +310,14 @@ Jupyter notebook environment with persistent storage and optional GPU.
 | `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
 | `env` | object | No | `{}` | Environment variables. |
 | `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `cull_timeout` | int | No | `30` | Minutes of inactivity before auto-shutdown. |
-| `home_directory_size` | int | No | `20` | Home directory size in GB. |
+| `idle_timeout` | int | No | `1800` | Seconds of inactivity before auto-shutdown. Set `0` to disable. |
+| `storage` | object | No | -- | Persistent storage configuration. |
 
-> **Note:** `node.capacity_type` can be set to `on_demand` or `spot` in the resources section.
+### Storage
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `size` | string | Yes | Storage size (e.g., `"20Gi"`, `"50Gi"`) |
 
 ### Minimal Example
 
@@ -387,8 +334,9 @@ resources:
   memory_limit: 4096
   ephemeral_storage_request: 2000
   ephemeral_storage_limit: 5000
-home_directory_size: 20
-cull_timeout: 60
+storage:
+  size: "20Gi"
+idle_timeout: 3600
 env:
   JUPYTER_TOKEN: my-secret-token
 workspace_fqn: cluster-id:workspace-name
@@ -410,11 +358,12 @@ resources:
   ephemeral_storage_request: 5000
   ephemeral_storage_limit: 10000
   devices:
-    - type: nvidia_gpu
-      name: T4
+    - type: "nvidia.com/gpu"
+      name: "T4"
       count: 1
-home_directory_size: 50
-cull_timeout: 120
+storage:
+  size: "50Gi"
+idle_timeout: 7200
 workspace_fqn: cluster-id:workspace-name
 ```
 
@@ -434,9 +383,8 @@ Remote development environment accessible via SSH.
 | `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
 | `env` | object | No | `{}` | Environment variables. |
 | `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `home_directory_size` | int | No | `20` | Home directory size in GB. |
-
-> **Note:** `node.capacity_type` can be set to `on_demand` or `spot` in the resources section.
+| `ssh_keys` | array | No | -- | Authorized SSH public keys. |
+| `storage` | object | No | -- | Persistent storage configuration. |
 
 ### Minimal Example
 
@@ -453,7 +401,10 @@ resources:
   memory_limit: 8192
   ephemeral_storage_request: 5000
   ephemeral_storage_limit: 10000
-home_directory_size: 50
+storage:
+  size: "50Gi"
+ssh_keys:
+  - "ssh-ed25519 AAAAC3... user@host"
 workspace_fqn: cluster-id:workspace-name
 ```
 
@@ -496,15 +447,10 @@ Deploy multiple related resources as a single unit.
 |-------|------|----------|---------|-------------|
 | `name` | string | Yes | -- | Application set name. |
 | `type` | string | Yes | -- | Must be `application-set` |
-| `components` | array | Conditional | -- | Array of manifest objects (service, job, helm, etc.). Required if not using template pattern. |
+| `components` | array | Yes | -- | Array of manifest objects (service, job, helm, etc.) |
 | `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `template` | string | Conditional | -- | Template name (e.g., `finetune-qlora`). Required if using template pattern. |
-| `convert_template_manifest` | bool | Conditional | -- | Must be `true` when using template pattern. |
-| `values` | object | Conditional | -- | Template values. Structure depends on template. |
 
-> **Note:** Either `components` OR `template`+`values` must be provided, not both.
-
-### Components Example
+### Minimal Example
 
 ```yaml
 name: my-app-stack
@@ -542,47 +488,6 @@ components:
 workspace_fqn: cluster-id:workspace-name
 ```
 
-### Template Example (QLoRA Fine-tuning)
-
-```yaml
-name: qlora-my-model
-type: application-set
-template: finetune-qlora
-convert_template_manifest: true
-values:
-  name: qlora-my-model
-  model_id: unsloth/Llama-3.3-70B-Instruct
-  hf_token: ""
-  ml_repo: my-ml-repo
-  data_type: chat
-  data:
-    type: upload
-    training_uri: ""
-  hyperparams:
-    batch_size: 1
-    epochs: 10
-    learning_rate: 0.0001
-    lora_alpha: 64
-    lora_r: 32
-    max_length: 2048
-  image_uri: tfy.jfrog.io/tfy-images/llm-finetune:0.4.1
-  resources:
-    node:
-      type: node_selector
-    devices:
-      - type: nvidia_gpu
-        count: 2
-        name: H100_94GB
-    cpu_request: 78
-    cpu_limit: 80
-    memory_request: 535500
-    memory_limit: 630000
-    ephemeral_storage_request: 710000
-    ephemeral_storage_limit: 810000
-    shared_memory_size: 534500
-workspace_fqn: cluster-id:workspace-name
-```
-
 ---
 
 ## Shared Object Schemas
@@ -617,7 +522,6 @@ Build the image from a Git repository.
 | `type` | string | Yes | Must be `build` |
 | `build_source` | object | Yes | Source code location. See [BuildSource](#buildsource). |
 | `build_spec` | object | Yes | Build instructions. See [BuildSpec](#buildspec). |
-| `docker_registry` | string | No | Docker registry FQN for pushing built images. TrueFoundry auto-selects if omitted. |
 
 ```yaml
 image:
@@ -663,34 +567,21 @@ build_spec:
     PYTHON_VERSION: "3.12"
 ```
 
-#### TrueFoundry Python Buildpack (No Dockerfile)
-
-For Python projects without a Dockerfile, TrueFoundry can auto-build the image.
+#### Python Build (No Dockerfile)
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `type` | string | Yes | -- | Must be `tfy-python-buildpack` |
-| `build_context_path` | string | No | `./` | Build context directory |
-| `command` | string | Yes | -- | Start command (e.g., `uvicorn app:app --host 0.0.0.0 --port 8000`) |
-| `python_version` | string | No | `3.10` | Python version to use |
-| `python_dependencies` | object | Yes | -- | Dependency config. See below. |
-
-**Python Dependencies:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `pip` |
-| `requirements_path` | string | Yes | Path to requirements file (e.g., `requirements.txt`) |
+| `type` | string | Yes | -- | Must be `python` |
+| `python_version` | string | No | `3.12` | Python version to use |
+| `requirements_path` | string | No | `requirements.txt` | Path to requirements file |
+| `command` | string | Yes | -- | Start command (e.g., `uvicorn main:app --host 0.0.0.0 --port 8000`) |
 
 ```yaml
 build_spec:
-  type: tfy-python-buildpack
-  build_context_path: ./
-  command: uvicorn app:app --host 0.0.0.0 --port 8000
-  python_version: "3.10"
-  python_dependencies:
-    type: pip
-    requirements_path: requirements.txt
+  type: python
+  python_version: "3.12"
+  requirements_path: "requirements.txt"
+  command: "uvicorn main:app --host 0.0.0.0 --port 8000"
 ```
 
 ### Port
@@ -727,15 +618,6 @@ ports:
 | `ephemeral_storage_request` | int | MB | Yes | -- | Guaranteed ephemeral disk in megabytes |
 | `ephemeral_storage_limit` | int | MB | Yes | -- | Maximum ephemeral disk in megabytes |
 | `devices` | array | -- | No | -- | GPU devices. See [GPU](#gpu). |
-| `shared_memory_size` | int | MB | No | -- | Shared memory (/dev/shm) size in MB. Important for multi-GPU training and large model inference. |
-| `node` | object | -- | No | -- | Node selection preferences. See [Node](#node). |
-
-#### Node
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `node_selector` |
-| `capacity_type` | string | No | `on_demand` or `spot`. Default: any. |
 
 ```yaml
 resources:
@@ -746,19 +628,16 @@ resources:
   ephemeral_storage_request: 1000
   ephemeral_storage_limit: 2000
   devices:
-    - type: nvidia_gpu
-      name: T4
+    - type: "nvidia.com/gpu"
+      name: "T4"
       count: 1
-  node:
-    type: node_selector
-    capacity_type: on_demand
 ```
 
 ### GPU
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Must be `nvidia_gpu` |
+| `type` | string | Yes | Must be `nvidia.com/gpu` |
 | `name` | string | Yes | GPU type name. See enum values below. |
 | `count` | int | Yes | Number of GPUs (1, 2, 4, 8) |
 
@@ -773,7 +652,6 @@ resources:
 | `A100_40GB` | 40 GB | Ampere | Large models, training |
 | `A100_80GB` | 80 GB | Ampere | Very large models |
 | `H100_80GB` | 80 GB | Hopper | Training, large models |
-| `H100_94GB` | 94 GB | Hopper | Training, large models |
 | `H200` | 141 GB | Hopper | Next-gen training |
 | `B200` | 192 GB | Blackwell | Next-gen training |
 
@@ -783,8 +661,8 @@ Check available GPU types on the cluster before specifying -- not all types are 
 
 ```yaml
 devices:
-  - type: nvidia_gpu
-    name: A100_80GB
+  - type: "nvidia.com/gpu"
+    name: "A100_80GB"
     count: 2
 ```
 
@@ -876,33 +754,47 @@ trigger:
 
 ### Queue Config
 
-Queue configuration is now part of `worker_config.input_config` in the async-service manifest. See [Queue Input Config](#queue-input-config) under the Async Service section for full details on all four supported queue types (SQS, NATS, Kafka, AMQP).
-
-### Artifacts Download
-
-Used for downloading model files from HuggingFace Hub or other sources before container start.
+Used by `async-service` type for input and output queue configuration.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `artifacts` | array | Yes | List of artifact sources to download. |
-| `cache_volume` | object | No | Cache volume for downloaded artifacts. |
+| `type` | string | Yes | Queue type: `sqs`, `nats`, `kafka`, or `amqp` |
 
-#### Artifact (HuggingFace Hub)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `huggingface-hub` |
-| `model_id` | string | Yes | HuggingFace model ID (e.g., `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`) |
-| `revision` | string | No | Specific commit SHA or branch |
-| `ignore_patterns` | array | No | Glob patterns to skip (e.g., `["*.h5", "*.ot", "pytorch_model*.bin"]`) |
-| `download_path_env_variable` | string | No | Env var name set to download path (default: `MODEL_ID`) |
-
-#### Cache Volume
+#### SQS Queue
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `cache_size` | int | Yes | Cache size in GB |
-| `storage_class` | string | No | Storage class (e.g., `azureblob-nfs-premium`) |
+| `type` | string | Yes | Must be `sqs` |
+| `queue_url` | string | Yes | SQS queue URL |
+| `aws_region` | string | Yes | AWS region |
+| `aws_access_key_id` | string | Yes | AWS access key |
+| `aws_secret_access_key` | string | Yes | AWS secret key |
+
+#### NATS Queue
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `nats` |
+| `nats_url` | string | Yes | NATS server URL |
+| `subject` | string | Yes | NATS subject to subscribe to |
+| `consumer_name` | string | No | Durable consumer name |
+
+#### Kafka Queue
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `kafka` |
+| `broker_url` | string | Yes | Kafka broker URL |
+| `topic` | string | Yes | Kafka topic |
+| `group_id` | string | No | Consumer group ID |
+
+#### Google AMQP Queue
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `amqp` |
+| `queue_url` | string | Yes | AMQP connection URL |
+| `queue_name` | string | Yes | Queue name |
 
 ### Rollout Strategy
 
@@ -1014,7 +906,6 @@ For GPU or resource-intensive workloads, specify node capacity preference.
 | Value | Description |
 |-------|-------------|
 | `dockerfile` | Build from Dockerfile |
-| `tfy-python-buildpack` | Auto-build Python project (no Dockerfile needed) |
 | `python` | Auto-build Python app (no Dockerfile needed) |
 
 ### Build Source Type Values

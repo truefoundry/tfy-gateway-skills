@@ -71,7 +71,7 @@ readiness_probe:
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
 
-### Build-from-Git Variant (Dockerfile)
+### Build-from-Git Variant
 
 ```yaml
 name: ${SERVICE_NAME}
@@ -89,65 +89,35 @@ image:
 ports:
   - port: ${PORT:-8000}
     protocol: TCP
-    expose: true
+    expose: false
     app_protocol: http
-    host: ${SERVICE_NAME}-${WORKSPACE}.ml.${BASE_DOMAIN}
-    path: /${SERVICE_NAME}-${WORKSPACE}-${PORT:-8000}/
 resources:
-  node:
-    type: node_selector
   cpu_request: 0.5
-  cpu_limit: 0.5
-  memory_request: 1000
-  memory_limit: 1000
-  ephemeral_storage_request: 500
-  ephemeral_storage_limit: 500
-labels:
-  tfy_openapi_path: openapi.json
-allow_interception: false
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
 replicas: 1
-workspace_fqn: ${TFY_WORKSPACE_FQN}
-```
-
-### Build-from-Git Variant (Python Buildpack — No Dockerfile)
-
-```yaml
-name: ${SERVICE_NAME}
-type: service
-image:
-  type: build
-  build_source:
-    type: git
-    repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
-  build_spec:
-    type: tfy-python-buildpack
-    build_context_path: ./
-    command: uvicorn app:app --host 0.0.0.0 --port 8000
-    python_version: "${PYTHON_VERSION:-3.10}"
-    python_dependencies:
-      type: pip
-      requirements_path: requirements.txt
-ports:
-  - port: ${PORT:-8000}
-    protocol: TCP
-    expose: true
-    app_protocol: http
-    host: ${SERVICE_NAME}-${WORKSPACE}.ml.${BASE_DOMAIN}
-    path: /${SERVICE_NAME}-${WORKSPACE}-${PORT:-8000}/
-resources:
-  node:
-    type: node_selector
-  cpu_request: 0.5
-  cpu_limit: 0.5
-  memory_request: 1000
-  memory_limit: 1000
-  ephemeral_storage_request: 500
-  ephemeral_storage_limit: 500
-labels:
-  tfy_openapi_path: openapi.json
-allow_interception: false
-replicas: 1
+env: {}
+liveness_probe:
+  config:
+    type: http
+    path: /health
+    port: ${PORT:-8000}
+  initial_delay_seconds: 5
+  period_seconds: 10
+  timeout_seconds: 2
+  failure_threshold: 3
+readiness_probe:
+  config:
+    type: http
+    path: /health
+    port: ${PORT:-8000}
+  initial_delay_seconds: 5
+  period_seconds: 10
+  timeout_seconds: 2
+  failure_threshold: 3
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
 
@@ -155,43 +125,35 @@ workspace_fqn: ${TFY_WORKSPACE_FQN}
 
 ## 2. LLM Inference
 
-Model serving with vLLM (primary), TGI, Ollama, or NVIDIA NIM.
-
-> **Recommended:** Call `GET /api/svc/v1/model-catalogues/deployment-specs?huggingfaceHubUrl=...&workspaceId=...` to get recommended GPU, CPU, and memory for a specific model. The values below are a rough guide; use the deployment-specs API for accurate per-model values.
+Model serving with vLLM, TGI, Ollama, or NVIDIA NIM.
 
 ### Defaults
 
 | Field | Default | Override When |
 |-------|---------|--------------|
-| `cpu_request` | `16` | Smaller models (< 1B): 4-8 cores. Larger models: scale up. |
-| `cpu_limit` | `18` | Same |
-| `memory_request` | `182750` (~178 GB) | Smaller models need less. Use deployment-specs API. |
-| `memory_limit` | `215000` (~210 GB) | Same |
-| `ephemeral_storage_request` | `5000` | Large model downloads: increase to 50000+ |
-| `ephemeral_storage_limit` | `105000` | Same |
-| `shared_memory_size` | `181750` | Should be close to `memory_request` for GPU workloads |
-| `gpu` | `A10_12GB x1` | Use deployment-specs API for accurate GPU recommendation |
-| `replicas` | `1` | Production: use `min: 1, max: 3` |
-| `allow_interception` | `false` | -- |
-| `rollout_strategy` | `rolling_update (max_surge=0%, max_unavailable=25%)` | -- |
-| `startup_probe failure_threshold` | `38` | Very large models (70B+): increase to 60-120 |
-| `startup_probe initial_delay` | `10` | -- |
-| `startup_probe period_seconds` | `10` | Gives ~6 min startup budget at default |
-| `readiness_probe failure_threshold` | `5` | -- |
-| `liveness_probe failure_threshold` | `10` | -- |
+| `cpu_request` | `4.0` | Larger models: 8-16 cores |
+| `cpu_limit` | `8.0` | Same |
+| `memory_request` | `16384` (16 GB) | 7B models: 64 GB. 70B models: 200+ GB. |
+| `memory_limit` | `32768` (32 GB) | Same as above, 1.5-2x request |
+| `ephemeral_storage_request` | `5000` | Large model downloads: 10000-50000 |
+| `ephemeral_storage_limit` | `10000` | Same |
+| `gpu` | `T4 x1` | 7B models: `A10G x1`. 13B: `A100_40GB x1`. 70B: `A100_80GB x2-4`. |
+| `replicas` | `1` | Production: `min: 1, max: 3` |
+| `startup_probe failure_threshold` | `60` | Very large models (70B+): increase to 90-120 |
+| `startup_probe period_seconds` | `10` | Gives 10 min startup budget at default |
+| `liveness_probe path` | `/health` | NVIDIA NIM: `/v1/health/live` |
+| `readiness_probe path` | `/health` | NVIDIA NIM: `/v1/health/ready` |
 
-### GPU Sizing Guide (rough)
+### GPU Sizing Guide
 
 | Model Size | GPU | CPU | Memory |
 |------------|-----|-----|--------|
 | < 1B | T4 x1 | 4 | 16 GB |
-| 1B-3B | A10_12GB x1 | 8-16 | 32-64 GB |
-| 3B-7B | A10G x1 | 8-16 | 64-128 GB |
-| 7B-13B | A100_40GB x1 | 10-16 | 90-180 GB |
-| 13B-30B | A100_80GB x1 | 12-16 | 128-200 GB |
-| 30B-70B | A100_80GB x2-4 or H100_94GB x2 | 16+ | 200+ GB |
-
-> These are rough estimates. Always prefer the deployment-specs API for accurate sizing.
+| 1B-3B | T4 x1 | 4-8 | 32 GB |
+| 3B-7B | A10G x1 | 8-10 | 64 GB |
+| 7B-13B | A100_40GB x1 | 10-12 | 90 GB |
+| 13B-30B | A100_80GB x1 | 12-16 | 128 GB |
+| 30B-70B | A100_80GB x2-4 or H100_80GB x2 | 16+ | 200+ GB |
 
 ### Template (vLLM)
 
@@ -200,98 +162,127 @@ name: ${MODEL_NAME}-vllm
 type: service
 image:
   type: image
-  image_uri: public.ecr.aws/truefoundrycloud/vllm/vllm-openai:v0.13.0
+  image_uri: vllm/vllm-openai:latest
   command: >-
-    python3 -u -m vllm.entrypoints.openai.api_server
-    --host 0.0.0.0 --port 8000
-    --download-dir /data/
-    --tokenizer-mode auto
-    --model '$(MODEL_ID)'
-    --tokenizer '$(MODEL_ID)'
-    --trust-remote-code
-    --dtype '$(DTYPE)'
-    --tensor-parallel-size '$(GPU_COUNT)'
-    --gpu-memory-utilization '$(GPU_MEMORY_UTILIZATION)'
-    --served-model-name '$(MODEL_NAME)'
-    --root-path '$(TFY_SERVICE_ROOT_PATH)'
-    --max-model-len '$(MAX_MODEL_LENGTH)'
-    --async-scheduling
+    python -m vllm.entrypoints.openai.api_server
+    --model ${HF_MODEL_ID}
+    --host 0.0.0.0
+    --port 8000
+    --dtype auto
+    --max-model-len ${MAX_MODEL_LEN:-4096}
 ports:
   - port: 8000
     protocol: TCP
     expose: false
     app_protocol: http
 resources:
-  cpu_request: 16
-  cpu_limit: 18
-  memory_request: 182750
-  memory_limit: 215000
+  cpu_request: 4.0
+  cpu_limit: 8.0
+  memory_request: 16384
+  memory_limit: 32768
   ephemeral_storage_request: 5000
-  ephemeral_storage_limit: 105000
-  shared_memory_size: 181750
+  ephemeral_storage_limit: 10000
   devices:
     - type: "nvidia.com/gpu"
-      name: "${GPU_TYPE:-A10_12GB}"
+      name: "${GPU_TYPE:-T4}"
       count: ${GPU_COUNT:-1}
-artifacts_download:
-  - type: huggingface-hub
-    model_id: ${HF_MODEL_ID}
-    revision: ${MODEL_REVISION:-main}
-    ignore_patterns: ""
-    download_path_env_variable: MODEL_ID
-cache_volume:
-  cache_size: ${CACHE_SIZE}
-  storage_class: ${STORAGE_CLASS}
 replicas: 1
-allow_interception: false
-rollout_strategy:
-  type: rolling_update
-  max_surge_percentage: 0
-  max_unavailable_percentage: 25
-labels:
-  tfy_model_server: vLLM
-  tfy_openapi_path: openapi.json
-  tfy_sticky_session_header_name: x-truefoundry-sticky-session-id
-  huggingface_model_task: text-generation
 env:
-  DTYPE: bfloat16
-  GPU_COUNT: "${GPU_COUNT:-1}"
-  MAX_MODEL_LENGTH: "${MAX_MODEL_LENGTH:-8192}"
-  VLLM_NO_USAGE_STATS: "1"
-  NVIDIA_REQUIRE_CUDA: "cuda>=12.1"
-  GPU_MEMORY_UTILIZATION: "0.90"
-  VLLM_CACHE_ROOT: /opt/truefoundry/.cache/vllm
+  HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
 startup_probe:
   config:
     type: http
     path: /health
     port: 8000
-  initial_delay_seconds: 10
+  initial_delay_seconds: 30
   period_seconds: 10
   timeout_seconds: 5
-  failure_threshold: 38
+  failure_threshold: 60
 liveness_probe:
   config:
     type: http
     path: /health
     port: 8000
-  initial_delay_seconds: 3
-  period_seconds: 10
+  initial_delay_seconds: 5
+  period_seconds: 30
   timeout_seconds: 5
-  failure_threshold: 10
+  failure_threshold: 3
 readiness_probe:
   config:
     type: http
     path: /health
     port: 8000
-  initial_delay_seconds: 3
+  initial_delay_seconds: 5
   period_seconds: 10
   timeout_seconds: 5
-  failure_threshold: 5
+  failure_threshold: 3
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
 
-> **Note:** TGI is also supported as an alternative model server. Use the same resource structure but replace the image and command with TGI equivalents (`ghcr.io/huggingface/text-generation-inference`).
+### Template (TGI)
+
+```yaml
+name: ${MODEL_NAME}-tgi
+type: service
+image:
+  type: image
+  image_uri: ghcr.io/huggingface/text-generation-inference:latest
+  command: >-
+    text-generation-launcher
+    --model-id ${HF_MODEL_ID}
+    --port 8000
+    --hostname 0.0.0.0
+    --dtype auto
+    --max-input-length ${MAX_INPUT_LEN:-2048}
+    --max-total-tokens ${MAX_TOTAL_TOKENS:-4096}
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: false
+    app_protocol: http
+resources:
+  cpu_request: 4.0
+  cpu_limit: 8.0
+  memory_request: 16384
+  memory_limit: 32768
+  ephemeral_storage_request: 5000
+  ephemeral_storage_limit: 10000
+  devices:
+    - type: "nvidia.com/gpu"
+      name: "${GPU_TYPE:-T4}"
+      count: ${GPU_COUNT:-1}
+replicas: 1
+env:
+  HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+startup_probe:
+  config:
+    type: http
+    path: /health
+    port: 8000
+  initial_delay_seconds: 30
+  period_seconds: 10
+  timeout_seconds: 5
+  failure_threshold: 60
+liveness_probe:
+  config:
+    type: http
+    path: /health
+    port: 8000
+  initial_delay_seconds: 5
+  period_seconds: 30
+  timeout_seconds: 5
+  failure_threshold: 3
+readiness_probe:
+  config:
+    type: http
+    path: /health
+    port: 8000
+  initial_delay_seconds: 5
+  period_seconds: 10
+  timeout_seconds: 5
+  failure_threshold: 3
+workspace_fqn: ${TFY_WORKSPACE_FQN}
+```
 
 ---
 
@@ -390,179 +381,87 @@ workspace_fqn: ${TFY_WORKSPACE_FQN}
 
 ## 5. Async Service
 
-Queue-based worker using `worker_config.input_config`.
+Queue-based worker with scale-to-zero support.
 
 ### Defaults
 
 | Field | Default | Override When |
 |-------|---------|--------------|
-| `cpu_request` | `0.2` | CPU-bound processing: 2-4 cores |
-| `cpu_limit` | `0.5` | Same |
-| `memory_request` | `200` | ML inference workers: 4096-16384 |
-| `memory_limit` | `500` | Same |
+| `cpu_request` | `0.5` | CPU-bound processing: 2-4 cores |
+| `cpu_limit` | `1.0` | Same |
+| `memory_request` | `512` | ML inference workers: 4096-16384 |
+| `memory_limit` | `1024` | Same |
 | `ephemeral_storage_request` | `1000` | File processing: 5000+ |
 | `ephemeral_storage_limit` | `2000` | Same |
-| `replicas` | `1` | Scale up for high throughput |
-| `worker_config.num_concurrent_workers` | `1` | Increase for I/O-bound work |
+| `replicas.min` | `0` | Low-latency required (avoid cold start): set `1` |
+| `replicas.max` | `5` | High throughput: 10-20+ |
+| `sidecar.destination_url` | `http://0.0.0.0:8000/process` | Custom endpoint path |
 
-### Template (SQS)
+### Template (SQS + Sidecar)
 
 ```yaml
 name: ${SERVICE_NAME}
 type: async-service
 image:
-  type: build
-  build_source:
-    type: git
-    repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
-  build_spec:
-    type: dockerfile
-    dockerfile_path: Dockerfile
-    build_context_path: "."
+  type: image
+  image_uri: ${IMAGE_URI}
 ports:
   - port: ${PORT:-8000}
     protocol: TCP
     expose: false
     app_protocol: http
 resources:
-  cpu_request: 0.2
-  cpu_limit: 0.5
-  memory_request: 200
-  memory_limit: 500
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
   ephemeral_storage_request: 1000
   ephemeral_storage_limit: 2000
-replicas: 1
-worker_config:
-  num_concurrent_workers: 1
-  input_config:
-    type: sqs
-    wait_time_seconds: ${WAIT_TIME_SECONDS:-20}
-    queue_url: ${SQS_QUEUE_URL}
-    region_name: ${AWS_REGION}
-    visibility_timeout: ${VISIBILITY_TIMEOUT:-30}
+replicas:
+  min: 0
+  max: 5
+sidecar:
+  destination_url: "http://0.0.0.0:${PORT:-8000}/${ENDPOINT_PATH:-process}"
+input_queue:
+  type: sqs
+  queue_url: ${SQS_QUEUE_URL}
+  aws_region: ${AWS_REGION}
+  aws_access_key_id: ${AWS_ACCESS_KEY_ID}
+  aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}
 env: {}
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
 
-### Template (NATS)
+### Template (NATS + Sidecar)
 
 ```yaml
 name: ${SERVICE_NAME}
 type: async-service
 image:
-  type: build
-  build_source:
-    type: git
-    repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
-  build_spec:
-    type: dockerfile
-    dockerfile_path: Dockerfile
-    build_context_path: "."
+  type: image
+  image_uri: ${IMAGE_URI}
 ports:
   - port: ${PORT:-8000}
     protocol: TCP
     expose: false
     app_protocol: http
 resources:
-  cpu_request: 0.2
-  cpu_limit: 0.5
-  memory_request: 200
-  memory_limit: 500
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
   ephemeral_storage_request: 1000
   ephemeral_storage_limit: 2000
-replicas: 1
-worker_config:
-  num_concurrent_workers: 1
-  input_config:
-    type: nats
-    wait_time_seconds: ${WAIT_TIME_SECONDS:-20}
-    nats_url: ${NATS_URL}
-    stream_name: ${NATS_STREAM_NAME}
-    root_subject: ${NATS_ROOT_SUBJECT}
-    consumer_name: ${NATS_CONSUMER_NAME}
-    nats_metrics_url: ${NATS_METRICS_URL}
-env: {}
-workspace_fqn: ${TFY_WORKSPACE_FQN}
-```
-
-### Template (Kafka)
-
-```yaml
-name: ${SERVICE_NAME}
-type: async-service
-image:
-  type: build
-  build_source:
-    type: git
-    repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
-  build_spec:
-    type: dockerfile
-    dockerfile_path: Dockerfile
-    build_context_path: "."
-ports:
-  - port: ${PORT:-8000}
-    protocol: TCP
-    expose: false
-    app_protocol: http
-resources:
-  cpu_request: 0.2
-  cpu_limit: 0.5
-  memory_request: 200
-  memory_limit: 500
-  ephemeral_storage_request: 1000
-  ephemeral_storage_limit: 2000
-replicas: 1
-worker_config:
-  num_concurrent_workers: 1
-  input_config:
-    type: kafka
-    wait_time_seconds: ${WAIT_TIME_SECONDS:-20}
-    bootstrap_servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    topic_name: ${KAFKA_TOPIC_NAME}
-    consumer_group: ${KAFKA_CONSUMER_GROUP}
-    tls: ${KAFKA_TLS:-false}
-env: {}
-workspace_fqn: ${TFY_WORKSPACE_FQN}
-```
-
-### Template (AMQP)
-
-```yaml
-name: ${SERVICE_NAME}
-type: async-service
-image:
-  type: build
-  build_source:
-    type: git
-    repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
-  build_spec:
-    type: dockerfile
-    dockerfile_path: Dockerfile
-    build_context_path: "."
-ports:
-  - port: ${PORT:-8000}
-    protocol: TCP
-    expose: false
-    app_protocol: http
-resources:
-  cpu_request: 0.2
-  cpu_limit: 0.5
-  memory_request: 200
-  memory_limit: 500
-  ephemeral_storage_request: 1000
-  ephemeral_storage_limit: 2000
-replicas: 1
-worker_config:
-  num_concurrent_workers: 1
-  input_config:
-    type: amqp
-    wait_time_seconds: ${WAIT_TIME_SECONDS:-20}
-    url: ${AMQP_URL}
-    queue_name: ${AMQP_QUEUE_NAME}
+replicas:
+  min: 0
+  max: 5
+sidecar:
+  destination_url: "http://0.0.0.0:${PORT:-8000}/${ENDPOINT_PATH:-process}"
+input_queue:
+  type: nats
+  nats_url: ${NATS_URL}
+  subject: ${NATS_SUBJECT}
+  consumer_name: ${CONSUMER_NAME}
 env: {}
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
@@ -571,14 +470,14 @@ workspace_fqn: ${TFY_WORKSPACE_FQN}
 
 ## 6. Helm Database
 
-PostgreSQL, MySQL, MongoDB via Helm charts. Source types: `helm-repo`, `oci-repo`, `git-helm-repo`.
+PostgreSQL, MySQL, MongoDB via Helm charts.
 
 ### Defaults (PostgreSQL)
 
 | Field | Default | Override When |
 |-------|---------|--------------|
 | `chart` | `bitnamicharts/postgresql` | MySQL: `bitnamicharts/mysql`. MongoDB: `bitnamicharts/mongodb`. |
-| `version` | `"16.7.21"` | Check latest at registry |
+| `version` | `"16.7.21"` | <!-- TODO: user to confirm defaults --> Check latest at registry |
 | `persistence.size` | `10Gi` | Production: `50Gi`-`500Gi` based on data volume |
 | `cpu requests` | `"0.5"` | Production: `"2"`-`"4"` |
 | `memory requests` | `512Mi` | Production: `"2Gi"`-`"8Gi"` |
@@ -639,6 +538,8 @@ values:
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
 
+<!-- TODO: user to confirm defaults for chart versions -->
+
 ### Template (MongoDB)
 
 ```yaml
@@ -680,14 +581,14 @@ After deploying, the database is accessible within the cluster at:
 
 ## 7. Helm Cache
 
-Redis, Memcached via Helm charts. Source types: `helm-repo`, `oci-repo`, `git-helm-repo`.
+Redis, Memcached via Helm charts.
 
 ### Defaults (Redis)
 
 | Field | Default | Override When |
 |-------|---------|--------------|
 | `chart` | `bitnamicharts/redis` | Memcached: `bitnamicharts/memcached` |
-| `version` | `"20.6.2"` | Check latest at registry |
+| `version` | `"20.6.2"` | <!-- TODO: user to confirm defaults --> Check latest at registry |
 | `persistence.size` | `5Gi` | Large cache: `20Gi`-`50Gi` |
 | `cpu requests` | `"0.25"` | High-throughput cache: `"1"`-`"2"` |
 | `memory requests` | `256Mi` | Large working set: `"1Gi"`-`"4Gi"` |
@@ -718,6 +619,8 @@ values:
         memory: "${CACHE_MEMORY_LIMIT:-512Mi}"
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
+
+<!-- TODO: user to confirm defaults for chart versions -->
 
 ### Template (Memcached)
 
@@ -756,16 +659,14 @@ Jupyter notebook for interactive development and data exploration.
 
 | Field | Default | Override When |
 |-------|---------|--------------|
-| `image` | `public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo` | Custom image with extra packages |
-| `cpu_request` | `1` | ML workloads: 4-8 cores |
-| `cpu_limit` | `3` | Same |
-| `memory_request` | `4000` | ML with large datasets: 8192-32768 |
-| `memory_limit` | `6000` | Same |
-| `ephemeral_storage_request` | `5000` | Large datasets: 10000+ |
-| `ephemeral_storage_limit` | `10000` | Same |
-| `home_directory_size` | `20` (GB) | Large datasets or many notebooks: `50`-`100` |
-| `cull_timeout` | `30` (min) | Long experiments: `60`-`120`. Disable: `0`. |
-| `node.capacity_type` | `on_demand` | Cost savings: `spot` (but risk preemption) |
+| `cpu_request` | `1.0` | ML workloads: 4-8 cores |
+| `cpu_limit` | `2.0` | Same |
+| `memory_request` | `2048` | ML with large datasets: 8192-32768 |
+| `memory_limit` | `4096` | Same |
+| `ephemeral_storage_request` | `2000` | Large datasets: 10000+ |
+| `ephemeral_storage_limit` | `5000` | Same |
+| `storage.size` | `"20Gi"` | Large datasets or many notebooks: `"50Gi"`-`"100Gi"` |
+| `idle_timeout` | `1800` (30 min) | Long experiments: `3600`-`7200`. Disable: `0`. |
 | `gpu` | None | ML training/inference: add appropriate GPU |
 
 ### Template
@@ -775,19 +676,17 @@ name: ${NOTEBOOK_NAME}
 type: notebook
 image:
   type: image
-  image_uri: public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo
+  image_uri: ${NOTEBOOK_IMAGE:-jupyter/scipy-notebook:latest}
 resources:
-  cpu_request: 1
-  cpu_limit: 3
-  memory_request: 4000
-  memory_limit: 6000
-  ephemeral_storage_request: 5000
-  ephemeral_storage_limit: 10000
-home_directory_size: 20
-cull_timeout: 30
-node:
-  type: node_selector
-  capacity_type: on_demand
+  cpu_request: 1.0
+  cpu_limit: 2.0
+  memory_request: 2048
+  memory_limit: 4096
+  ephemeral_storage_request: 2000
+  ephemeral_storage_limit: 5000
+storage:
+  size: "${STORAGE_SIZE:-20Gi}"
+idle_timeout: ${IDLE_TIMEOUT:-1800}
 env: {}
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
@@ -799,10 +698,10 @@ name: ${NOTEBOOK_NAME}
 type: notebook
 image:
   type: image
-  image_uri: public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo
+  image_uri: ${NOTEBOOK_IMAGE:-jupyter/tensorflow-notebook:latest}
 resources:
-  cpu_request: 4
-  cpu_limit: 8
+  cpu_request: 4.0
+  cpu_limit: 8.0
   memory_request: 16384
   memory_limit: 32768
   ephemeral_storage_request: 5000
@@ -811,11 +710,9 @@ resources:
     - type: "nvidia.com/gpu"
       name: "${GPU_TYPE:-T4}"
       count: ${GPU_COUNT:-1}
-home_directory_size: 50
-cull_timeout: 60
-node:
-  type: node_selector
-  capacity_type: on_demand
+storage:
+  size: "${STORAGE_SIZE:-50Gi}"
+idle_timeout: ${IDLE_TIMEOUT:-3600}
 env: {}
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
@@ -830,64 +727,34 @@ Remote development environment accessible via SSH.
 
 | Field | Default | Override When |
 |-------|---------|--------------|
-| `image` (CPU) | `public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-py3.12.12` | Custom image |
-| `image` (GPU/CUDA) | `public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-cu129-py3.12.12` | Custom CUDA image |
-| `cpu_request` | `1` | Heavy development: 4-8 cores |
-| `cpu_limit` | `3` | Same |
-| `memory_request` | `4000` | ML development: 16384-32768 |
-| `memory_limit` | `6000` | Same |
+| `cpu_request` | `2.0` | Heavy development: 4-8 cores |
+| `cpu_limit` | `4.0` | Same |
+| `memory_request` | `4096` | ML development: 16384-32768 |
+| `memory_limit` | `8192` | Same |
 | `ephemeral_storage_request` | `5000` | Large repos or datasets: 20000+ |
 | `ephemeral_storage_limit` | `10000` | Same |
-| `home_directory_size` | `20` (GB) | Large projects: `50`-`100` |
-| `node.capacity_type` | `on_demand` | Cost savings: `spot` (but risk preemption) |
+| `storage.size` | `"50Gi"` | Large projects: `"100Gi"`-`"200Gi"` |
 | `gpu` | None | ML development: add appropriate GPU |
 
-### Template (CPU)
+### Template
 
 ```yaml
 name: ${SERVER_NAME}
 type: ssh-server
 image:
   type: image
-  image_uri: public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-py3.12.12
+  image_uri: ${SSH_IMAGE:-ubuntu:22.04}
 resources:
-  cpu_request: 1
-  cpu_limit: 3
-  memory_request: 4000
-  memory_limit: 6000
+  cpu_request: 2.0
+  cpu_limit: 4.0
+  memory_request: 4096
+  memory_limit: 8192
   ephemeral_storage_request: 5000
   ephemeral_storage_limit: 10000
-home_directory_size: 20
-node:
-  type: node_selector
-  capacity_type: on_demand
-env: {}
-workspace_fqn: ${TFY_WORKSPACE_FQN}
-```
-
-### Template (GPU / CUDA)
-
-```yaml
-name: ${SERVER_NAME}
-type: ssh-server
-image:
-  type: image
-  image_uri: public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-cu129-py3.12.12
-resources:
-  cpu_request: 4
-  cpu_limit: 8
-  memory_request: 16384
-  memory_limit: 32768
-  ephemeral_storage_request: 5000
-  ephemeral_storage_limit: 10000
-  devices:
-    - type: "nvidia.com/gpu"
-      name: "${GPU_TYPE:-T4}"
-      count: ${GPU_COUNT:-1}
-home_directory_size: 50
-node:
-  type: node_selector
-  capacity_type: on_demand
+storage:
+  size: "${STORAGE_SIZE:-50Gi}"
+ssh_keys:
+  - "${SSH_PUBLIC_KEY}"
 env: {}
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
@@ -896,31 +763,24 @@ workspace_fqn: ${TFY_WORKSPACE_FQN}
 
 ## 10. LLM Finetuning
 
-Fine-tuning language models using TrueFoundry's application-set with the `finetune-qlora` template.
+Training jobs for fine-tuning language models (QLoRA, LoRA, full fine-tuning).
 
 ### Defaults
 
 | Field | Default | Override When |
 |-------|---------|--------------|
-| `type` | `application-set` | -- |
-| `template` | `finetune-qlora` | -- |
-| `convert_template_manifest` | `true` | -- |
-| `image_uri` | `tfy.jfrog.io/tfy-images/llm-finetune:0.4.1` | Newer version available |
-| `batch_size` | `1` | Increase if GPU memory allows |
-| `epochs` | `10` | Fewer for large datasets, more for small |
-| `learning_rate` | `0.0001` | Adjust based on convergence |
-| `lora_alpha` | `64` | -- |
-| `lora_r` | `32` | Higher rank for more expressive adapters |
-| `max_length` | `2048` | Longer context: `4096`-`8192` |
-| `data_type` | `chat` | Completion-style data: `completion` |
-| `cpu_request` | `78` | Smaller models need less |
-| `cpu_limit` | `80` | Same |
-| `memory_request` | `535500` (~523 GB) | Smaller models need less |
-| `memory_limit` | `630000` (~615 GB) | Same |
-| `ephemeral_storage_request` | `710000` | Smaller models need less |
-| `ephemeral_storage_limit` | `810000` | Same |
-| `shared_memory_size` | `534500` | Should be close to `memory_request` |
-| `gpu` (70B QLoRA) | `H100_94GB x2` | See GPU sizing table below |
+| `cpu_request` | `4.0` | Large models (30B+): 8-16 cores |
+| `cpu_limit` | `8.0` | Same |
+| `memory_request` | `32768` (32 GB) | 13B+ models: 64 GB-128 GB |
+| `memory_limit` | `65536` (64 GB) | Same |
+| `ephemeral_storage_request` | `10000` | Large datasets + model checkpoints: 50000+ |
+| `ephemeral_storage_limit` | `20000` | Same |
+| `gpu` (QLoRA, < 7B) | `T4 x1` | See GPU sizing table below |
+| `gpu` (QLoRA, 7B) | `A10G x1` | -- |
+| `gpu` (QLoRA, 13B) | `A100_40GB x1` | -- |
+| `gpu` (QLoRA, 70B) | `A100_80GB x2` | -- |
+| `retries` | `1` | Checkpointed training: `0`. Unstable infra: `2-3`. |
+| `timeout` | `86400` (24h) | Short fine-tunes: `7200`. Multi-day: `259200`. |
 
 ### GPU Sizing for Fine-tuning (QLoRA)
 
@@ -931,56 +791,37 @@ Fine-tuning language models using TrueFoundry's application-set with the `finetu
 | 3B-7B | A10G x1 or T4 x1 (tight) | 8 | 64 GB |
 | 7B-13B | A100_40GB x1 | 8-12 | 90 GB |
 | 13B-30B | A100_80GB x1 | 12-16 | 128 GB |
-| 30B-70B | H100_94GB x2 | 78+ | 535+ GB |
+| 30B-70B | A100_80GB x2 or H100_80GB x1 | 16+ | 256 GB |
 
 For LoRA, multiply VRAM by ~1.5x. For full fine-tuning, multiply by ~3-4x.
 
 ### Template
 
 ```yaml
-name: ${FINETUNE_NAME}
-type: application-set
-template: finetune-qlora
-convert_template_manifest: true
-values:
-  name: ${FINETUNE_NAME}
-  model_id: ${HF_MODEL_ID}
-  hf_token: ${HF_TOKEN}
-  ml_repo: ${ML_REPO}
-  data_type: ${DATA_TYPE:-chat}
-  data:
-    type: ${DATA_SOURCE_TYPE:-upload}
-    training_uri: ${TRAINING_DATA_URI}
-  hyperparams:
-    batch_size: ${BATCH_SIZE:-1}
-    epochs: ${EPOCHS:-10}
-    learning_rate: ${LEARNING_RATE:-0.0001}
-    lora_alpha: ${LORA_ALPHA:-64}
-    lora_r: ${LORA_R:-32}
-    max_length: ${MAX_LENGTH:-2048}
-  image_uri: tfy.jfrog.io/tfy-images/llm-finetune:0.4.1
-  resources:
-    cpu_request: 78
-    cpu_limit: 80
-    memory_request: 535500
-    memory_limit: 630000
-    ephemeral_storage_request: 710000
-    ephemeral_storage_limit: 810000
-    shared_memory_size: 534500
-    devices:
-      - type: "nvidia.com/gpu"
-        name: "${GPU_TYPE:-H100_94GB}"
-        count: ${GPU_COUNT:-2}
+name: ${FINETUNE_JOB_NAME}
+type: job
+image:
+  type: image
+  image_uri: ${TRAINING_IMAGE}
+  command: "${TRAINING_COMMAND}"
+resources:
+  cpu_request: 4.0
+  cpu_limit: 8.0
+  memory_request: 32768
+  memory_limit: 65536
+  ephemeral_storage_request: 10000
+  ephemeral_storage_limit: 20000
+  devices:
+    - type: "nvidia.com/gpu"
+      name: "${GPU_TYPE:-A10G}"
+      count: ${GPU_COUNT:-1}
+retries: 1
+timeout: 86400
+env:
+  HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+  WANDB_API_KEY: ${WANDB_API_KEY}
 workspace_fqn: ${TFY_WORKSPACE_FQN}
 ```
-
-#### Data Source Types
-
-| `data.type` | Description | `training_uri` Example |
-|-------------|-------------|----------------------|
-| `upload` | Upload a file | Path to local file |
-| `truefoundry-artifact` | TrueFoundry artifact reference | Artifact FQN |
-| `file-url` | Remote file URL | `https://example.com/data.jsonl` |
 
 ---
 
@@ -989,10 +830,10 @@ workspace_fqn: ${TFY_WORKSPACE_FQN}
 | Workload | CPU Req | CPU Lim | Mem Req (MB) | Mem Lim (MB) | Eph Req (MB) | Eph Lim (MB) | GPU |
 |----------|---------|---------|-------------|-------------|-------------|-------------|-----|
 | Web API | 0.5 | 1.0 | 512 | 1024 | 1000 | 2000 | -- |
-| LLM Inference | 16 | 18 | 182750 | 215000 | 5000 | 105000 | A10_12GB+ |
+| LLM Inference | 4.0 | 8.0 | 16384 | 32768 | 5000 | 10000 | T4+ |
 | Job (one-time) | 1.0 | 2.0 | 2048 | 4096 | 1000 | 2000 | -- |
 | Scheduled Job | 1.0 | 2.0 | 2048 | 4096 | 1000 | 2000 | -- |
-| Async Service | 0.2 | 0.5 | 200 | 500 | 1000 | 2000 | -- |
-| Notebook | 1 | 3 | 4000 | 6000 | 5000 | 10000 | -- |
-| SSH Server | 1 | 3 | 4000 | 6000 | 5000 | 10000 | -- |
-| LLM Finetuning | 78 | 80 | 535500 | 630000 | 710000 | 810000 | H100_94GB+ |
+| Async Service | 0.5 | 1.0 | 512 | 1024 | 1000 | 2000 | -- |
+| Notebook | 1.0 | 2.0 | 2048 | 4096 | 2000 | 5000 | -- |
+| SSH Server | 2.0 | 4.0 | 4096 | 8192 | 5000 | 10000 | -- |
+| LLM Finetuning | 4.0 | 8.0 | 32768 | 65536 | 10000 | 20000 | A10G+ |
