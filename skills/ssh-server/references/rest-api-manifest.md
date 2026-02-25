@@ -1,5 +1,7 @@
 # REST API Manifest Reference
 
+> **This is the fallback path** when the `tfy` CLI is not available. For the primary deployment method, use `tfy apply -f manifest.yaml`. See `cli-fallback.md` for the detection and fallback flow.
+
 Deploy services and jobs to TrueFoundry using `PUT /api/svc/v1/apps` — no Python SDK required.
 
 ## Setup

@@ -1,5 +1,21 @@
 # Prerequisites
 
+## Step 0: CLI Check
+
+Check if the TrueFoundry CLI is available:
+
+```bash
+tfy --version 2>/dev/null
+```
+
+If not found, install it:
+
+```bash
+pip install truefoundry && tfy login --host "$TFY_BASE_URL"
+```
+
+> **Note:** The CLI (`tfy apply`) is the recommended deployment method, but it is not strictly required. All skills fall back to the REST API via `tfy-api.sh` when the CLI is unavailable.
+
 ## Credential Check
 
 Run this to verify your environment:
