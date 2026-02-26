@@ -85,16 +85,31 @@ Same as other deploy skills:
 
 ### Classify Each Service
 
-For each discovered service, determine its **type**:
+For each discovered service, classify using this algorithm:
 
-| Type | How to Detect | Deploy Method |
-|------|--------------|---------------|
-| **Database** | Image is `postgres`, `mysql`, `mariadb`, `mongo` | Helm chart (Bitnami) via `tfy apply` |
-| **Cache** | Image is `redis`, `memcached`, `valkey` | Helm chart (Bitnami) via `tfy apply` |
-| **Queue** | Image is `rabbitmq`, `nats`, `kafka` | Helm chart (Bitnami) via `tfy apply` |
-| **Search/Vector DB** | Image is `elasticsearch`, `qdrant`, `weaviate`, `milvus` | Helm chart or Service via `tfy apply` |
-| **LLM** | Image contains `vllm`, `tgi`, `triton`, `ollama` | `llm-deploy` skill |
-| **Application** | Has `build:` context or custom image with code | Service deployment via `tfy apply` |
+```
+IF service has `image:` field:
+  Extract image name (strip registry prefix and tag)
+  IF image matches postgres/postgresql/mysql/mariadb/mongo/mongodb -> Helm Database
+  ELSE IF image matches redis/valkey/memcached                     -> Helm Cache
+  ELSE IF image matches rabbitmq/nats/kafka                        -> Helm Queue
+  ELSE IF image matches elasticsearch/qdrant/weaviate/milvus       -> Helm Search/VectorDB
+  ELSE IF image matches vllm/tgi/triton/ollama                     -> LLM Service
+  ELSE                                                             -> Application Service (pre-built image)
+ELSE IF service has `build:` field:
+  -> Application Service (build from source)
+```
+
+| Type | Image Patterns | Deploy Method |
+|------|---------------|---------------|
+| **Database** | `postgres:*`, `mysql:*`, `mariadb:*`, `mongo:*` | Helm chart (Bitnami) via `tfy apply` |
+| **Cache** | `redis:*`, `memcached:*`, `valkey:*` | Helm chart (Bitnami) via `tfy apply` |
+| **Queue** | `rabbitmq:*`, `nats:*`, `kafka:*` | Helm chart (Bitnami) via `tfy apply` |
+| **Search/Vector DB** | `elasticsearch:*`, `qdrant/*`, `weaviate/*`, `milvus/*` | Helm chart via `tfy apply` |
+| **LLM** | `vllm/*`, `*tgi*`, `*triton*`, `*ollama*` | `llm-deploy` skill |
+| **Application** | Has `build:` or any other custom image | Service deployment via `tfy apply` |
+
+See `references/compose-translation.md` for the complete classification reference and step-by-step conversion procedure.
 
 ## Step 2: Build Dependency Graph
 
@@ -229,19 +244,28 @@ From the response, extract `base_domains`. Pick the wildcard domain (e.g., `*.ml
 
 Public URL pattern: `{service-name}-{workspace-name}.{base_domain}`
 
-### Internal DNS Pattern
+### Internal DNS Patterns
 
-All services in the same workspace share a namespace:
+All services in the same workspace share a Kubernetes namespace.
+
+**Application services** (type: service) use the app name directly:
 ```
-{service-name}.{namespace}.svc.cluster.local:{port}
+{app-name}.{namespace}.svc.cluster.local:{port}
 ```
 
-For Helm-deployed infrastructure, the DNS includes the chart name:
-```
-{release-name}-postgresql.{namespace}.svc.cluster.local:5432
-{release-name}-redis-master.{namespace}.svc.cluster.local:6379
-{release-name}-rabbitmq.{namespace}.svc.cluster.local:5672
-```
+**Helm charts** (type: helm) append a chart-specific suffix to the release name:
+
+| Chart | DNS Pattern | Port |
+|-------|-------------|------|
+| PostgreSQL | `{release-name}-postgresql.{ns}.svc.cluster.local` | 5432 |
+| Redis | `{release-name}-redis-master.{ns}.svc.cluster.local` | 6379 |
+| MongoDB | `{release-name}-mongodb.{ns}.svc.cluster.local` | 27017 |
+| MySQL | `{release-name}-mysql.{ns}.svc.cluster.local` | 3306 |
+| RabbitMQ | `{release-name}-rabbitmq.{ns}.svc.cluster.local` | 5672 |
+
+Where `{release-name}` is the `name` field in the TFY manifest. Use short names like `myapp-db` (not `myapp-postgresql`) to avoid redundant DNS like `myapp-postgresql-postgresql...`.
+
+See `references/service-wiring.md` for the complete DNS reference and wiring algorithm.
 
 ## Step 5: Deploy in Graph Order
 
@@ -347,6 +371,7 @@ image:
   build_source:
     type: git
     repo_url: https://github.com/user/repo
+    ref: main
     branch_name: main
   build_spec:
     type: dockerfile
@@ -376,14 +401,18 @@ DATABASE_URL=postgresql://postgres:pass@APP_NAME-db-postgresql.NAMESPACE.svc.clu
 
 ### Common Wiring Patterns
 
-| Compose Env Var | TrueFoundry Env Var |
-|----------------|---------------------|
-| `@db:5432` | `@{name}-db-postgresql.{ns}.svc.cluster.local:5432` |
-| `@redis:6379` | `@{name}-redis-redis-master.{ns}.svc.cluster.local:6379` |
-| `@rabbitmq:5672` | `@{name}-rabbitmq-rabbitmq.{ns}.svc.cluster.local:5672` |
-| `@mongo:27017` | `@{name}-mongo-mongodb.{ns}.svc.cluster.local:27017` |
-| `http://backend:8000` | `http://{name}-backend.{ns}.svc.cluster.local:8000` |
-| `http://frontend:3000` | `https://{name}-frontend-{ws}.{base_domain}` (if public) |
+Given project prefix `{app}` and compose service names:
+
+| Compose Reference | TFY Release Name | TFY DNS |
+|-------------------|-------------------|---------|
+| `@db:5432` | `{app}-db` | `@{app}-db-postgresql.{ns}.svc.cluster.local:5432` |
+| `redis://redis:6379` | `{app}-cache` | `redis://{app}-cache-redis-master.{ns}.svc.cluster.local:6379` |
+| `@mongo:27017` | `{app}-mongo` | `@{app}-mongo-mongodb.{ns}.svc.cluster.local:27017` |
+| `amqp://rabbitmq:5672` | `{app}-queue` | `amqp://{app}-queue-rabbitmq.{ns}.svc.cluster.local:5672` |
+| `http://backend:8000` | `{app}-backend` | `http://{app}-backend.{ns}.svc.cluster.local:8000` |
+| `http://frontend:3000` | `{app}-frontend` | `https://{app}-frontend-{ws}.{base_domain}` (if public) |
+
+See `references/service-wiring.md` for the complete wiring algorithm and validation checklist.
 
 ### Secrets for Credentials
 
@@ -415,9 +444,13 @@ The summary must include:
 
 ## docker-compose.yml Translation
 
-See `references/compose-translation.md` for the full translation reference. Key points:
+See `references/compose-translation.md` for the complete translation reference with step-by-step procedure and full examples.
+
+### Key Conversion Rules
 
 - **Always scan for compose files first** before asking the user about architecture
+- **Classify services** using the algorithm above -- infrastructure images become Helm charts, everything else becomes a TFY service
+- **Use short release names** for Helm charts: `{app}-db` not `{app}-postgresql` (avoids `myapp-postgresql-postgresql...` DNS)
 - `build:` services -> YAML manifest with git build source + `tfy apply`
 - `image:` services (custom) -> YAML manifest with pre-built image + `tfy apply`
 - `image:` services (postgres, redis, etc.) -> Helm manifests via `tfy apply`
@@ -426,6 +459,7 @@ See `references/compose-translation.md` for the full translation reference. Key 
 - `volumes` -> Helm persistence or TrueFoundry Volumes
 - `networks` -> ignored (all services share a K8s namespace)
 - `env_file` / `secrets` -> read values, create TrueFoundry secrets as needed
+- **Environment variables referencing compose service names** MUST be rewritten to use Kubernetes DNS (see `references/service-wiring.md`)
 
 ## Compound AI & Monorepo Patterns
 

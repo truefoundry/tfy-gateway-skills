@@ -334,7 +334,7 @@ bash $TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WO
 - [ ] **Environment variables** -- check `.env`, `config.py`, or ask directly
 - [ ] **Health probes** -- configure startup/readiness/liveness probes (recommended for production)
 - [ ] **Public URL** -- internal-only or public? If public, look up cluster base domains and confirm the host
-- [ ] **Secrets** -- whether to mount TrueFoundry secret groups
+- [ ] **Secrets** -- scan env vars for sensitive values and create TrueFoundry secret groups (see Secrets Handling below)
 - [ ] **Auto-shutdown** -- does the user want the service to auto-stop after inactivity? Useful for dev/staging to save costs. Not recommended for production services that need to be always-on.
 
 **Do NOT deploy with hardcoded defaults without asking.** Analyze the app (Step 2), suggest appropriate values, and let the user confirm or adjust.
@@ -408,6 +408,107 @@ When the user wants their service publicly accessible, **do NOT guess the domain
 **Common errors:** "Provided host is not configured in cluster" means the domain doesn't match cluster `base_domains` -- re-check via cluster API. See `references/deploy-errors.md`.
 
 See: [Define Ports and Domains](https://truefoundry.com/docs/define-ports-and-domains)
+
+## Secrets Handling
+
+**Never put sensitive values directly in the `env` section of a manifest.** Instead, create a TrueFoundry secret group and reference secrets using the `tfy-secret://` format.
+
+### Step 1: Identify Sensitive Environment Variables
+
+Scan the user's env vars for sensitive patterns. Any key matching these patterns should be stored as a secret:
+
+- `*PASSWORD*`, `*SECRET*`, `*TOKEN*`, `*KEY*` (except non-sensitive keys like `LOG_LEVEL`)
+- `*CREDENTIAL*`, `*AUTH*`, `*PRIVATE*`
+- `*DATABASE_URL*`, `*CONNECTION_STRING*`, `*DSN*`
+- `*API_KEY*`, `*ACCESS_KEY*`, `*CLIENT_SECRET*`
+
+Tell the user which env vars you identified as sensitive and confirm before proceeding.
+
+### Step 2: Find the Secret Store Integration ID
+
+Before creating a secret group, find the available secret store integration:
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
+
+# List secret store integrations
+bash $TFY_API_SH GET '/api/svc/v1/provider-accounts?type=secret-store'
+```
+
+From the response, extract integrations with `type: "secret-store"`. Pick the integration that matches the workspace's cloud provider (AWS, Azure, GCP). Use the integration `id` field.
+
+### Step 3: Create a Secret Group
+
+Create a secret group named `{service-name}-secrets` with all sensitive values:
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
+
+bash $TFY_API_SH POST /api/svc/v1/secret-groups '{
+  "name": "my-service-secrets",
+  "integrationId": "INTEGRATION_ID",
+  "secrets": [
+    {"key": "DB_PASSWORD", "value": "actual-password-value"},
+    {"key": "API_KEY", "value": "actual-api-key-value"}
+  ]
+}'
+```
+
+Or use the `secrets` skill for a guided workflow.
+
+### Step 4: Reference Secrets in the Manifest
+
+Use the `tfy-secret://` format in the manifest `env` section:
+
+```
+tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>
+```
+
+The `TENANT_NAME` is the subdomain of `TFY_BASE_URL` (e.g., if `TFY_BASE_URL=https://my-org.truefoundry.cloud`, then `TENANT_NAME=my-org`).
+
+### Complete Example
+
+Given these user-provided env vars:
+- `LOG_LEVEL=info` (not sensitive)
+- `DB_PASSWORD=s3cret123` (sensitive)
+- `API_KEY=sk-abc123` (sensitive)
+- `APP_PORT=8000` (not sensitive)
+
+1. Create the secret group with `DB_PASSWORD` and `API_KEY`
+2. Write the manifest with secret references for sensitive values and plain text for non-sensitive values:
+
+```yaml
+name: my-service
+type: service
+image:
+  type: image
+  image_uri: docker.io/myorg/my-api:v1.0
+ports:
+  - port: 8000
+    expose: false
+    app_protocol: http
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  LOG_LEVEL: info
+  APP_PORT: "8000"
+  DB_PASSWORD: tfy-secret://my-org:my-service-secrets:DB_PASSWORD
+  API_KEY: tfy-secret://my-org:my-service-secrets:API_KEY
+workspace_fqn: cluster-id:workspace-name
+```
+
+**Key rules:**
+- Non-sensitive values (`LOG_LEVEL`, `APP_PORT`) stay as plain text
+- Sensitive values use `tfy-secret://` references
+- The secret group must be created before deploying
+- Never log or display the actual secret values
+
+---
 
 ## After Deploy -- Get & Return URL
 

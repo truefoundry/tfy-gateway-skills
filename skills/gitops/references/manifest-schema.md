@@ -17,7 +17,7 @@ Long-running HTTP/gRPC service with optional autoscaling, health probes, and ext
 | `image` | object | Yes | -- | Image source. See [Image](#image). |
 | `ports` | array | Yes | -- | Port configurations. See [Port](#port). |
 | `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
-| `env` | object | No | `{}` | Environment variables as key-value pairs. Values are strings. |
+| `env` | object | No | `{}` | Environment variables as key-value pairs. Values are strings or `tfy-secret://` references. See [Environment Variables](#environment-variables). |
 | `replicas` | int or object | No | `1` | Fixed integer or `{"min": N, "max": M}` for autoscaling. |
 | `workspace_fqn` | string | Yes | -- | Workspace FQN (format: `cluster-id:workspace-name`). |
 | `liveness_probe` | object | No | -- | Liveness probe config. See [Probes](#probes). |
@@ -81,7 +81,7 @@ replicas:
   max: 5
 env:
   LOG_LEVEL: info
-  DATABASE_URL: postgres://user:pass@db-host:5432/mydb
+  DATABASE_URL: tfy-secret://my-org:my-api-secrets:DATABASE_URL
 liveness_probe:
   config:
     type: http
@@ -639,7 +639,7 @@ image:
 | `type` | string | Yes | `git` or `local` |
 | `repo_url` | string | Yes (git) | Git repository URL |
 | `branch_name` | string | No (git) | Branch to build from. Default: current branch (`git branch --show-current`). |
-| `ref` | string | No (git) | Git ref (commit SHA, tag). May be required by `tfy apply` for git sources. |
+| `ref` | string | Yes (git) | Git ref (branch name, commit SHA, or tag). Required by `tfy apply` for git build sources. Typically set to the same value as `branch_name`. |
 | `project_root_path` | string | Yes (local) | Path to local project root |
 
 ### BuildSpec
@@ -716,6 +716,44 @@ ports:
     expose: false
     app_protocol: grpc
 ```
+
+### Environment Variables
+
+The `env` field is a key-value object. Values can be plain strings or `tfy-secret://` references to TrueFoundry secret groups.
+
+#### Plain Values
+
+```yaml
+env:
+  LOG_LEVEL: info
+  APP_PORT: "8000"
+```
+
+#### Secret References
+
+For sensitive values (passwords, tokens, API keys), use the `tfy-secret://` format instead of inline values:
+
+```
+tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>
+```
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| `TENANT_NAME` | Subdomain of `TFY_BASE_URL` | `my-org` (from `https://my-org.truefoundry.cloud`) |
+| `SECRET_GROUP_NAME` | Name of the secret group | `my-app-secrets` |
+| `SECRET_KEY` | Key of the secret within the group | `DB_PASSWORD` |
+
+#### Mixed Example
+
+```yaml
+env:
+  LOG_LEVEL: info
+  APP_PORT: "8000"
+  DB_PASSWORD: tfy-secret://my-org:my-app-secrets:DB_PASSWORD
+  API_KEY: tfy-secret://my-org:my-app-secrets:API_KEY
+```
+
+The secret group must be created before deploying. See the `secrets` skill for how to create secret groups and the `deploy` skill for the full secrets workflow.
 
 ### Resources
 

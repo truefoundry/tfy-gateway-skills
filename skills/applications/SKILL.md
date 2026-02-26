@@ -1,6 +1,6 @@
 ---
 name: applications
-description: Lists, inspects, and manages TrueFoundry application deployments. Shows status, health, and details for services, jobs, and Helm releases. NOT for deploying code (use deploy skill).
+description: Lists, inspects, and manages TrueFoundry application deployments. Shows status, health, and details for services, jobs, and Helm releases. Also handles requests to delete, remove, or destroy applications by directing users to the TrueFoundry UI. NOT for deploying code (use deploy skill).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -20,10 +20,33 @@ List, inspect, or manage deployed applications and their deployment history. Als
 
 - User wants to deploy local code → use `deploy` skill
 - User wants workspace/cluster info → use `workspaces` skill
+- User wants to delete an application → guide them to the TrueFoundry UI (see "Deleting Applications" below)
 
 </objective>
 
 <instructions>
+
+## IMPORTANT: Deleting Applications
+
+**Deletion is NOT supported via CLI, API, or any agent tool. Do NOT call any delete endpoint or attempt to delete applications programmatically.**
+
+When a user asks to delete, remove, or destroy an application, **do NOT list apps for selection**. Instead, immediately respond with:
+
+```
+To delete an application, use the TrueFoundry dashboard:
+
+1. Open your TrueFoundry dashboard (TFY_BASE_URL in your browser)
+2. Navigate to **Deployments** → select the workspace
+3. Find the application you want to delete
+4. Click the **three-dot menu (⋮)** on the application card → **Delete**
+5. Confirm the deletion when prompted
+
+⚠️ This action is irreversible — all pods, endpoints, and deployment history for this application will be permanently removed.
+```
+
+**Do NOT attempt to call any delete API on behalf of the user. Do NOT list applications to ask which one to delete. Simply provide the UI instructions above.**
+
+---
 
 ## List Applications
 

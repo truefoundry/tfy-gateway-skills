@@ -27,89 +27,426 @@ equivalent TrueFoundry deployments and wire everything together.
 Here's what I found: ...
 ```
 
-## Service-Level Translation
+## Service Classification Algorithm
 
-### Application Service (has `build:`)
+For each service in the compose file, classify it using this algorithm:
+
+```
+FOR each service in docker-compose.yml:
+  IF service has `image:` field:
+    Extract the image name (strip registry prefix and tag)
+    IF image matches: postgres, postgresql, mysql, mariadb, mongo, mongodb
+      -> CLASSIFY as "Helm Database"
+    ELSE IF image matches: redis, valkey, memcached
+      -> CLASSIFY as "Helm Cache"
+    ELSE IF image matches: rabbitmq, nats, kafka
+      -> CLASSIFY as "Helm Queue"
+    ELSE IF image matches: elasticsearch, opensearch, qdrant, weaviate, milvus, chroma
+      -> CLASSIFY as "Helm Search/VectorDB"
+    ELSE IF image matches: vllm, tgi, triton, ollama
+      -> CLASSIFY as "LLM Service"
+    ELSE
+      -> CLASSIFY as "Application Service" (pre-built image)
+  ELSE IF service has `build:` field:
+    -> CLASSIFY as "Application Service" (build from source)
+  ELSE
+    -> ERROR: service has neither image nor build
+```
+
+### Classification Quick Reference
+
+| Image Pattern | Classification | TFY Deployment Type |
+|--------------|----------------|---------------------|
+| `postgres:*`, `postgresql:*` | Database | `type: helm` (Bitnami postgresql) |
+| `mysql:*`, `mariadb:*` | Database | `type: helm` (Bitnami mysql) |
+| `mongo:*`, `mongodb:*` | Database | `type: helm` (Bitnami mongodb) |
+| `redis:*`, `valkey:*` | Cache | `type: helm` (Bitnami redis) |
+| `memcached:*` | Cache | `type: helm` (Bitnami memcached) |
+| `rabbitmq:*` | Queue | `type: helm` (Bitnami rabbitmq) |
+| `elasticsearch:*` | Search | `type: helm` (Bitnami elasticsearch) |
+| `qdrant/qdrant:*` | VectorDB | `type: helm` (Qdrant) |
+| Custom image or `build:` | Application | `type: service` |
+
+## Step-by-Step Conversion Procedure
+
+### Step 1: Parse and Classify All Services
+
+Read the compose file. For each service, extract:
+- Name
+- Image or build context
+- Ports
+- Environment variables
+- depends_on
+- Volumes
+- Health checks
+- Classification (from algorithm above)
+
+### Step 2: Choose TFY Release Names
+
+Use a consistent naming convention: `{project}-{service}` where:
+- `{project}` = user's app name (ask if unclear)
+- `{service}` = short name from compose (e.g., `db`, `cache`, `backend`, `frontend`)
+
+For Helm charts, use short names that don't repeat the chart type:
+- Compose `redis` -> TFY name `{project}-cache` (NOT `{project}-redis`)
+- Compose `db` or `postgres` -> TFY name `{project}-db` (NOT `{project}-postgresql`)
+
+### Step 3: Resolve the Namespace
+
+Get the workspace namespace for DNS construction:
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-multi-service/scripts/tfy-api.sh
+$TFY_API_SH GET '/api/svc/v1/workspace?workspaceFqn=WORKSPACE_FQN'
+```
+The namespace is typically the workspace name from the FQN.
+
+### Step 4: Translate Environment Variables
+
+For each env var that references another compose service:
+1. Find the compose service name in the value (e.g., `redis` in `redis://redis:6379`)
+2. Look up the TFY release name you chose for that service
+3. Look up the DNS pattern for that service type (see `service-wiring.md`)
+4. Replace the compose hostname with the full Kubernetes DNS name
+
+### Step 5: Generate YAML Manifests
+
+Create one manifest file per service. See examples below.
+
+### Step 6: Deploy in Dependency Order
+
+Deploy leaf nodes first (infrastructure), then dependent services. See `dependency-graph.md`.
+
+## Complete Translation Examples
+
+### Example: Compose with backend + frontend + Redis
+
+**Input docker-compose.yaml:**
 ```yaml
-# docker-compose.yml
 services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:pass@db:5432/myapp
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
 ```
 
-**Translates to TrueFoundry Service:**
-- `build.context` -> Use `deploy` skill with `DockerFileBuild(dockerfile_path="./backend/Dockerfile", build_context_path="./backend")`
-- `ports: "8000:8000"` -> `Port(port=8000, protocol="TCP")`
-- `environment` -> `env` dict with DNS-rewritten hostnames
-- `depends_on` -> deploy order (db and redis first)
-- `healthcheck` -> TrueFoundry health probes:
-  ```json
-  {
-    "liveness_probe": {
-      "path": "/health",
-      "port": 8000,
-      "period_seconds": 30,
-      "timeout_seconds": 10,
-      "failure_threshold": 3
-    }
-  }
-  ```
+**Step 1 - Classification:**
+- `redis` -> image `redis:7` -> **Helm Cache**
+- `backend` -> has `build:` -> **Application Service**
+- `frontend` -> has `build:` -> **Application Service**
 
-### Application Service (has `image:` with custom image)
+**Step 2 - TFY names** (project = `myapp`):
+- `redis` -> `myapp-cache`
+- `backend` -> `myapp-backend`
+- `frontend` -> `myapp-frontend`
+
+**Step 3 - Namespace:** `sai-ws` (from workspace FQN)
+
+**Step 4 - Environment variable translation:**
+- Backend `REDIS_URL: redis://redis:6379` -> `redis://myapp-cache-redis-master.sai-ws.svc.cluster.local:6379`
+- Frontend `BACKEND_URL: http://backend:8000` -> `http://myapp-backend.sai-ws.svc.cluster.local:8000`
+
+**Step 5 - Generated manifests:**
+
+```yaml
+# tfy-manifest-cache.yaml
+name: myapp-cache
+type: helm
+source:
+  type: oci-repo
+  version: "20.6.2"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/redis
+values:
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: "5Gi"
+    resources:
+      requests:
+        cpu: "0.25"
+        memory: 256Mi
+      limits:
+        cpu: "0.5"
+        memory: 512Mi
+workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+```
+
+```yaml
+# tfy-manifest-backend.yaml
+name: myapp-backend
+type: service
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    ref: main
+    branch_name: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: backend/Dockerfile
+    build_context_path: backend/
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: false
+    app_protocol: http
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  REDIS_URL: "redis://myapp-cache-redis-master.sai-ws.svc.cluster.local:6379"
+replicas: 1
+workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+```
+
+```yaml
+# tfy-manifest-frontend.yaml
+name: myapp-frontend
+type: service
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    ref: main
+    branch_name: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: frontend/Dockerfile
+    build_context_path: frontend/
+ports:
+  - port: 3000
+    protocol: TCP
+    expose: true
+    app_protocol: http
+    host: myapp-frontend-sai-ws.example.truefoundry.cloud
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  BACKEND_URL: "http://myapp-backend.sai-ws.svc.cluster.local:8000"
+replicas: 1
+workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+```
+
+**Step 6 - Deploy order:**
+```
+Level 0: myapp-cache (redis - no dependencies)
+Level 1: myapp-backend (depends on redis)
+Level 2: myapp-frontend (depends on backend)
+```
+
+```bash
+tfy apply -f tfy-manifest-cache.yaml
+# Wait for redis to be ready...
+tfy apply -f tfy-manifest-backend.yaml
+# Wait for backend to be ready...
+tfy apply -f tfy-manifest-frontend.yaml
+```
+
+### Example: Compose with backend + PostgreSQL + Redis
+
+**Input docker-compose.yaml:**
 ```yaml
 services:
-  api:
-    image: ghcr.io/myorg/api:v1.2.0
+  app:
+    build: .
     ports:
-      - "8080:8080"
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:secret@db:5432/myapp
+      REDIS_URL: redis://:secret@redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: myapp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    command: redis-server --requirepass secret
+    volumes:
+      - redisdata:/data
 ```
 
-**Translates to TrueFoundry Service with pre-built image:**
-```json
-{
-  "kind": "Service",
-  "name": "api",
-  "image": { "type": "image", "image_uri": "ghcr.io/myorg/api:v1.2.0" },
-  "ports": [{ "port": 8080, "protocol": "TCP" }]
-}
+**Generated manifests:**
+
+```yaml
+# tfy-manifest-db.yaml
+name: myapp-db
+type: helm
+source:
+  type: oci-repo
+  version: "16.7.21"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/postgresql
+values:
+  auth:
+    postgresPassword: "GENERATED_STRONG_PASSWORD"
+    database: myapp
+  primary:
+    persistence:
+      enabled: true
+      size: "10Gi"
+    resources:
+      requests:
+        cpu: "0.5"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+workspace_fqn: tfy-ea-dev-eo-az:sai-ws
 ```
 
-### Database/Cache/Queue (well-known images)
+```yaml
+# tfy-manifest-cache.yaml
+name: myapp-cache
+type: helm
+source:
+  type: oci-repo
+  version: "20.6.2"
+  oci_chart_url: oci://registry-1.docker.io/bitnamicharts/redis
+values:
+  auth:
+    password: "GENERATED_STRONG_PASSWORD"
+  master:
+    persistence:
+      enabled: true
+      size: "5Gi"
+    resources:
+      requests:
+        cpu: "0.25"
+        memory: 256Mi
+      limits:
+        cpu: "0.5"
+        memory: 512Mi
+workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+```
 
-| Compose Image | TrueFoundry Deployment | Notes |
-|--------------|----------------------|-------|
-| `postgres:*` | Helm chart (ask user for chart source) | Map `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_USER` to chart-specific values |
-| `mysql:*` / `mariadb:*` | Helm chart (ask user for chart source) | Map `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE` to chart-specific values |
-| `mongo:*` | Helm chart (ask user for chart source) | Map `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD` to chart-specific values |
-| `redis:*` / `valkey:*` | Helm chart (ask user for chart source) | Map password if set; chart values depend on the chart used |
-| `rabbitmq:*` | Helm chart (ask user for chart source) | Map `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` to chart-specific values |
-| `elasticsearch:*` | Helm chart (ask user for chart source) | Map `ELASTIC_PASSWORD` to chart-specific values |
+```yaml
+# tfy-manifest-app.yaml
+name: myapp-app
+type: service
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: https://github.com/user/repo
+    ref: main
+    branch_name: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: Dockerfile
+    build_context_path: "."
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: true
+    app_protocol: http
+    host: myapp-app-sai-ws.example.truefoundry.cloud
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+env:
+  DATABASE_URL: "postgresql://postgres:GENERATED_STRONG_PASSWORD@myapp-db-postgresql.sai-ws.svc.cluster.local:5432/myapp"
+  REDIS_URL: "redis://:GENERATED_STRONG_PASSWORD@myapp-cache-redis-master.sai-ws.svc.cluster.local:6379/0"
+replicas: 1
+workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+```
 
-**Important:** Always ask the user which Helm chart and registry to use for infrastructure components. Value mappings depend on the specific chart. Check the chart's `values.yaml` for configuration options.
+## Field-by-Field Translation
+
+### Ports
+
+```yaml
+# Compose
+ports:
+  - "8000:8000"      # host:container
+  - "3000"           # container only
+
+# TFY manifest
+ports:
+  - port: 8000       # container port only (host port is irrelevant in K8s)
+    protocol: TCP
+    expose: false     # true if needs public URL
+    app_protocol: http
+```
+
+### Health Checks
+
+```yaml
+# Compose
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s
+
+# TFY manifest
+liveness_probe:
+  config:
+    type: http
+    path: /health
+    port: 8000
+  initial_delay_seconds: 10
+  period_seconds: 30
+  timeout_seconds: 10
+  failure_threshold: 3
+readiness_probe:
+  config:
+    type: http
+    path: /health
+    port: 8000
+  initial_delay_seconds: 10
+  period_seconds: 30
+  timeout_seconds: 10
+  failure_threshold: 3
+```
 
 ### Volumes
 
 | Compose Volume | TrueFoundry Equivalent |
 |---------------|----------------------|
 | Named volume on DB | `persistence.enabled: true, persistence.size: "10Gi"` in Helm values |
-| Named volume on app service | TrueFoundry Volume (use `volumes` skill) |
+| Named volume on app service | TrueFoundry Volume mount (use `mounts` field) |
 | Bind mount (`./data:/app/data`) | Not supported directly -- use a TrueFoundry Volume or bake data into the image |
 | tmpfs | `ephemeral_storage` in resources |
 
@@ -142,11 +479,22 @@ secrets:
 networks:
   backend:
     driver: bridge
-  frontend:
-    driver: bridge
 ```
 
 **In TrueFoundry:** Networks are not needed. All services in the same workspace share a Kubernetes namespace and can reach each other via DNS. Simply ignore `networks:` config.
+
+### depends_on
+
+```yaml
+# Compose
+depends_on:
+  db:
+    condition: service_healthy
+  redis:
+    condition: service_started
+```
+
+**Translation:** `depends_on` determines deployment order only. Deploy `db` and `redis` first, wait for them to be healthy, then deploy this service. TrueFoundry does not have a native depends_on -- you handle ordering by deploying services in the correct sequence.
 
 ### Unsupported Compose Features
 

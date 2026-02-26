@@ -26,6 +26,11 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 | GET | `/api/svc/v1/clusters/{id}/is-connected` | Get cluster connection status |
 | GET | `/api/svc/v1/clusters/{id}/get-addons` | List cluster addons |
 
+## Provider Accounts
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/provider-accounts` | List provider accounts (query: type=secret-store for secret integrations) |
+
 ## Secrets
 | Method | Path | Description |
 |--------|------|-------------|

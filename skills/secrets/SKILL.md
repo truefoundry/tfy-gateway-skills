@@ -113,6 +113,72 @@ tfy_secret_groups_delete(id="GROUP_ID")
 $TFY_API_SH DELETE /api/svc/v1/secret-groups/GROUP_ID
 ```
 
+## Finding the Integration ID
+
+Before creating a secret group, you need the secret store integration ID for the workspace's cloud provider:
+
+### Via Direct API
+
+```bash
+# List all secret store provider accounts and their integrations
+bash $TFY_API_SH GET '/api/svc/v1/provider-accounts?type=secret-store'
+```
+
+From the response, look for integrations with `type: "secret-store"`. Each provider account contains an `integrations` array -- pick the integration matching the workspace's cloud provider:
+- AWS: `integration/secret-store/aws/secrets-manager` or `integration/secret-store/aws/parameter-store`
+- Azure: `integration/secret-store/azure/vault`
+- GCP: `integration/secret-store/gcp/secret-manager`
+
+Use the `id` field of the matching integration as the `integrationId` when creating secret groups.
+
+## Using Secrets in Deployments
+
+After creating a secret group, reference individual secrets in deployment manifests using the `tfy-secret://` format:
+
+```
+tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>
+```
+
+- `TENANT_NAME`: The subdomain of `TFY_BASE_URL` (e.g., `my-org` from `https://my-org.truefoundry.cloud`)
+- `SECRET_GROUP_NAME`: The name you gave the secret group when creating it
+- `SECRET_KEY`: The key of the individual secret within the group
+
+### Example: Manifest with Secret References
+
+Given a secret group named `my-app-secrets` with keys `DB_PASSWORD` and `API_KEY`:
+
+```yaml
+name: my-app
+type: service
+image:
+  type: image
+  image_uri: docker.io/myorg/my-app:latest
+ports:
+  - port: 8000
+    expose: false
+    app_protocol: http
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+env:
+  LOG_LEVEL: info
+  DB_PASSWORD: tfy-secret://my-org:my-app-secrets:DB_PASSWORD
+  API_KEY: tfy-secret://my-org:my-app-secrets:API_KEY
+workspace_fqn: cluster-id:workspace-name
+```
+
+### Workflow: Secrets Before Deploy
+
+1. Identify sensitive env vars (passwords, tokens, keys, credentials)
+2. Find the secret store integration ID (see above)
+3. Create a secret group with all sensitive values
+4. Reference secrets in the manifest `env` using `tfy-secret://` format
+5. Deploy with `tfy apply -f manifest.yaml`
+
 ## Delete Individual Secret
 
 ### Via Tool Call
@@ -183,6 +249,12 @@ Cannot update secret group with zero secrets. Include at least one secret in the
 ```
 No secret store configured for this workspace. Contact your platform admin.
 ```
+
+### Key Name Restrictions (Azure Key Vault)
+```
+Key name does not support underscores (_)
+```
+Azure Key Vault does not allow underscores in secret key names. Use hyphens (`DB-PASSWORD`) or choose a different secret store integration (AWS Secrets Manager supports underscores).
 
 ### Missing Required Fields
 ```
