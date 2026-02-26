@@ -10,6 +10,7 @@ Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 export TFY_BASE_URL="https://your-org.truefoundry.cloud"
 export TFY_API_KEY="tfy-..."
+export TFY_CLUSTER_FQN="tfy-..."
 ```
 
 Keep secrets local only. Do not commit `.env` or API keys to Git.
