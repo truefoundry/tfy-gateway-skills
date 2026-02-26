@@ -980,6 +980,334 @@ For GPU or resource-intensive workloads, specify node capacity preference.
 
 ---
 
+## Workflow
+
+Python-based DAG orchestration built on [Flyte](https://flyte.org/). Workflows are defined using `@task`/`@workflow` decorators in Python and deployed via `tfy deploy workflow` CLI or `tfy apply`.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Workflow name. Lowercase alphanumeric and hyphens only. |
+| `type` | string | Yes | -- | Must be `workflow` |
+| `source` | object | Yes | -- | Source code location. See [Workflow Source](#workflow-source). |
+| `workflow_file_path` | string | Yes | -- | Path to Python file containing the `@workflow` decorated function. |
+| `alerts` | array | No | -- | Alert/notification config. See [Workflow Alerts](#workflow-alerts). |
+
+> **Note:** `workspace_fqn` is passed via CLI flag (`--workspace_fqn`) or as a sibling key in the REST API, not inside the manifest itself.
+
+### Workflow Source
+
+**Local Source:**
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `local` |
+| `project_root_path` | string | No | `./` | Path to project root directory |
+
+**Remote Source:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `remote` |
+| `remote_uri` | string | Yes | URI to remote source archive |
+
+### Workflow Alerts
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `notification_target` | object | No | -- | Where to send alerts. See notification types below. |
+| `on_completion` | bool | No | `false` | Alert on successful completion |
+| `on_failure` | bool | No | `true` | Alert on failure |
+
+**Notification target types:**
+
+- `Email`: `type: email`, `notification_channel` (string), `to_emails` (array of strings)
+- `SlackWebhook`: `type: slack-webhook`, `notification_channel` (string)
+- `SlackBot`: `type: slack-bot`, `notification_channel` (string), `channels` (array of strings)
+
+### Minimal Example (CLI -- Primary)
+
+```bash
+tfy deploy workflow \
+  --name my-ml-pipeline \
+  --file workflow.py \
+  --workspace_fqn "cluster-id:workspace-name"
+```
+
+### YAML Manifest Example (Alternative)
+
+```yaml
+name: my-ml-pipeline
+type: workflow
+source:
+  type: local
+  project_root_path: ./
+workflow_file_path: workflow.py
+```
+
+```bash
+tfy apply -f workflow-manifest.yaml --workspace-fqn "cluster-id:workspace-name"
+```
+
+### With Alerts Example
+
+```yaml
+name: nightly-pipeline
+type: workflow
+source:
+  type: local
+  project_root_path: ./
+workflow_file_path: workflow.py
+alerts:
+  - notification_target:
+      type: slack-webhook
+      notification_channel: my-slack-channel
+    on_failure: true
+    on_completion: false
+```
+
+> **Important:** Workflow task definitions (resources, images, pip packages) live in the Python code via `PythonTaskConfig`, not in the YAML manifest. The manifest only controls the deployment wrapper. See the `workflows` skill for Python code patterns.
+
+---
+
+## Agent
+
+Register an AI agent with TrueFoundry's Agent Gateway. Agents can be prompt-based (backed by a ChatPrompt version) or hosted A2A agents.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Agent name. |
+| `type` | string | Yes | -- | Must be `agent` |
+| `description` | string | Yes | -- | Human-readable agent description. |
+| `source` | object | Yes | -- | Agent source. See [Agent Source](#agent-source). |
+| `collaborators` | array | Yes | -- | Access control list. See [Collaborators](#collaborators). |
+| `sample_inputs` | array | No | -- | Example inputs shown in Agent Chat UI. |
+| `owned_by` | object | No | -- | Ownership info. `{"account": "team-slug"}` |
+
+### Agent Source
+
+**Prompt Source** (backed by a ChatPrompt):
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `prompt` |
+| `prompt_version_fqn` | string | Yes | -- | FQN of a ChatPrompt version |
+| `skills` | array | No | -- | Skills/tools the agent can use. See [Agent Skills](#agent-skills). |
+
+**Hosted A2A Agent** (external agent via A2A protocol):
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `hosted-a2a-agent` |
+| `agent_card_url` | string | Yes | -- | URL to the A2A agent card |
+| `headers` | object | No | -- | Auth headers as key-value pairs |
+
+### Agent Skills
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique skill identifier |
+| `name` | string | Yes | Display name |
+| `description` | string | Yes | What the skill does |
+| `tags` | array | No | Categorization tags |
+| `examples` | array | No | Example invocations |
+| `input_modes` | array | No | Supported input modes |
+| `output_modes` | array | No | Supported output modes |
+
+### Collaborators
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `subject` | string | Yes | User or team identifier |
+| `role_id` | string | Yes | Role ID (e.g., `admin`, `viewer`) |
+
+### Sample Inputs
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `text` | string | No | Sample text input |
+| `variables` | object | No | Variable key-value pairs for prompt templates |
+
+### Prompt-based Agent Example
+
+```yaml
+name: support-agent
+type: agent
+description: Customer support agent that answers product questions
+source:
+  type: prompt
+  prompt_version_fqn: "prompt:my-org:support-prompt:3"
+  skills:
+    - id: product-search
+      name: Product Search
+      description: Search the product catalog
+      tags: ["search", "products"]
+      examples: ["Find laptops under $1000"]
+collaborators:
+  - subject: "team:engineering"
+    role_id: admin
+  - subject: "team:support"
+    role_id: viewer
+sample_inputs:
+  - text: "How do I reset my password?"
+  - text: "What's the return policy for electronics?"
+```
+
+### A2A Agent Example
+
+```yaml
+name: external-research-agent
+type: agent
+description: Research agent hosted externally via A2A protocol
+source:
+  type: hosted-a2a-agent
+  agent_card_url: "https://research-agent.example.com/.well-known/agent.json"
+  headers:
+    Authorization: "Bearer ${secret:api-key}"
+collaborators:
+  - subject: "team:research"
+    role_id: admin
+```
+
+---
+
+## MCP Server Group (Provider Account)
+
+Register MCP servers with TrueFoundry's Agent Gateway for discovery and access control. This is a provider account manifest -- to **deploy** an MCP server as a running service, use the `service` type instead.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Server group name. |
+| `type` | string | Yes | -- | Must be `provider-account/mcp-server-group` |
+| `collaborators` | array | Yes | -- | Access control list. See [Collaborators](#collaborators). |
+| `integrations` | array | Yes | -- | MCP server definitions. See [MCP Integrations](#mcp-integrations). |
+| `owned_by` | object | No | -- | Ownership info. `{"account": "team-slug"}` |
+
+### MCP Integrations
+
+**Remote MCP Server** (connect to an existing MCP server):
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `integration/mcp-server/remote` |
+| `name` | string | Yes | -- | Integration name |
+| `description` | string | Yes | -- | What the server provides |
+| `url` | string | Yes | -- | MCP server URL |
+| `transport` | string | Yes | -- | `streamable-http` or `sse` |
+| `auth_data` | object | No | -- | Auth config. See [MCP Auth](#mcp-auth). |
+| `authorized_subjects` | array | No | -- | Users/teams allowed to use this server |
+
+**Virtual MCP Server** (aggregate multiple servers behind one name):
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `integration/mcp-server/virtual` |
+| `name` | string | Yes | -- | Virtual server name |
+| `description` | string | Yes | -- | Description |
+| `servers` | array | Yes | -- | Backend server references. See below. |
+| `authorized_subjects` | array | No | -- | Users/teams allowed |
+
+**Virtual Server Source:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Name of a registered remote MCP server |
+| `enabled_tools` | array | No | Subset of tools to expose (all if omitted) |
+
+### MCP Auth
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `header` | `headers` (object, required) | Static header-based auth |
+| `oauth2` | `authorization_url`, `token_url`, `client_id`, `client_secret`, `jwt_source` (`access_token` or `id_token`), `scopes` | OAuth2 flow |
+| `passthrough` | (none) | Pass through caller's credentials |
+
+### MCP Transport Values
+
+| Value | Description |
+|-------|-------------|
+| `streamable-http` | Streamable HTTP transport (preferred) |
+| `sse` | Server-Sent Events transport (legacy) |
+
+### Remote Server Example
+
+```yaml
+name: dev-tools
+type: provider-account/mcp-server-group
+collaborators:
+  - subject: "team:engineering"
+    role_id: admin
+integrations:
+  - type: integration/mcp-server/remote
+    name: github-mcp
+    description: GitHub repository tools
+    url: "https://github-mcp.internal.example.com/mcp"
+    transport: streamable-http
+    auth_data:
+      type: header
+      headers:
+        Authorization: "Bearer ${secret:github-token}"
+    authorized_subjects:
+      - "team:engineering"
+  - type: integration/mcp-server/remote
+    name: slack-mcp
+    description: Slack messaging tools
+    url: "https://slack-mcp.internal.example.com/mcp"
+    transport: streamable-http
+    auth_data:
+      type: passthrough
+```
+
+### Virtual Server Example
+
+```yaml
+name: unified-tools
+type: provider-account/mcp-server-group
+collaborators:
+  - subject: "team:engineering"
+    role_id: admin
+integrations:
+  - type: integration/mcp-server/virtual
+    name: all-dev-tools
+    description: Unified development toolset
+    servers:
+      - name: github-mcp
+        enabled_tools: ["search_repos", "create_pr"]
+      - name: slack-mcp
+    authorized_subjects:
+      - "team:engineering"
+```
+
+### MCP Server References in Agents/Prompts
+
+Agents and prompts reference MCP servers using these patterns:
+
+**By FQN** (registered server):
+```yaml
+type: mcp-server-fqn
+integration_fqn: "mcp-server:my-org:github-mcp"
+enable_all_tools: true
+```
+
+**By URL** (direct connection):
+```yaml
+type: mcp-server-url
+url: "https://my-mcp-server.example.com/mcp"
+headers:
+  Authorization: "Bearer my-token"
+enable_all_tools: false
+tools:
+  - name: search_repos
+  - name: create_pr
+```
+
+---
+
 ## Enum Reference
 
 ### Type Values
@@ -994,6 +1322,9 @@ For GPU or resource-intensive workloads, specify node capacity preference.
 | `ssh-server` | Remote development via SSH |
 | `volume` | Persistent volume |
 | `application-set` | Multi-resource deployment |
+| `workflow` | Python DAG orchestration (Flyte-based) |
+| `agent` | AI agent registration for Agent Gateway |
+| `provider-account/mcp-server-group` | MCP server group registration |
 
 ### Protocol Values
 
@@ -1060,3 +1391,7 @@ For GPU or resource-intensive workloads, specify node capacity preference.
 6. **`workspace_fqn` goes in the manifest** -- When using the REST API, also pass `workspaceId` (internal ID) as a sibling of `manifest`.
 7. **Git repos must be accessible** -- For private repos, ensure credentials are configured in TrueFoundry.
 8. **Scale-to-zero is async-service only** -- Setting `min: 0` on a regular service is not supported.
+9. **Workflow `workspace_fqn` is a CLI flag, not a manifest field** -- Pass it via `--workspace_fqn` on `tfy deploy workflow` or as a sibling key in the REST API.
+10. **Workflow task config lives in Python, not YAML** -- Resources, images, and pip packages for individual tasks are defined in the Python file via `PythonTaskConfig`, not in the deployment manifest.
+11. **MCP server group vs MCP service** -- `provider-account/mcp-server-group` registers existing servers with the Agent Gateway. To actually run an MCP server, deploy it as a `service` type.
+12. **Agent `collaborators` is required** -- Every agent manifest must include at least one collaborator for access control.
