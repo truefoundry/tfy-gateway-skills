@@ -83,6 +83,29 @@ tfy login --host "$TFY_BASE_URL"
 tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
 ```
 
+## `tfy apply` vs `tfy deploy`
+
+**Critical:** `tfy apply` only supports `image.type: image` (pre-built images). For build sources (local code or git), use `tfy deploy`.
+
+| Situation | Command |
+|---|---|
+| Pre-built Docker image (`type: image`) | `tfy apply -f manifest.yaml` |
+| Local code + Dockerfile (`type: build`, `build_source.type: local`) | `tfy deploy -f truefoundry.yaml --no-wait` |
+| Git source + Dockerfile (`type: build`, `build_source.type: git`) | `tfy deploy -f truefoundry.yaml --no-wait` |
+| Git source + Buildpack (`type: build`, `build_source.type: git`) | `tfy deploy -f truefoundry.yaml --no-wait` |
+
+> **Note:** `tfy apply` with a `build_source` will fail with "must match exactly one schema in oneOf". Always use `tfy deploy -f` for source-based deployments.
+
+### `tfy deploy` Usage
+
+```bash
+# Deploy from local source or git (builds remotely on TrueFoundry)
+tfy deploy -f truefoundry.yaml --no-wait
+
+# The manifest file is typically named truefoundry.yaml for tfy deploy
+# It uses the same schema as tfy apply manifests
+```
+
 ## Decision Flowchart
 
 ```

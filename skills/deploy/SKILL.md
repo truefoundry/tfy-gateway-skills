@@ -5,19 +5,20 @@ license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
   disable-model-invocation: "true"
-allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *)
+allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *) Bash(docker *) Bash(tfy deploy*)
 ---
 
 <objective>
 
 # Deploy to TrueFoundry
 
-Deploy code or images to TrueFoundry. Two paths:
+Deploy code or images to TrueFoundry. Three paths:
 
-1. **CLI** (`tfy apply`) — Write a YAML manifest and apply it. Works everywhere.
-2. **REST API** (fallback) — When CLI unavailable, use `tfy-api.sh`.
+1. **CLI: `tfy apply`** — For pre-built Docker images. Write a YAML manifest and apply it.
+2. **CLI: `tfy deploy`** — For local code or git sources (builds remotely). Write a YAML manifest and deploy.
+3. **REST API** (fallback) — When CLI unavailable, use `tfy-api.sh`.
 
-Use the CLI path by default. Fall back to REST API only if `tfy` CLI is not installed and the user cannot install it.
+Use the CLI path by default. Use `tfy apply` for pre-built images, `tfy deploy` for build sources. Fall back to REST API only if `tfy` CLI is not installed and the user cannot install it.
 
 ## When to Use
 
@@ -44,30 +45,25 @@ Use the CLI path by default. Fall back to REST API only if `tfy` CLI is not inst
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
-## Choose Deployment Path
+## Step 0: Scan Environment & Ask Key Questions
 
-**Default to CLI (`tfy apply`).** Only use REST API if CLI is unavailable.
+### 0a. Discover All TFY Variables
 
-| User's situation | Path |
-|---|---|
-| Has a pre-built Docker image | YAML manifest + `tfy apply` |
-| Code is in a Git repo | YAML manifest with git build source + `tfy apply` |
-| Code is local-only, has Docker | Docker build locally -> YAML manifest with image + `tfy apply` |
-| Code is local-only, no Docker | Push code to Git first -> YAML manifest with git build |
-| Has existing manifest.yaml | `tfy apply -f manifest.yaml` directly |
+**FIRST action before anything else** — scan `.env` and environment for all TFY-prefixed variables:
 
-### Detection Steps
+```bash
+# Discover all TFY-prefixed variables from .env
+grep '^TFY_' .env 2>/dev/null || true
 
-1. Check: Is the `tfy` CLI installed? (`tfy --version`)
-   - If not: `pip install truefoundry` to install it
-2. Check: Is the code in a Git repository? (`git remote -v`) -> If yes, use YAML manifest with Git build
-3. Ask: "Do you have a pre-built Docker image?" -> If yes, use YAML manifest with image
-4. If local code only: check for `docker` -> Docker build + YAML manifest with image
-5. Otherwise -> suggest pushing code to Git first, then YAML manifest with git build
+# Check environment
+env | grep '^TFY_' 2>/dev/null || true
+```
 
-## Step 0: Detect Environment
+Use discovered values to skip unnecessary API calls and pre-fill questions below.
 
-**Before anything else**, check what tools are available:
+> **WARNING:** Never use `source .env`. The `tfy-api.sh` script handles `.env` parsing automatically with proper quote-stripping. For shell access to individual values, use: `grep KEY .env | cut -d= -f2-`
+
+### 0b. Detect Tools
 
 ```bash
 # Check for CLI
@@ -77,16 +73,63 @@ tfy --version 2>/dev/null
 git remote -v 2>/dev/null
 
 # Check for existing manifest
-ls tfy-manifest.yaml 2>/dev/null
+ls tfy-manifest.yaml truefoundry.yaml 2>/dev/null
 
 # Check for Docker (only matters for local build path)
 docker --version 2>/dev/null
+
+# Get current branch (for git-based deploys)
+git branch --show-current 2>/dev/null
 ```
 
 If `tfy` CLI is not installed:
 ```bash
 pip install truefoundry
 ```
+
+### 0c. Ask Workspace (Mandatory)
+
+**Never skip this. Never auto-pick.**
+
+1. Check if `TFY_WORKSPACE_FQN` was found in `.env` or environment (from step 0a)
+2. If found: **confirm** with the user — "I found workspace `X` — deploy there?"
+3. If not found: **ask** — "Which workspace should I deploy to? (format: `cluster:workspace`)"
+4. Only if the user doesn't know their workspace, THEN list workspaces using the `workspaces` skill
+
+### 0d. Ask Deployment Source (Mandatory)
+
+**Never auto-decide the deployment strategy.** Always ask:
+
+```
+How do you want to deploy?
+1. Local code (upload from this machine) — DEFAULT
+2. Git repo (TrueFoundry pulls from GitHub/GitLab)
+3. Pre-built Docker image (already in a registry)
+```
+
+Then ask about build method:
+```
+How should the image be built?
+1. Use existing Dockerfile — DEFAULT (if Dockerfile detected)
+2. Create a Dockerfile (I'll help write one)
+3. Use buildpack (no Dockerfile needed, Python only)
+```
+
+Use environment checks (git remote, Dockerfile presence) as **context to inform suggestions**, but never auto-decide.
+
+## Choose Deployment Command
+
+**Critical:** The CLI command depends on the image source type. See `references/cli-fallback.md` for details.
+
+| Situation | Command | Manifest file |
+|---|---|---|
+| Pre-built Docker image | `tfy apply -f tfy-manifest.yaml` | `tfy-manifest.yaml` |
+| Local code + Dockerfile | `tfy deploy -f truefoundry.yaml --no-wait` | `truefoundry.yaml` |
+| Git source + Dockerfile | `tfy deploy -f truefoundry.yaml --no-wait` | `truefoundry.yaml` |
+| Git source + Buildpack | `tfy deploy -f truefoundry.yaml --no-wait` | `truefoundry.yaml` |
+| Has existing manifest | Check `image.type` → use appropriate command above |
+
+> **`tfy apply` does NOT support `build_source`.** Using it with git/local sources fails with "must match exactly one schema in oneOf". Always use `tfy deploy -f` for source-based deployments.
 
 </context>
 
@@ -231,19 +274,34 @@ Write the manifest to `tfy-manifest.yaml` in the project directory.
 
 ### Step 3: Preview
 
+For pre-built images (`image.type: image`):
 ```bash
 tfy apply -f tfy-manifest.yaml --dry-run --show-diff
 ```
 
+For build sources (`image.type: build`):
+```bash
+# tfy deploy does not support --dry-run; review the manifest manually
+cat truefoundry.yaml
+```
+
 Show the preview output to the user. If this is an update to an existing service, the diff shows what will change.
 
-### Step 4: Apply
+### Step 4: Deploy
 
-After user confirms:
+After user confirms, use the appropriate command based on image type:
 
+**Pre-built image** (`image.type: image`):
 ```bash
 tfy apply -f tfy-manifest.yaml
 ```
+
+**Build source** (`image.type: build` — local or git):
+```bash
+tfy deploy -f truefoundry.yaml --no-wait
+```
+
+> **Do NOT use `tfy apply` with build sources.** It will fail with "must match exactly one schema in oneOf". See `references/cli-fallback.md` for details.
 
 ### Fallback: REST API
 
@@ -253,11 +311,13 @@ If `tfy` CLI is not available, convert the YAML manifest to JSON and deploy via 
 TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
 
 # Get workspace ID from FQN
-$TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
+bash $TFY_API_SH GET "/api/svc/v1/workspaces?fqn=${TFY_WORKSPACE_FQN}"
 
 # Deploy via REST API (JSON body)
-$TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WORKSPACE_ID" }'
+bash $TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WORKSPACE_ID" }'
 ```
+
+> **Note:** Use `bash $TFY_API_SH` instead of `$TFY_API_SH` directly to avoid "permission denied" errors if the script lacks execute permissions.
 
 ## User Confirmation Checklist
 
@@ -265,6 +325,7 @@ $TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WORKSPA
 
 - [ ] **Service name** -- what to call this deployment
 - [ ] **Image source** -- pre-built image, Git repo + Dockerfile, Git repo + PythonBuild, or local Docker build?
+- [ ] **Branch** (if git source) -- which branch to build from? Default to current branch (`git branch --show-current`), never hardcode `main`
 - [ ] **Port** -- what port the application listens on
 - [ ] **Expected load** -- TPS, concurrent users, environment (dev/staging/prod) -> use Step 2 analysis
 - [ ] **CPU/Memory** -- show resource suggestion table from Step 2 (defaults vs suggested values)

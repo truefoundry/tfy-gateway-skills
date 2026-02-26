@@ -81,7 +81,7 @@ image:
   build_source:
     type: git
     repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
+    branch_name: ${BRANCH}  # Use current branch: git branch --show-current
   build_spec:
     type: dockerfile
     dockerfile_path: Dockerfile
@@ -119,7 +119,7 @@ image:
   build_source:
     type: git
     repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
+    branch_name: ${BRANCH}  # Use current branch: git branch --show-current
   build_spec:
     type: tfy-python-buildpack
     build_context_path: ./
@@ -415,7 +415,7 @@ image:
   build_source:
     type: git
     repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
+    branch_name: ${BRANCH}  # Use current branch: git branch --show-current
   build_spec:
     type: dockerfile
     dockerfile_path: Dockerfile
@@ -455,7 +455,7 @@ image:
   build_source:
     type: git
     repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
+    branch_name: ${BRANCH}  # Use current branch: git branch --show-current
   build_spec:
     type: dockerfile
     dockerfile_path: Dockerfile
@@ -497,7 +497,7 @@ image:
   build_source:
     type: git
     repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
+    branch_name: ${BRANCH}  # Use current branch: git branch --show-current
   build_spec:
     type: dockerfile
     dockerfile_path: Dockerfile
@@ -538,7 +538,7 @@ image:
   build_source:
     type: git
     repo_url: ${REPO_URL}
-    branch_name: ${BRANCH:-main}
+    branch_name: ${BRANCH}  # Use current branch: git branch --show-current
   build_spec:
     type: dockerfile
     dockerfile_path: Dockerfile

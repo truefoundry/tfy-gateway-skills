@@ -31,6 +31,19 @@ $TFY_API_SH GET /api/svc/v1/clusters/CLUSTER_ID
 
 The cluster API shows what GPU types are available. Only present available types to the user.
 
+## Fallback: When Cluster API Returns 403
+
+If the cluster API returns 403 Forbidden or is otherwise unavailable:
+
+1. **Check `.env` for `TFY_CLUSTER_FQN`** — may already have the cluster info
+2. **List existing apps in the workspace** and extract domain patterns from `ports[].host`:
+   ```bash
+   $TFY_API_SH GET "/api/svc/v1/apps?workspaceFqn=${TFY_WORKSPACE_FQN}&limit=5"
+   # Look at ports[].host in any existing app to infer the base domain
+   ```
+3. **Ask the user directly** — "What's your cluster's base domain? (e.g., `ml.your-org.truefoundry.cloud`)"
+4. **For internal-only services**, skip domain discovery entirely — set `expose: false` and omit `host`
+
 ## Storage Class Reference
 
 | Provider | Storage Class | Type | Notes |

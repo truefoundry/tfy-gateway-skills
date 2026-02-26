@@ -35,6 +35,17 @@ echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
 | `TFY_WORKSPACE_FQN` | For deploys | Workspace fully qualified name (e.g., `cluster-id:workspace-name`) |
 | `TFY_CLUSTER_ID` | Optional | Cluster ID — auto-extracted from workspace FQN if not set |
 
+### Variable Name Aliases
+
+Different tools use different variable names. The `tfy-api.sh` script auto-resolves these:
+
+| Canonical (used by scripts) | Alias (CLI) | Alias (.env files) | Notes |
+|---|---|---|---|
+| `TFY_BASE_URL` | `TFY_HOST` | `TFY_API_HOST` | `tfy-api.sh` checks all three in order |
+| `TFY_API_KEY` | -- | -- | Same name everywhere |
+
+If your `.env` uses `TFY_HOST` or `TFY_API_HOST`, the scripts will pick it up automatically. No manual renaming needed.
+
 ## Workspace FQN Rule
 
 **Never auto-pick a workspace.** Always ask the user.

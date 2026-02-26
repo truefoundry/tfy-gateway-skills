@@ -31,6 +31,9 @@ if [[ -f ".env" ]]; then
   done < .env
 fi
 
+# Resolve common aliases (TFY_HOST used by CLI, TFY_API_HOST used by some .env files)
+TFY_BASE_URL="${TFY_BASE_URL:-${TFY_HOST:-${TFY_API_HOST:-}}}"
+
 if [[ -z "${TFY_BASE_URL:-}" ]]; then
   echo '{"error": "TFY_BASE_URL not set. Export it or add to .env"}' >&2
   exit 1

@@ -638,7 +638,8 @@ image:
 |-------|------|----------|-------------|
 | `type` | string | Yes | `git` or `local` |
 | `repo_url` | string | Yes (git) | Git repository URL |
-| `branch_name` | string | No (git) | Branch or ref to build from (default: `main`) |
+| `branch_name` | string | No (git) | Branch to build from. Default: current branch (`git branch --show-current`). |
+| `ref` | string | No (git) | Git ref (commit SHA, tag). May be required by `tfy apply` for git sources. |
 | `project_root_path` | string | Yes (local) | Path to local project root |
 
 ### BuildSpec

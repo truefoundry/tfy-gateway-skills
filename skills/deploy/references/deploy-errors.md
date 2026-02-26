@@ -90,6 +90,54 @@ No Dockerfile found. Options:
        command: uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
+## `tfy apply` Fails with "must match exactly one schema in oneOf"
+
+```
+This error occurs when using `tfy apply` with a build_source (git or local).
+`tfy apply` only supports pre-built images (image.type: image).
+
+Fix: Use `tfy deploy -f truefoundry.yaml --no-wait` for source-based deployments.
+This is the most common deploy skill mistake — always check the image type before
+choosing the command.
+```
+
+## `tfy apply` Fails with Missing `ref` Field
+
+```
+If git build_source is rejected for missing a `ref` field, this is another reason
+to prefer `tfy deploy -f` for source-based deployments. `tfy deploy` handles
+git refs automatically. If you must use `tfy apply`, add a `ref` field to
+build_source with the commit SHA or tag.
+```
+
+## Cluster API Returns 403 Forbidden
+
+```
+The user's API key does not have permission to access the cluster API.
+Fallback steps:
+1. Check .env for TFY_CLUSTER_FQN
+2. List existing apps in the workspace and extract domain from ports[].host
+3. Ask the user for the base domain directly
+4. For internal-only services, skip domain discovery (set expose: false)
+See references/cluster-discovery.md for details.
+```
+
+## Replicas Format Rejected
+
+```
+If `replicas: { min: N, max: M }` is rejected, try block-style YAML:
+
+replicas:
+  min: 2
+  max: 5
+
+Or fall back to a fixed integer:
+
+replicas: 2
+
+Some tfy CLI versions may not accept inline object notation for replicas.
+```
+
 ## REST API Fallback Errors
 
 ### 401 Unauthorized
