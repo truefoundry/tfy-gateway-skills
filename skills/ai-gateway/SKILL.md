@@ -319,14 +319,7 @@ Export traces to your observability stack:
 
 ## Guardrails
 
-The gateway supports content filtering via integrated guardrail providers:
-
-- Azure PII / Content Safety
-- Enkrypt AI
-- Palo Alto Prisma
-- Custom guardrail implementations
-
-Configure via TrueFoundry dashboard → AI Gateway → Guardrails.
+For content filtering, PII detection, prompt injection prevention, and custom safety rules, use the `guardrails` skill. It configures guardrail providers and rules that apply to this gateway's traffic.
 
 ## Framework Integration
 

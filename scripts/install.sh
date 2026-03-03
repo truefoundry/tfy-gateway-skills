@@ -49,7 +49,7 @@ AGENTS_GLOBAL=(
 
 # Skills to install (directory names inside skills/)
 SKILL_NAMES=(
-  access-tokens ai-gateway applications deploy docs gitops helm jobs llm-deploy logs ml-repos notebooks preferences prompts secrets service-test ssh-server status tracing volumes workflows workspaces
+  access-control access-tokens ai-gateway applications deploy docs gitops guardrails helm jobs llm-deploy logs mcp-servers ml-repos notebooks preferences prompts secrets service-test ssh-server status tracing volumes workflows workspaces
 )
 
 # Shared files (relative to _shared/ in source)

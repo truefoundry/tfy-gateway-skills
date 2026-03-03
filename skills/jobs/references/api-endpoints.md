@@ -99,6 +99,48 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 |--------|------|-------------|
 | GET | `/api/svc/v1/model-catalogues/deployment-specs` | Get recommended deployment specs for a HuggingFace model. Query: `huggingfaceHubUrl` (full HF URL), `workspaceId`, `huggingfaceHubTokenSecretFqn` (optional, for gated models), `pipelineTagOverride` (e.g. `text-generation`). Returns GPU, CPU, memory, storage requirements. |
 
+## MCP Servers
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/mcp-servers` | List MCP servers (query: type, name) |
+| GET | `/api/svc/v1/mcp-servers/{id}` | Get MCP server by ID |
+| POST | `/api/svc/v1/mcp-servers` | Register a new MCP server (body: manifest) |
+| DELETE | `/api/svc/v1/mcp-servers/{id}` | Delete an MCP server |
+
+## Roles
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/roles` | List roles (query: resourceType) |
+| POST | `/api/svc/v1/roles` | Create a role (body: name, displayName, description, resourceType, permissions) |
+| GET | `/api/svc/v1/roles/{id}` | Get role by ID |
+| DELETE | `/api/svc/v1/roles/{id}` | Delete a role |
+
+## Teams
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/teams` | List teams |
+| POST | `/api/svc/v1/teams` | Create a team (body: name, description) |
+| GET | `/api/svc/v1/teams/{id}` | Get team by ID |
+| DELETE | `/api/svc/v1/teams/{id}` | Delete a team |
+| POST | `/api/svc/v1/teams/{id}/members` | Add member to team (body: subject, role) |
+| DELETE | `/api/svc/v1/teams/{id}/members/{subject}` | Remove member from team |
+
+## Collaborators
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/collaborators` | List collaborators on a resource (query: resourceType, resourceId) |
+| POST | `/api/svc/v1/collaborators` | Add collaborator to a resource (body: resourceType, resourceId, subject, roleId) |
+| DELETE | `/api/svc/v1/collaborators` | Remove collaborator from a resource (body: resourceType, resourceId, subject) |
+
+## Guardrails
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/svc/v1/provider-accounts?type=guardrail-config-group` | List guardrail config groups |
+| POST | `/api/svc/v1/provider-accounts` | Create guardrail config group (body: manifest with type provider-account/guardrail-config-group) |
+| GET | `/api/svc/v1/gateway-guardrails-configs` | List gateway guardrails configs (query: gatewayRef) |
+| POST | `/api/svc/v1/gateway-guardrails-configs` | Create gateway guardrails config (body: manifest) |
+| PUT | `/api/svc/v1/gateway-guardrails-configs/{id}` | Update gateway guardrails config (body: manifest) |
+
 ## API Docs
 - Full reference: `https://truefoundry.com/docs/api-reference`
 - Generating API keys: `https://docs.truefoundry.com/docs/generating-truefoundry-api-keys`

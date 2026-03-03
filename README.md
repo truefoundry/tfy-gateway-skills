@@ -18,12 +18,12 @@ Install skills:
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
 
-Set your credentials:
+Set your credentials (environment variables or `.env` file in your project root):
 
-```bash
-export TFY_BASE_URL="https://your-org.truefoundry.cloud"
-export TFY_API_KEY="tfy-..."
-```
+- `TFY_BASE_URL` — your TrueFoundry platform URL (e.g., `https://your-org.truefoundry.cloud`)
+- `TFY_API_KEY` — your API key ([how to generate](https://docs.truefoundry.com/docs/generate-api-key))
+
+Skills auto-detect credentials from env vars, `.env` files, or `tfy` CLI config at runtime.
 
 Restart your agent, then ask things like *"deploy my FastAPI app"*, *"show logs for my-service"*, or *"what's deployed?"*
 
@@ -49,8 +49,9 @@ Example workflow:
 | Category | Skills |
 |----------|--------|
 | **Deploy** | [deploy](skills/deploy/SKILL.md), [gitops](skills/gitops/SKILL.md) |
-| **LLM & AI** | [llm-deploy](skills/llm-deploy/SKILL.md), [ai-gateway](skills/ai-gateway/SKILL.md) |
+| **LLM & AI** | [llm-deploy](skills/llm-deploy/SKILL.md), [ai-gateway](skills/ai-gateway/SKILL.md), [mcp-servers](skills/mcp-servers/SKILL.md) |
 | **Infrastructure** | [helm](skills/helm/SKILL.md), [volumes](skills/volumes/SKILL.md), [secrets](skills/secrets/SKILL.md) |
+| **Security** | [guardrails](skills/guardrails/SKILL.md), [access-control](skills/access-control/SKILL.md) |
 | **Jobs & Async** | [jobs](skills/jobs/SKILL.md), [workflows](skills/workflows/SKILL.md) |
 | **Dev Environments** | [notebooks](skills/notebooks/SKILL.md), [ssh-server](skills/ssh-server/SKILL.md) |
 | **Observe & Test** | [logs](skills/logs/SKILL.md), [service-test](skills/service-test/SKILL.md), [applications](skills/applications/SKILL.md), [tracing](skills/tracing/SKILL.md) |

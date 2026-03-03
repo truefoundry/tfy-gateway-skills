@@ -1213,58 +1213,38 @@ collaborators:
 
 ---
 
-## MCP Server Group (Provider Account)
+## MCP Server (Remote)
 
-Register MCP servers with TrueFoundry's Agent Gateway for discovery and access control. This is a provider account manifest -- to **deploy** an MCP server as a running service, use the `service` type instead.
+Register a remote MCP server with TrueFoundry's Agent Gateway for discovery and access control. Connects to an externally hosted MCP server.
 
 ### Top-level Fields
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Server group name. |
-| `type` | string | Yes | -- | Must be `provider-account/mcp-server-group` |
-| `collaborators` | array | Yes | -- | Access control list. See [Collaborators](#collaborators). |
-| `integrations` | array | Yes | -- | MCP server definitions. See [MCP Integrations](#mcp-integrations). |
-| `owned_by` | object | No | -- | Ownership info. `{"account": "team-slug"}` |
-
-### MCP Integrations
-
-**Remote MCP Server** (connect to an existing MCP server):
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | Yes | -- | Must be `integration/mcp-server/remote` |
-| `name` | string | Yes | -- | Integration name |
-| `description` | string | Yes | -- | What the server provides |
-| `url` | string | Yes | -- | MCP server URL |
-| `transport` | string | Yes | -- | `streamable-http` or `sse` |
+| `name` | string | Yes | -- | Server name. Lowercase alphanumeric and hyphens only. |
+| `type` | string | Yes | -- | Must be `mcp-server/remote` |
+| `description` | string | Yes | -- | Human-readable description of what the server provides. |
+| `url` | string | Yes | -- | MCP server URL. |
+| `transport` | string | Yes | -- | `streamable-http` or `sse`. |
 | `auth_data` | object | No | -- | Auth config. See [MCP Auth](#mcp-auth). |
-| `authorized_subjects` | array | No | -- | Users/teams allowed to use this server |
-
-**Virtual MCP Server** (aggregate multiple servers behind one name):
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | Yes | -- | Must be `integration/mcp-server/virtual` |
-| `name` | string | Yes | -- | Virtual server name |
-| `description` | string | Yes | -- | Description |
-| `servers` | array | Yes | -- | Backend server references. See below. |
-| `authorized_subjects` | array | No | -- | Users/teams allowed |
-
-**Virtual Server Source:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Name of a registered remote MCP server |
-| `enabled_tools` | array | No | Subset of tools to expose (all if omitted) |
+| `collaborators` | array | No | -- | Access control list. See [Collaborators](#collaborators). |
+| `tls_settings` | object | No | -- | TLS configuration (e.g., custom CA certificates). |
+| `tags` | array | No | -- | Categorization tags. |
 
 ### MCP Auth
 
 | Type | Fields | Description |
 |------|--------|-------------|
-| `header` | `headers` (object, required) | Static header-based auth |
-| `oauth2` | `authorization_url`, `token_url`, `client_id`, `client_secret`, `jwt_source` (`access_token` or `id_token`), `scopes` | OAuth2 flow |
-| `passthrough` | (none) | Pass through caller's credentials |
+| `header` | `headers` (object, required) | Static header-based auth. |
+| `oauth2` | `authorization_url`, `token_url`, `client_id`, `client_secret`, `jwt_source` (`access_token` or `id_token`), `scopes`, `pkce` (bool), `dynamic_client_registration` (object) | OAuth2 flow. |
+| `passthrough` | (none) | Pass through caller's credentials. |
+
+**OAuth2 `dynamic_client_registration`:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `registration_endpoint` | string | Yes | Dynamic client registration endpoint URL. |
+| `initial_access_token` | string | No | Initial access token for registration. |
 
 ### MCP Transport Values
 
@@ -1273,56 +1253,138 @@ Register MCP servers with TrueFoundry's Agent Gateway for discovery and access c
 | `streamable-http` | Streamable HTTP transport (preferred) |
 | `sse` | Server-Sent Events transport (legacy) |
 
-### Remote Server Example
+### Example
 
 ```yaml
-name: dev-tools
-type: provider-account/mcp-server-group
+name: github-mcp
+type: mcp-server/remote
+description: GitHub repository tools
+url: "https://github-mcp.internal.example.com/mcp"
+transport: streamable-http
+auth_data:
+  type: header
+  headers:
+    Authorization: "Bearer ${secret:github-token}"
 collaborators:
   - subject: "team:engineering"
     role_id: admin
-integrations:
-  - type: integration/mcp-server/remote
-    name: github-mcp
-    description: GitHub repository tools
-    url: "https://github-mcp.internal.example.com/mcp"
-    transport: streamable-http
-    auth_data:
-      type: header
-      headers:
-        Authorization: "Bearer ${secret:github-token}"
-    authorized_subjects:
-      - "team:engineering"
-  - type: integration/mcp-server/remote
-    name: slack-mcp
-    description: Slack messaging tools
-    url: "https://slack-mcp.internal.example.com/mcp"
-    transport: streamable-http
-    auth_data:
-      type: passthrough
+tags:
+  - developer-tools
 ```
 
-### Virtual Server Example
+### OAuth2 Example
 
 ```yaml
-name: unified-tools
-type: provider-account/mcp-server-group
+name: jira-mcp
+type: mcp-server/remote
+description: Jira project management tools
+url: "https://jira-mcp.example.com/mcp"
+transport: streamable-http
+auth_data:
+  type: oauth2
+  authorization_url: "https://auth.example.com/authorize"
+  token_url: "https://auth.example.com/token"
+  client_id: "my-client-id"
+  client_secret: "tfy-secret://my-org:mcp-secrets:jira-client-secret"
+  jwt_source: access_token
+  scopes:
+    - read:jira-work
+    - write:jira-work
+  pkce: true
 collaborators:
   - subject: "team:engineering"
     role_id: admin
-integrations:
-  - type: integration/mcp-server/virtual
-    name: all-dev-tools
-    description: Unified development toolset
-    servers:
-      - name: github-mcp
-        enabled_tools: ["search_repos", "create_pr"]
-      - name: slack-mcp
-    authorized_subjects:
-      - "team:engineering"
 ```
 
-### MCP Server References in Agents/Prompts
+---
+
+## MCP Server (Virtual)
+
+Create a virtual MCP server that aggregates multiple registered remote servers behind a single endpoint. Useful for presenting a unified toolset to agents.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Virtual server name. |
+| `type` | string | Yes | -- | Must be `mcp-server/virtual` |
+| `description` | string | Yes | -- | Human-readable description. |
+| `servers` | array | Yes | -- | Backend server references. See below. |
+| `collaborators` | array | No | -- | Access control list. See [Collaborators](#collaborators). |
+
+### Server Source
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Name of a registered remote MCP server. |
+| `enabled_tools` | array | No | Subset of tools to expose (all if omitted). |
+
+### Example
+
+```yaml
+name: all-dev-tools
+type: mcp-server/virtual
+description: Unified development toolset
+servers:
+  - name: github-mcp
+    enabled_tools: ["search_repos", "create_pr"]
+  - name: slack-mcp
+collaborators:
+  - subject: "team:engineering"
+    role_id: admin
+```
+
+---
+
+## MCP Server (OpenAPI)
+
+Register an MCP server backed by an OpenAPI specification. TrueFoundry automatically converts OpenAPI operations into MCP tools. Maximum 30 tools per server.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Server name. |
+| `type` | string | Yes | -- | Must be `mcp-server/openapi` |
+| `description` | string | Yes | -- | Human-readable description. |
+| `spec` | object | Yes | -- | OpenAPI spec source. See below. |
+| `collaborators` | array | No | -- | Access control list. See [Collaborators](#collaborators). |
+
+### Spec Source
+
+Provide the OpenAPI spec either as a remote URL or inline:
+
+**Remote URL:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `remote` |
+| `url` | string | Yes | URL to the OpenAPI spec (JSON or YAML). |
+
+**Inline:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `inline` |
+| `content` | string | Yes | OpenAPI spec content (JSON or YAML string). |
+
+### Example
+
+```yaml
+name: weather-api
+type: mcp-server/openapi
+description: Weather data tools from OpenAPI spec
+spec:
+  type: remote
+  url: "https://api.weather.example.com/openapi.json"
+collaborators:
+  - subject: "team:data-science"
+    role_id: admin
+```
+
+---
+
+## MCP Server References in Agents/Prompts
 
 Agents and prompts reference MCP servers using these patterns:
 
@@ -1347,6 +1409,176 @@ tools:
 
 ---
 
+## Role
+
+Define a role with specific permissions for access control across TrueFoundry resources.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Role identifier. Lowercase alphanumeric and hyphens only. |
+| `type` | string | Yes | -- | Must be `role` |
+| `displayName` | string | No | -- | Human-readable display name. |
+| `description` | string | No | -- | Role description. |
+| `resourceType` | string | Yes | -- | Resource type this role applies to (e.g., `workspace`, `application`, `mcp-server`). |
+| `permissions` | array | Yes | -- | List of permission strings granted by this role. |
+
+### Example
+
+```yaml
+name: mcp-server-viewer
+type: role
+displayName: MCP Server Viewer
+description: Read-only access to MCP servers
+resourceType: mcp-server
+permissions:
+  - read
+  - list
+```
+
+---
+
+## Team
+
+Define a team with members for organizational access control.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Team identifier. |
+| `type` | string | Yes | -- | Must be `team` |
+| `description` | string | No | -- | Team description. |
+| `members` | array | No | -- | Team members. See below. |
+
+### Member
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `subject` | string | Yes | User identifier (e.g., email or user ID). |
+| `role` | string | Yes | Role within the team (e.g., `admin`, `member`). |
+
+### Example
+
+```yaml
+name: ml-platform-team
+type: team
+description: ML platform engineering team
+members:
+  - subject: "user:alice@example.com"
+    role: admin
+  - subject: "user:bob@example.com"
+    role: member
+```
+
+---
+
+## Gateway Guardrails Config
+
+Configure guardrail rules for TrueFoundry's AI Gateway. Rules define when and how guardrails are applied to LLM inputs/outputs and MCP tool invocations.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Config name. |
+| `type` | string | Yes | -- | Must be `gateway-guardrails-config` |
+| `gateway_ref` | string | Yes | -- | Reference to the gateway this config applies to. |
+| `rules` | array | Yes | -- | Guardrail rules. See below. |
+
+### Rule
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `id` | string | Yes | -- | Unique rule identifier. |
+| `when` | object | Yes | -- | Conditions for applying this rule. See below. |
+| `llm_input_guardrails` | array | No | -- | Guardrails applied to LLM inputs. |
+| `llm_output_guardrails` | array | No | -- | Guardrails applied to LLM outputs. |
+| `mcp_tool_pre_invoke_guardrails` | array | No | -- | Guardrails applied before MCP tool invocation. |
+| `mcp_tool_post_invoke_guardrails` | array | No | -- | Guardrails applied after MCP tool invocation. |
+
+### When Conditions
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target_conditions` | array | No | Conditions on the target resource (e.g., agent, model). |
+| `subject_conditions` | array | No | Conditions on the calling subject (e.g., user, team). |
+
+### Example
+
+```yaml
+name: production-guardrails
+type: gateway-guardrails-config
+gateway_ref: "gateway:my-org:prod-gateway"
+rules:
+  - id: pii-detection
+    when:
+      target_conditions:
+        - type: agent
+          names: ["customer-support-agent"]
+      subject_conditions:
+        - type: team
+          names: ["external-users"]
+    llm_input_guardrails:
+      - name: pii-detector
+        config:
+          block_on_detection: true
+    llm_output_guardrails:
+      - name: pii-redactor
+        config:
+          redact: true
+```
+
+---
+
+## Guardrail Config Group (Provider Account)
+
+Register a guardrail integration provider with TrueFoundry. Defines how external guardrail providers are integrated and enforced.
+
+### Top-level Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | -- | Config group name. |
+| `type` | string | Yes | -- | Must be `provider-account/guardrail-config-group` |
+| `integrations` | array | Yes | -- | Guardrail provider integrations. See below. |
+
+### Integration
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Provider type identifier. |
+| `operation` | string | Yes | -- | `validate` or `mutate`. |
+| `enforcing_strategy` | string | Yes | -- | `enforce`, `audit`, or `enforce_but_ignore_on_error`. |
+| `priority` | int | No | -- | Execution priority (lower runs first). |
+
+### Enforcing Strategy Values
+
+| Value | Description |
+|-------|-------------|
+| `enforce` | Block requests that fail guardrail checks. |
+| `audit` | Log failures but allow requests through. |
+| `enforce_but_ignore_on_error` | Enforce unless the guardrail itself errors, then allow through. |
+
+### Example
+
+```yaml
+name: content-safety-guardrails
+type: provider-account/guardrail-config-group
+integrations:
+  - type: openai-moderation
+    operation: validate
+    enforcing_strategy: enforce
+    priority: 1
+  - type: custom-pii-scanner
+    operation: mutate
+    enforcing_strategy: enforce_but_ignore_on_error
+    priority: 2
+```
+
+---
+
 ## Enum Reference
 
 ### Type Values
@@ -1363,7 +1595,13 @@ tools:
 | `application-set` | Multi-resource deployment |
 | `workflow` | Python DAG orchestration (Flyte-based) |
 | `agent` | AI agent registration for Agent Gateway |
-| `provider-account/mcp-server-group` | MCP server group registration |
+| `mcp-server/remote` | Remote MCP server registration |
+| `mcp-server/virtual` | Virtual MCP server (aggregates multiple servers) |
+| `mcp-server/openapi` | MCP server backed by OpenAPI spec |
+| `role` | Role definition for access control |
+| `team` | Team definition with members |
+| `gateway-guardrails-config` | Guardrail rules for AI Gateway |
+| `provider-account/guardrail-config-group` | Guardrail provider integration |
 
 ### Protocol Values
 
@@ -1432,5 +1670,5 @@ tools:
 8. **Scale-to-zero is async-service only** -- Setting `min: 0` on a regular service is not supported.
 9. **Workflow `workspace_fqn` is a CLI flag, not a manifest field** -- Pass it via `--workspace_fqn` on `tfy deploy workflow` or as a sibling key in the REST API.
 10. **Workflow task config lives in Python, not YAML** -- Resources, images, and pip packages for individual tasks are defined in the Python file via `PythonTaskConfig`, not in the deployment manifest.
-11. **MCP server group vs MCP service** -- `provider-account/mcp-server-group` registers existing servers with the Agent Gateway. To actually run an MCP server, deploy it as a `service` type.
+11. **MCP server types vs MCP service** -- `mcp-server/remote`, `mcp-server/virtual`, and `mcp-server/openapi` register servers with the Agent Gateway. To actually run an MCP server, deploy it as a `service` type.
 12. **Agent `collaborators` is required** -- Every agent manifest must include at least one collaborator for access control.
