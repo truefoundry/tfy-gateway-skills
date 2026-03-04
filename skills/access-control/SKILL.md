@@ -22,7 +22,7 @@ List, create, or delete roles, teams, and collaborators on TrueFoundry. Use when
 
 ## Roles
 
-Roles are named permission sets scoped to a resource type. Built-in roles include `workspace-admin`, `workspace-member`, `mcp-server-manager`, `mcp-server-user`.
+Roles are named permission sets scoped to a resource type. Built-in roles vary by resource type (for example, `workspace-admin`, `workspace-member`).
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
@@ -157,7 +157,7 @@ $TFY_API_SH DELETE /api/svc/v1/teams/TEAM_ID
 #### Via Tool Call
 
 ```
-tfy_teams_add_member(team_id="TEAM_ID", payload={"userId": "USER_ID"})
+tfy_teams_add_member(team_id="TEAM_ID", payload={"subject": "user:alice@company.com", "role": "member"})
 ```
 
 **Note:** Requires human approval (HITL) via tool call.
@@ -165,7 +165,7 @@ tfy_teams_add_member(team_id="TEAM_ID", payload={"userId": "USER_ID"})
 #### Via Direct API
 
 ```bash
-$TFY_API_SH POST /api/svc/v1/teams/TEAM_ID/members '{"userId":"USER_ID"}'
+$TFY_API_SH POST /api/svc/v1/teams/TEAM_ID/members '{"subject":"user:alice@company.com","role":"member"}'
 ```
 
 ### Remove Member from Team
@@ -173,7 +173,7 @@ $TFY_API_SH POST /api/svc/v1/teams/TEAM_ID/members '{"userId":"USER_ID"}'
 #### Via Tool Call
 
 ```
-tfy_teams_remove_member(team_id="TEAM_ID", member_id="MEMBER_ID")
+tfy_teams_remove_member(team_id="TEAM_ID", subject="user:alice@company.com")
 ```
 
 **Note:** Requires human approval (HITL) via tool call.
@@ -181,7 +181,8 @@ tfy_teams_remove_member(team_id="TEAM_ID", member_id="MEMBER_ID")
 #### Via Direct API
 
 ```bash
-$TFY_API_SH DELETE /api/svc/v1/teams/TEAM_ID/members/MEMBER_ID
+$TFY_API_SH DELETE /api/svc/v1/teams/TEAM_ID/members/SUBJECT
+# Example SUBJECT: user:alice@company.com
 ```
 
 ## Collaborators
@@ -250,7 +251,7 @@ $TFY_API_SH POST /api/svc/v1/collaborators '{"resourceType":"workspace","resourc
 #### Via Tool Call
 
 ```
-tfy_collaborators_delete(id="COLLABORATOR_ID")
+tfy_collaborators_delete(payload={"resourceType": "workspace", "resourceId": "RESOURCE_ID", "subject": "user:alice@company.com"})
 ```
 
 **Note:** Requires human approval (HITL) via tool call.
@@ -258,7 +259,7 @@ tfy_collaborators_delete(id="COLLABORATOR_ID")
 #### Via Direct API
 
 ```bash
-$TFY_API_SH DELETE /api/svc/v1/collaborators/COLLABORATOR_ID
+$TFY_API_SH DELETE /api/svc/v1/collaborators '{"resourceType":"workspace","resourceId":"RESOURCE_ID","subject":"user:alice@company.com"}'
 ```
 
 ## Common Workflows
@@ -287,7 +288,7 @@ $TFY_API_SH POST /api/svc/v1/collaborators '{"resourceType":"workspace","resourc
 $TFY_API_SH POST /api/svc/v1/teams '{"name":"ml-engineers","description":"ML engineering team"}'
 
 # 2. Add members (use team ID from response)
-$TFY_API_SH POST /api/svc/v1/teams/TEAM_ID/members '{"userId":"USER_ID"}'
+$TFY_API_SH POST /api/svc/v1/teams/TEAM_ID/members '{"subject":"user:alice@company.com","role":"member"}'
 
 # 3. Grant team access to a workspace
 $TFY_API_SH POST /api/svc/v1/collaborators '{"resourceType":"workspace","resourceId":"WORKSPACE_ID","subject":"team:ml-engineers","roleId":"ROLE_ID"}'
@@ -325,7 +326,7 @@ $TFY_API_SH GET '/api/svc/v1/collaborators?resourceType=workspace&resourceId=WOR
 - **Preflight**: Use `status` skill to verify credentials before managing access control
 - **Before deploy**: Set up teams and grant workspace access so team members can deploy
 - **With workspaces**: Grant collaborator access to workspaces for users and teams
-- **With MCP servers**: Manage `mcp-server-manager` and `mcp-server-user` roles on MCP server resources
+- **With MCP servers**: Manage MCP server collaborators and role assignments on registered servers
 - **With secrets**: Grant access to secret groups via collaborator roles
 - **Dependency chain**: Create roles first, then create teams, then reference both when adding collaborators
 

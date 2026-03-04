@@ -73,7 +73,7 @@ auth_data:
     Authorization: "Bearer my-api-token"
 collaborators:
   - subject: user:jane@example.com
-    role: mcp-server-owner
+    role_id: admin
 tags:
   - analytics
   - production
@@ -161,7 +161,7 @@ servers:
       - rollback
 collaborators:
   - subject: team:platform-eng
-    role: mcp-server-viewer
+    role_id: viewer
 ```
 
 ### Via CLI
@@ -191,7 +191,7 @@ spec:
   url: https://petstore.swagger.io/v2/swagger.json
 collaborators:
   - subject: user:dev@example.com
-    role: mcp-server-viewer
+    role_id: viewer
 ```
 
 ### Manifest (inline spec)

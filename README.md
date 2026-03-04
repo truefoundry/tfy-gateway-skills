@@ -23,7 +23,7 @@ Set your credentials (environment variables or `.env` file in your project root)
 - `TFY_BASE_URL` — your TrueFoundry platform URL (e.g., `https://your-org.truefoundry.cloud`)
 - `TFY_API_KEY` — your API key ([how to generate](https://docs.truefoundry.com/docs/generate-api-key))
 
-Skills auto-detect credentials from env vars, `.env` files, or `tfy` CLI config at runtime.
+Skills auto-detect credentials from environment variables and `.env` files at runtime.
 
 Restart your agent, then ask things like *"deploy my FastAPI app"*, *"show logs for my-service"*, or *"what's deployed?"*
 

@@ -46,7 +46,7 @@ tfy_guardrail_config_groups_list()
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-guardrails/scripts/tfy-api.sh
 
-$TFY_API_SH GET '/api/svc/v1/provider-accounts?type=guardrail-config'
+$TFY_API_SH GET '/api/svc/v1/provider-accounts?type=guardrail-config-group'
 ```
 
 ### Create Config Group
@@ -54,7 +54,7 @@ $TFY_API_SH GET '/api/svc/v1/provider-accounts?type=guardrail-config'
 #### Via Tool Call
 
 ```
-tfy_guardrail_config_groups_create(payload={"name": "my-guardrails", "type": "guardrail-config", "integrations": [...]})
+tfy_guardrail_config_groups_create(payload={"name": "my-guardrails", "type": "provider-account/guardrail-config-group", "integrations": [...]})
 ```
 
 **Note:** Requires human approval (HITL) via tool call.
@@ -64,7 +64,7 @@ tfy_guardrail_config_groups_create(payload={"name": "my-guardrails", "type": "gu
 ```bash
 $TFY_API_SH POST /api/svc/v1/provider-accounts '{
   "name": "my-guardrails",
-  "type": "guardrail-config",
+  "type": "provider-account/guardrail-config-group",
   "integrations": [
     {
       "type": "integration/guardrail/tfy-pii",
@@ -108,7 +108,7 @@ tfy_gateway_guardrails_list()
 $TFY_API_SH GET /api/svc/v1/gateway-guardrails-configs
 ```
 
-### Create or Update Guardrails Config
+### Create Guardrails Config
 
 #### Via Tool Call
 
@@ -121,7 +121,7 @@ tfy_gateway_guardrails_create(payload={"name": "production-guardrails", "type": 
 #### Via Direct API
 
 ```bash
-$TFY_API_SH PUT /api/svc/v1/gateway-guardrails-configs '{
+$TFY_API_SH POST /api/svc/v1/gateway-guardrails-configs '{
   "name": "production-guardrails",
   "type": "gateway-guardrails-config",
   "gateway_ref": "GATEWAY_FQN",
@@ -162,6 +162,19 @@ $TFY_API_SH PUT /api/svc/v1/gateway-guardrails-configs '{
 }'
 ```
 
+### Update Existing Guardrails Config
+
+#### Via Direct API
+
+```bash
+$TFY_API_SH PUT /api/svc/v1/gateway-guardrails-configs/GUARDRAILS_CONFIG_ID '{
+  "name": "production-guardrails",
+  "type": "gateway-guardrails-config",
+  "gateway_ref": "GATEWAY_FQN",
+  "rules": [...]
+}'
+```
+
 ### Rule Structure
 
 Each rule contains:
@@ -198,7 +211,7 @@ Each guardrail entry in a rule has:
 # Step 1: Create config group with tfy-pii
 $TFY_API_SH POST /api/svc/v1/provider-accounts '{
   "name": "pii-guardrails",
-  "type": "guardrail-config",
+  "type": "provider-account/guardrail-config-group",
   "integrations": [
     {"type": "integration/guardrail/tfy-pii", "config": {}}
   ]
