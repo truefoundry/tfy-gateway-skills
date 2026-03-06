@@ -8,8 +8,8 @@ Queue-specific connection JSON and infrastructure deployment references for Asyn
 {
   "type": "sqs",
   "queue_url": "https://sqs.us-east-1.amazonaws.com/123456789/my-input-queue",
-  "aws_access_key_id": "AKIA...",
-  "aws_secret_access_key": "...",
+  "aws_access_key_id": "AWS_ACCESS_KEY_ID",
+  "aws_secret_access_key": "AWS_SECRET_ACCESS_KEY",
   "aws_region": "us-east-1"
 }
 ```

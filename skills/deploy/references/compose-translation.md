@@ -284,8 +284,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:secret@db:5432/myapp
-      REDIS_URL: redis://:secret@redis:6379/0
+      DATABASE_URL: postgresql://postgres:DB_PASSWORD@db:5432/myapp
+      REDIS_URL: redis://:REDIS_PASSWORD@redis:6379/0
     depends_on:
       - db
       - redis
@@ -293,14 +293,14 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: DB_PASSWORD
       POSTGRES_DB: myapp
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:7
-    command: redis-server --requirepass secret
+    command: redis-server --requirepass REDIS_PASSWORD
     volumes:
       - redisdata:/data
 ```
