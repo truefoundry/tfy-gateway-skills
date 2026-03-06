@@ -22,6 +22,8 @@ Or use the direct installer:
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
 
+For reproducible installs, set `TFY_SKILLS_REF=vX.Y.Z` before running the installer.
+
 Set your credentials (env vars or `.env` in your project root):
 
 ```bash
@@ -43,9 +45,8 @@ Just ask your agent in plain English:
 - *"launch a Jupyter notebook with a GPU"*
 - *"deploy Postgres with Helm"*
 - *"set up a secret for my database password"*
-- *"show me the costs for my workspace"*
 
-Your agent automatically picks the right skill based on what you ask.
+Your agent picks the right skill based on what you ask. For deploy actions, use explicit wording like "deploy", "helm", or "llm deploy".
 
 ## Skills
 
@@ -79,16 +80,6 @@ No SDKs to learn, no code to write. Your agent handles everything.
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details on adding new skills.
-
-## Advanced: Auto-Approve API Calls (Claude Code)
-
-By default, Claude Code prompts for approval on each API call. To auto-approve TrueFoundry calls only:
-
-```bash
-cp -r hooks/ ~/.claude/hooks/
-```
-
-Requires `jq`. The hook validates and approves only `tfy-api.sh` commands — everything else still requires manual approval.
 
 ## Community
 
