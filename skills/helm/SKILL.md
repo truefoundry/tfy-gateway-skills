@@ -8,6 +8,8 @@ metadata:
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
+
 <objective>
 
 # Helm Chart Deployment
@@ -21,7 +23,7 @@ Two paths:
 
 ## When to Use
 
-- User wants to deploy a database (PostgreSQL, MySQL, MongoDB, etc.)
+- User explicitly wants a Helm chart deployment for a database (PostgreSQL, MySQL, MongoDB, etc.)
 - User wants to install a cache (Redis, Memcached)
 - User wants to deploy a message queue (RabbitMQ, Kafka, NATS)
 - User says "install helm chart", "deploy via helm"
@@ -31,11 +33,16 @@ Two paths:
 - User has a custom/private Helm chart to deploy
 - User wants to deploy ANY infrastructure component available as a Helm chart
 
+If user intent is "deploy Postgres/Redis/database" without saying Helm, ask which strategy they want:
+- Helm chart infrastructure (`helm` skill)
+- Containerized service deployment (`deploy` skill)
+
 ## When NOT to Use
 
-- User wants to deploy application code -> use `deploy` skill
-- User wants to check what's deployed -> use `applications` skill
-- User wants to view logs -> use `logs` skill
+- User wants to deploy application code -> prefer `deploy` skill; ask if the user wants another valid path
+- User explicitly asks for Docker/container/image-based database deployment -> use `deploy` containerized service path (not Helm)
+- User wants to check what's deployed -> prefer `applications` skill; ask if the user wants another valid path
+- User wants to view logs -> prefer `logs` skill; ask if the user wants another valid path
 
 </objective>
 
@@ -230,11 +237,23 @@ For Kustomize patches and deploying additional Kubernetes manifests alongside He
 
 ## After Deploy
 
+After applying the Helm manifest, verify status automatically without asking an extra prompt.
+
+Preferred verification path:
+1. MCP tool call first:
+```
+tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "RELEASE_NAME"})
+```
+2. Fallback to API:
+```bash
+$TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=RELEASE_NAME'
+```
+
 ```
 Helm chart deployed successfully!
 
 Next steps:
-1. Check deployment status: Use `applications` skill
+1. Deployment status verified and reported automatically
 2. View logs: Use `logs` skill if there are issues
 3. Connect from your app: Use the service DNS provided above
 4. Store credentials: Use TrueFoundry secrets for app access
@@ -249,6 +268,7 @@ Next steps:
 - The Helm chart is deployed and all pods are running in the target workspace
 - The agent has confirmed the chart version, resource sizing, and credentials with the user before deploying
 - Connection details (host, port, credentials) are provided to the user
+- Deployment status is verified automatically immediately after apply (no extra prompt)
 - Persistent storage is configured for stateful charts (databases, caches)
 - The user can connect to the deployed service from their application using the provided DNS
 

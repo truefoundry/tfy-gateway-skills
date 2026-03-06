@@ -1,10 +1,12 @@
 ---
 name: applications
-description: Lists, inspects, and manages TrueFoundry application deployments. Shows status, health, and details for services, jobs, and Helm releases. Also handles requests to delete, remove, or destroy applications by directing users to the TrueFoundry UI. NOT for deploying code (use `deploy` skill).
+description: Lists, inspects, and manages TrueFoundry application deployments. Shows status, health, and details for services, jobs, and Helm releases. Also handles requests to delete, remove, or destroy applications by directing users to the TrueFoundry UI.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -18,13 +20,21 @@ List, inspect, or manage deployed applications and their deployment history. Als
 
 ## When NOT to Use
 
-- User wants to deploy local code → use `deploy` skill
-- User wants workspace/cluster info → use `workspaces` skill
+- User wants to deploy local code → prefer `deploy` skill; ask if the user wants another valid path
+- User wants workspace/cluster info → prefer `workspaces` skill; ask if the user wants another valid path
 - User wants to delete an application → guide them to the TrueFoundry UI (see "Deleting Applications" below)
 
 </objective>
 
 <instructions>
+
+## Execution Priority
+
+For simple read/list operations in this skill, always use MCP tool calls first:
+- `tfy_applications_list`
+- `tfy_applications_list_deployments`
+
+If tool calls are unavailable because the MCP server is not configured, or a tool is missing, fall back automatically to direct API via `tfy-api.sh`.
 
 ## IMPORTANT: Deleting Applications
 

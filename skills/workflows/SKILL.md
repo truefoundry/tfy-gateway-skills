@@ -6,6 +6,8 @@ compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(python*) Bash(pip*) Bash(*/tfy-api.sh *)
 ---
 
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
+
 <objective>
 
 # TrueFoundry Workflows
@@ -24,11 +26,11 @@ Workflow **definition** uses Python SDK (`@task`/`@workflow` decorators). Workfl
 
 ## When NOT to Use
 
-- User wants to deploy a web service or API -> use `deploy` skill
-- User wants to deploy a one-off job (not a multi-step pipeline) -> use `deploy` skill with job type
-- User wants to check running applications -> use `applications` skill
-- User wants to monitor job runs -> use `jobs` skill
-- User wants to serve an ML model behind an endpoint -> use `llm-deploy` or `deploy` skill
+- User wants to deploy a web service or API -> prefer `deploy` skill; ask if the user wants another valid path
+- User wants to deploy a one-off job (not a multi-step pipeline) -> prefer `deploy` skill; ask if the user wants another valid path with job type
+- User wants to check running applications -> prefer `applications` skill; ask if the user wants another valid path
+- User wants to monitor job runs -> prefer `jobs` skill; ask if the user wants another valid path
+- User wants to serve an ML model behind an endpoint -> prefer `llm-deploy` or `deploy`; ask which path they want
 
 </objective>
 

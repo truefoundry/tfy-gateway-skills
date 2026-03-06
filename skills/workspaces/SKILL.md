@@ -1,10 +1,12 @@
 ---
 name: workspaces
-description: Lists TrueFoundry workspaces and clusters. Provides workspace FQNs for deployment, cluster connectivity status, available GPU types, and base domains. NOT for deploying or managing applications.
+description: Lists TrueFoundry workspaces and clusters. Provides workspace FQNs for deployment, cluster connectivity status, available GPU types, and base domains.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -19,6 +21,14 @@ List workspaces and clusters, find workspace FQNs for deployment, check cluster 
 </objective>
 
 <instructions>
+
+## Execution Priority
+
+For simple read/list operations in this skill, always use MCP tool calls first:
+- `tfy_clusters_list`
+- `tfy_workspaces_list`
+
+If tool calls are unavailable because the MCP server is not configured, or a tool is missing, fall back automatically to direct API via `tfy-api.sh`.
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 

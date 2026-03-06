@@ -1,10 +1,12 @@
 ---
 name: ai-gateway
-description: Configures TrueFoundry AI Gateway for unified OpenAI-compatible LLM access. Covers auth (PAT/VAT), model routing, rate limiting, and budget controls. NOT for deploying models (use llm-deploy).
+description: Configures TrueFoundry AI Gateway for unified OpenAI-compatible LLM access. Covers auth (PAT/VAT), model routing, rate limiting, and budget controls.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl*) Bash(python*)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -18,9 +20,9 @@ Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure a
 
 ## When NOT to Use
 
-- User wants to deploy a self-hosted model → use `llm-deploy` skill (then connect to gateway)
-- User wants to deploy tool servers → use `deploy` skill (service with tool-proxy)
-- User wants to manage TrueFoundry platform credentials → use `status` skill
+- User wants to deploy a self-hosted model → prefer `llm-deploy` skill; ask if the user wants another valid path (then connect to gateway)
+- User wants to deploy tool servers → prefer `deploy` skill; ask if the user wants another valid path (service with tool-proxy)
+- User wants to manage TrueFoundry platform credentials → prefer `status` skill; ask if the user wants another valid path
 
 </objective>
 

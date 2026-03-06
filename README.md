@@ -1,72 +1,67 @@
 # TrueFoundry Agent Skills
 
+[![CI](https://github.com/truefoundry/tfy-agent-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/truefoundry/tfy-agent-skills/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Skills](https://img.shields.io/badge/skills.sh-truefoundry-blue)](https://skills.sh/truefoundry/tfy-agent-skills)
+
 Agent skills for [TrueFoundry](https://truefoundry.com) following the [Agent Skills](https://agentskills.io) open format. A curated set of skills that let AI coding assistants deploy, monitor, and manage ML infrastructure.
 
 Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
-## Requirements
+## Install
 
-- Access to a TrueFoundry account/workspace
-- `TFY_BASE_URL` and `TFY_API_KEY` credentials
-- Any supported coding agent listed above
+```bash
+npx skills add truefoundry/tfy-agent-skills
+```
 
-## Quick Start
-
-Install skills:
+Or use the direct installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
 
-Set your credentials (environment variables or `.env` file in your project root):
-
-- `TFY_BASE_URL` — your TrueFoundry platform URL (e.g., `https://your-org.truefoundry.cloud`)
-- `TFY_API_KEY` — your API key ([how to generate](https://docs.truefoundry.com/docs/generate-api-key))
-
-Skills auto-detect credentials from environment variables and `.env` files at runtime.
-
-Restart your agent, then ask things like *"deploy my FastAPI app"*, *"show logs for my-service"*, or *"what's deployed?"*
-
-> Keep secrets local only. Do not commit `.env` or API keys to Git.
-
-### Optional: Auto-Approve API Calls (Claude Code only)
-
-By default, Claude Code prompts for approval each time a skill runs `tfy-api.sh`. To auto-approve these calls, copy the hooks into your Claude Code config:
+Restart your agent and start asking. If credentials are not set, your agent will prompt for them. You can also pre-set them via env vars or a `.env` file in your project root:
 
 ```bash
-cp -r hooks/ ~/.claude/hooks/
+export TFY_BASE_URL=https://your-org.truefoundry.cloud
+export TFY_API_KEY=tfy-...  # https://docs.truefoundry.com/docs/generate-api-key
 ```
 
-This installs a `PreToolUse` hook that validates and auto-approves only `tfy-api.sh` and `tfy-version.sh` commands. It rejects command chaining and shell injection patterns. All other commands still require manual approval.
+Do not commit `.env` files or API keys to Git.
 
-Example workflow:
-1. Ask: `is truefoundry connected?` (uses `status`)
-2. Ask: `what clusters and workspaces are available?` (uses `workspaces` — lists clusters first, then workspaces)
-3. Ask: `show logs for my-service` (uses `logs`)
+## What You Can Do
+
+Just ask your agent in plain English:
+
+- *"deploy my FastAPI app"*
+- *"show logs for my-service"*
+- *"what's deployed?"*
+- *"launch a Jupyter notebook with a GPU"*
+- *"deploy Postgres with Helm"*
+- *"set up a secret for my database password"*
+
+Your agent picks the right skill based on what you ask. Deployment skills are explicit-only: use wording like "deploy", "helm", or "llm deploy".
 
 ## Skills
 
 | Category | Skills |
 |----------|--------|
-| **Deploy** | [deploy](skills/deploy/SKILL.md), [gitops](skills/gitops/SKILL.md) |
-| **LLM & AI** | [llm-deploy](skills/llm-deploy/SKILL.md), [ai-gateway](skills/ai-gateway/SKILL.md), [mcp-servers](skills/mcp-servers/SKILL.md) |
-| **Infrastructure** | [helm](skills/helm/SKILL.md), [volumes](skills/volumes/SKILL.md), [secrets](skills/secrets/SKILL.md) |
-| **Security** | [guardrails](skills/guardrails/SKILL.md), [access-control](skills/access-control/SKILL.md) |
-| **Jobs & Async** | [jobs](skills/jobs/SKILL.md), [workflows](skills/workflows/SKILL.md) |
-| **Dev Environments** | [notebooks](skills/notebooks/SKILL.md), [ssh-server](skills/ssh-server/SKILL.md) |
-| **Observe & Test** | [logs](skills/logs/SKILL.md), [service-test](skills/service-test/SKILL.md), [applications](skills/applications/SKILL.md), [tracing](skills/tracing/SKILL.md) |
-| **Utility** | [status](skills/status/SKILL.md), [workspaces](skills/workspaces/SKILL.md), [prompts](skills/prompts/SKILL.md), [docs](skills/docs/SKILL.md), [preferences](skills/preferences/SKILL.md), [access-tokens](skills/access-tokens/SKILL.md), [ml-repos](skills/ml-repos/SKILL.md) |
+| **Deploy** | [deploy](skills/deploy), [gitops](skills/gitops) |
+| **LLM & AI** | [llm-deploy](skills/llm-deploy), [ai-gateway](skills/ai-gateway), [mcp-servers](skills/mcp-servers) |
+| **Infrastructure** | [helm](skills/helm), [volumes](skills/volumes), [secrets](skills/secrets) |
+| **Security** | [guardrails](skills/guardrails), [access-control](skills/access-control) |
+| **Jobs & Pipelines** | [jobs](skills/jobs), [workflows](skills/workflows) |
+| **Dev Environments** | [notebooks](skills/notebooks), [ssh-server](skills/ssh-server) |
+| **Observe & Debug** | [logs](skills/logs), [service-test](skills/service-test), [applications](skills/applications), [tracing](skills/tracing) |
+| **Utility** | [status](skills/status), [workspaces](skills/workspaces), [prompts](skills/prompts), [docs](skills/docs), [preferences](skills/preferences), [access-tokens](skills/access-tokens), [ml-repos](skills/ml-repos) |
 
-Skills are model-invoked — your agent picks the right one from your prompt. Three skills (`deploy`, `helm`, `llm-deploy`) require explicit invocation.
+Each skill is a standalone markdown file (`skills/{name}/SKILL.md`) following the [Agent Skills](https://agentskills.io) open format.
 
 ## How It Works
 
-Each skill is a `SKILL.md` with YAML frontmatter + markdown instructions. Execution model is CLI-first:
+Skills are markdown files with instructions your agent reads at runtime. When you ask a question, your agent matches it to the right skill and follows the instructions — calling TrueFoundry APIs, running CLI commands, or both.
 
-- **Primary** — use `tfy` CLI commands (for example `tfy apply`) for deployment and management flows
-- **Fallback** — use bundled `tfy-api.sh` for REST API calls only when CLI is unavailable or missing a required operation
-
-Both use `TFY_BASE_URL` and `TFY_API_KEY`.
+No SDKs to learn, no code to write. Your agent handles everything.
 
 ## Development
 
@@ -78,13 +73,13 @@ Both use `TFY_BASE_URL` and `TFY_API_KEY`.
 ./scripts/install.sh
 ```
 
-Never edit files inside individual skill `scripts/` or `references/` that come from `_shared/`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details on adding new skills.
 
-## Project Policies
+## Community
 
 - [Contributing Guide](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
 - [Support](SUPPORT.md)
 
 ## License

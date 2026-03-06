@@ -67,7 +67,7 @@ services:
       - db
       - redis
     environment:
-      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # "db" is a dependency
+      - DATABASE_URL=postgresql://postgres:DB_PASSWORD@db:5432/myapp  # "db" is a dependency
       - REDIS_URL=redis://redis:6379                           # "redis" is a dependency
 ```
 
@@ -246,8 +246,8 @@ Use the `llm-deploy` skill's approach with GPU allocation.
 
 ### Translation Rule
 
-In docker-compose: `DATABASE_URL=postgresql://postgres:pass@db:5432/myapp`
-In TrueFoundry: `DATABASE_URL=postgresql://postgres:pass@myapp-db-postgresql.NAMESPACE.svc.cluster.local:5432/myapp`
+In docker-compose: `DATABASE_URL=postgresql://postgres:DB_PASSWORD@db:5432/myapp`
+In TrueFoundry: `DATABASE_URL=postgresql://postgres:DB_PASSWORD@myapp-db-postgresql.NAMESPACE.svc.cluster.local:5432/myapp`
 
 ### Common Wiring Patterns
 

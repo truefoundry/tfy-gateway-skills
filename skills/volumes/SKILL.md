@@ -1,10 +1,12 @@
 ---
 name: volumes
-description: Creates and manages persistent volumes on TrueFoundry. Handles creation, listing, mounting, storage class selection, and static volume attachment. NOT for blob storage (S3/GCS).
+description: Creates and manages persistent volumes on TrueFoundry. Handles creation, listing, mounting, storage class selection, and static volume attachment.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -20,8 +22,8 @@ Create, list, or mount persistent volumes on TrueFoundry, including dynamic prov
 
 - User needs large archival storage or global access -> suggest blob storage (S3/GCS) instead
 - User wants ephemeral scratch space -> use `ephemeral_storage` in resource config
-- User wants to deploy an app -> use `deploy` skill
-- User wants to manage secrets -> use `secrets` skill
+- User wants to deploy an app -> prefer `deploy` skill; ask if the user wants another valid path
+- User wants to manage secrets -> prefer `secrets` skill; ask if the user wants another valid path
 
 </objective>
 

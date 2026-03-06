@@ -8,6 +8,8 @@ metadata:
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *) Bash(*/tfy-version.sh *)
 ---
 
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
+
 <objective>
 
 # LLM / Model Deployment
@@ -29,9 +31,9 @@ Two paths:
 
 ## When NOT to Use
 
-- User wants to deploy a regular web app or API -> use `deploy` skill
-- User wants to deploy a database or Helm chart -> use `helm` skill
-- User wants to check what's deployed -> use `applications` skill
+- User wants to deploy a regular web app or API -> prefer `deploy` skill; ask if the user wants another valid path
+- User wants to deploy a database or Helm chart -> prefer `helm` skill; ask if the user wants another valid path
+- User wants to check what's deployed -> prefer `applications` skill; ask if the user wants another valid path
 
 </objective>
 
@@ -217,10 +219,17 @@ tfy_applications_create_deployment(
 ## Step 5: Verify Deployment & Return URL
 
 **CRITICAL: Always fetch and return the deployment URL and status to the user. A deployment without a reported URL is incomplete.**
+Do this automatically after deploy, without asking an extra verification prompt.
 
 ### Poll Deployment Status
 
-After submitting the manifest, poll for status:
+After submitting the manifest, poll for status. Prefer MCP tool calls first:
+
+```
+tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "MODEL_NAME"})
+```
+
+If MCP tool calls are unavailable, fall back to API:
 
 ```bash
 $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=MODEL_NAME'
@@ -326,6 +335,7 @@ Same as the `deploy` skill -- look up cluster base domains and construct the hos
 
 - The LLM deployment has been submitted and the user can see its status in TrueFoundry
 - The agent has reported the deployment URL (public or internal DNS), model name, framework, GPU type, and workspace
+- Deployment status is verified automatically immediately after apply/deploy (no extra prompt)
 - The user has been provided an OpenAI-compatible API curl command to test the model once it is running
 - The agent has confirmed GPU type, resource sizing, DTYPE, and model configuration with the user before deploying
 - Health probes are configured with appropriate startup thresholds for the model size

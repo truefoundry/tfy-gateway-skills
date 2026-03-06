@@ -1,10 +1,12 @@
 ---
 name: preferences
-description: Manages user deployment preferences (default workspace, resources, environment). Persists settings locally so other skills skip repeated questions. NOT for storing secrets or API keys.
+description: Manages user deployment preferences (default workspace, resources, environment). Persists settings locally so other skills skip repeated questions.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -19,7 +21,7 @@ Save, view, update, or reset default deployment settings (workspace, resources, 
 ## When NOT to Use
 
 - User is making a one-time override ("deploy to workspace X this time")
-- Storing secrets or API keys → use `secrets` skill or env vars
+- Storing secrets or API keys → prefer `secrets` skill; ask if the user wants another valid path or env vars
 
 </objective>
 

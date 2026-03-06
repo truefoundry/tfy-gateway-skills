@@ -1,10 +1,12 @@
 ---
 name: status
-description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation. NOT for listing workspaces or deploying.
+description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -18,9 +20,9 @@ Verify TrueFoundry credentials and connectivity, or diagnose authentication issu
 
 ## When NOT to Use
 
-- User wants to list workspaces → use `workspaces` skill
-- User wants to deploy → use `deploy` skill
-- User wants to see running apps → use `applications` skill
+- User wants to list workspaces → prefer `workspaces` skill; ask if the user wants another valid path
+- User wants to deploy → prefer `deploy` skill; ask if the user wants another valid path
+- User wants to see running apps → prefer `applications` skill; ask if the user wants another valid path
 
 </objective>
 

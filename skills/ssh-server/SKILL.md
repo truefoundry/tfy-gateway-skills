@@ -6,6 +6,8 @@ compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
+
 <objective>
 
 # SSH Server
@@ -21,9 +23,9 @@ Launch an SSH server on TrueFoundry for remote development. Write a YAML manifes
 
 ## When NOT to Use
 
-- User wants Jupyter notebooks → use `notebooks` skill
-- User wants to deploy a service → use `deploy` skill
-- User wants to deploy a model → use `llm-deploy` skill
+- User wants Jupyter notebooks → prefer `notebooks` skill; ask if the user wants another valid path
+- User wants to deploy a service → prefer `deploy` skill; ask if the user wants another valid path
+- User wants to deploy a model → prefer `llm-deploy` skill; ask if the user wants another valid path
 
 </objective>
 

@@ -1,29 +1,27 @@
 # Code of Conduct
 
-## Our Commitment
+## Our Pledge
 
-We are committed to making participation in this project a harassment-free experience for everyone.
+We want this project to be welcoming for everyone. We pledge to make participation a harassment-free experience regardless of age, body size, disability, ethnicity, gender identity, experience level, nationality, appearance, race, religion, or sexual identity.
 
-## Expected Behavior
+## Our Standards
 
-- Be respectful and constructive.
-- Focus discussions on technical outcomes.
-- Assume good intent, and ask clarifying questions before escalating.
-- Accept feedback gracefully.
+**Do:**
+- Be kind and respectful
+- Welcome newcomers and help them get started
+- Accept constructive feedback gracefully
+- Focus on what's best for the community
 
-## Unacceptable Behavior
-
-- Harassment, discrimination, or personal attacks.
-- Trolling, intimidation, or deliberately disruptive conduct.
-- Publishing private information without consent.
+**Don't:**
+- Use sexualized language or imagery
+- Troll, insult, or make personal attacks
+- Harass anyone publicly or privately
+- Share others' private information without permission
 
 ## Enforcement
 
-Project maintainers are responsible for clarifying and enforcing this Code of Conduct. They may remove, edit, or reject contributions and interactions that violate these standards.
+Instances of unacceptable behavior can be reported by opening an issue or contacting the maintainers. All complaints will be reviewed and investigated fairly. Maintainers who do not follow the Code of Conduct may be removed from the project.
 
-## Reporting
+## Attribution
 
-If you experience or witness unacceptable behavior:
-
-- For community interactions in this repository, open an issue requesting maintainer follow-up (do not include sensitive personal details publicly).
-- For enterprise engagements, use your standard TrueFoundry support channel.
+Adapted from the [Contributor Covenant](https://www.contributor-covenant.org), version 2.1.

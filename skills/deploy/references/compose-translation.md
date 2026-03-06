@@ -159,11 +159,11 @@ services:
 - `backend` -> `myapp-backend`
 - `frontend` -> `myapp-frontend`
 
-**Step 3 - Namespace:** `sai-ws` (from workspace FQN)
+**Step 3 - Namespace:** `your-workspace` (from workspace FQN)
 
 **Step 4 - Environment variable translation:**
-- Backend `REDIS_URL: redis://redis:6379` -> `redis://myapp-cache-redis-master.sai-ws.svc.cluster.local:6379`
-- Frontend `BACKEND_URL: http://backend:8000` -> `http://myapp-backend.sai-ws.svc.cluster.local:8000`
+- Backend `REDIS_URL: redis://redis:6379` -> `redis://myapp-cache-redis-master.your-workspace.svc.cluster.local:6379`
+- Frontend `BACKEND_URL: http://backend:8000` -> `http://myapp-backend.your-workspace.svc.cluster.local:8000`
 
 **Step 5 - Generated manifests:**
 
@@ -189,7 +189,7 @@ values:
       limits:
         cpu: "0.5"
         memory: 512Mi
-workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+workspace_fqn: your-cluster:your-workspace
 ```
 
 ```yaml
@@ -220,9 +220,9 @@ resources:
   ephemeral_storage_request: 1000
   ephemeral_storage_limit: 2000
 env:
-  REDIS_URL: "redis://myapp-cache-redis-master.sai-ws.svc.cluster.local:6379"
+  REDIS_URL: "redis://myapp-cache-redis-master.your-workspace.svc.cluster.local:6379"
 replicas: 1
-workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+workspace_fqn: your-cluster:your-workspace
 ```
 
 ```yaml
@@ -245,7 +245,7 @@ ports:
     protocol: TCP
     expose: true
     app_protocol: http
-    host: myapp-frontend-sai-ws.example.truefoundry.cloud
+    host: myapp-frontend-your-workspace.example.truefoundry.cloud
 resources:
   cpu_request: 0.5
   cpu_limit: 1.0
@@ -254,9 +254,9 @@ resources:
   ephemeral_storage_request: 1000
   ephemeral_storage_limit: 2000
 env:
-  BACKEND_URL: "http://myapp-backend.sai-ws.svc.cluster.local:8000"
+  BACKEND_URL: "http://myapp-backend.your-workspace.svc.cluster.local:8000"
 replicas: 1
-workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+workspace_fqn: your-cluster:your-workspace
 ```
 
 **Step 6 - Deploy order:**
@@ -284,8 +284,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:secret@db:5432/myapp
-      REDIS_URL: redis://:secret@redis:6379/0
+      DATABASE_URL: postgresql://postgres:DB_PASSWORD@db:5432/myapp
+      REDIS_URL: redis://:REDIS_PASSWORD@redis:6379/0
     depends_on:
       - db
       - redis
@@ -293,14 +293,14 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: DB_PASSWORD
       POSTGRES_DB: myapp
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:7
-    command: redis-server --requirepass secret
+    command: redis-server --requirepass REDIS_PASSWORD
     volumes:
       - redisdata:/data
 ```
@@ -330,7 +330,7 @@ values:
       limits:
         cpu: "1"
         memory: 1Gi
-workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+workspace_fqn: your-cluster:your-workspace
 ```
 
 ```yaml
@@ -355,7 +355,7 @@ values:
       limits:
         cpu: "0.5"
         memory: 512Mi
-workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+workspace_fqn: your-cluster:your-workspace
 ```
 
 ```yaml
@@ -378,17 +378,17 @@ ports:
     protocol: TCP
     expose: true
     app_protocol: http
-    host: myapp-app-sai-ws.example.truefoundry.cloud
+    host: myapp-app-your-workspace.example.truefoundry.cloud
 resources:
   cpu_request: 0.5
   cpu_limit: 1.0
   memory_request: 512
   memory_limit: 1024
 env:
-  DATABASE_URL: "postgresql://postgres:GENERATED_STRONG_PASSWORD@myapp-db-postgresql.sai-ws.svc.cluster.local:5432/myapp"
-  REDIS_URL: "redis://:GENERATED_STRONG_PASSWORD@myapp-cache-redis-master.sai-ws.svc.cluster.local:6379/0"
+  DATABASE_URL: "postgresql://postgres:GENERATED_STRONG_PASSWORD@myapp-db-postgresql.your-workspace.svc.cluster.local:5432/myapp"
+  REDIS_URL: "redis://:GENERATED_STRONG_PASSWORD@myapp-cache-redis-master.your-workspace.svc.cluster.local:6379/0"
 replicas: 1
-workspace_fqn: tfy-ea-dev-eo-az:sai-ws
+workspace_fqn: your-cluster:your-workspace
 ```
 
 ## Field-by-Field Translation

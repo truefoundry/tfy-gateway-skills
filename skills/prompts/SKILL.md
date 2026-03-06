@@ -1,10 +1,12 @@
 ---
 name: prompts
-description: Manages TrueFoundry prompt registry prompts and versions. Handles listing, creating, updating, deleting, and tagging prompt versions. NOT for deploying LLM services.
+description: Manages TrueFoundry prompt registry prompts and versions. Handles listing, creating, updating, deleting, and tagging prompt versions.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 

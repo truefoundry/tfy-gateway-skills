@@ -50,10 +50,10 @@ get_frontmatter_value() {
   '
 }
 
-get_explicit_only_skills_from_agents() {
+get_primary_deployment_skills_from_agents() {
   local agents_file="$1"
   awk '
-    /The explicit-only skills are:/ {
+    /Primary deployment skills are:|The explicit-only skills are:/ {
       line = $0
       while (match(line, /`[^`]+`/)) {
         skill = substr(line, RSTART + 1, RLENGTH - 2)
@@ -102,9 +102,9 @@ done < <(find "$SKILLS_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md | sort)
 
 echo "Validating disable-model-invocation policy..."
 
-expected_disabled="$(get_explicit_only_skills_from_agents "$REPO_ROOT/AGENTS.md")"
+expected_disabled="$(get_primary_deployment_skills_from_agents "$REPO_ROOT/AGENTS.md")"
 if [[ -z "$expected_disabled" ]]; then
-  fail "could not parse explicit-only skills from AGENTS.md"
+  fail "could not parse primary deployment skills from AGENTS.md"
 fi
 
 actual_disabled="$({
@@ -141,11 +141,11 @@ done < <(find "$SKILLS_DIR/_shared" -type f | sort)
 
 echo "Validating docs consistency..."
 
-# Verify all three docs mention the explicit-only skills
+# Verify all three docs mention the primary deployment skills
 for doc in README.md AGENTS.md CLAUDE.md; do
   for skill in $expected_disabled; do
     if ! grep -q "$skill" "$REPO_ROOT/$doc"; then
-      fail "$doc does not mention explicit-only skill: $skill"
+      fail "$doc does not mention primary deployment skill: $skill"
     fi
   done
 done

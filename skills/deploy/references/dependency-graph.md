@@ -19,7 +19,7 @@ services:
       - db
       - redis
     environment:
-      - DATABASE_URL=postgresql://postgres:pass@db:5432/myapp  # "db" is a dependency
+      - DATABASE_URL=postgresql://postgres:DB_PASSWORD@db:5432/myapp  # "db" is a dependency
       - REDIS_URL=redis://redis:6379                           # "redis" is a dependency
       - FRONTEND_ORIGIN=http://frontend:3000                   # NOT a dependency (frontend depends on backend, not reverse)
 ```

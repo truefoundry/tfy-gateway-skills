@@ -1,10 +1,12 @@
 ---
 name: gitops
-description: Sets up GitOps CI/CD pipelines for TrueFoundry using tfy apply. Supports GitHub Actions, GitLab CI, and Bitbucket Pipelines. NOT for manual deploys (use `deploy` skill).
+description: Sets up GitOps CI/CD pipelines for TrueFoundry using tfy apply. Supports GitHub Actions, GitLab CI, and Bitbucket Pipelines.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -18,11 +20,11 @@ Set up automated Git-based deployments with `tfy apply`. Store TrueFoundry YAML 
 
 ## When NOT to Use
 
-- User wants to deploy manually from local code → use `deploy` skill
-- User wants to deploy an LLM model → use `llm-deploy` skill
-- User wants to check what's deployed → use `applications` skill
-- User wants to deploy a Helm chart → use `helm` skill
-- User just wants to check TrueFoundry connection → use `status` skill
+- User wants to deploy manually from local code → prefer `deploy` skill; ask if the user wants another valid path
+- User wants to deploy an LLM model → prefer `llm-deploy` skill; ask if the user wants another valid path
+- User wants to check what's deployed → prefer `applications` skill; ask if the user wants another valid path
+- User wants to deploy a Helm chart → prefer `helm` skill; ask if the user wants another valid path
+- User just wants to check TrueFoundry connection → prefer `status` skill; ask if the user wants another valid path
 
 </objective>
 

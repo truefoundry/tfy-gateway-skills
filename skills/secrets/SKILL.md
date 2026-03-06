@@ -1,10 +1,12 @@
 ---
 name: secrets
-description: Manages TrueFoundry secret groups and secrets. Handles listing, creating, updating, and deleting secret groups and individual key-value secrets. NOT for managing environment variables directly.
+description: Manages TrueFoundry secret groups and secrets. Handles listing, creating, updating, and deleting secret groups and individual key-value secrets.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -76,7 +78,7 @@ tfy_secret_groups_create(payload={"name": "my-secrets", ...})
 ### Via Direct API
 
 ```bash
-$TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets","integrationId":"INTEGRATION_ID","secrets":[{"key":"DB_PASSWORD","value":"s3cret"}]}'
+$TFY_API_SH POST /api/svc/v1/secret-groups '{"name":"my-secrets","integrationId":"INTEGRATION_ID","secrets":[{"key":"DB_PASSWORD","value":"REPLACE_WITH_STRONG_PASSWORD"}]}'
 ```
 
 ## Update Secret Group
@@ -86,7 +88,7 @@ Updates secrets in a group. A new version is created for every secret with a mod
 ### Via Tool Call
 
 ```
-tfy_secret_groups_update(id="GROUP_ID", payload={"secrets": [{"key": "DB_PASSWORD", "value": "new-value"}, {"key": "API_KEY", "value": "new-key"}]})
+tfy_secret_groups_update(id="GROUP_ID", payload={"secrets": [{"key": "DB_PASSWORD", "value": "ROTATED_DB_PASSWORD"}, {"key": "API_KEY", "value": "ROTATED_API_KEY"}]})
 ```
 
 **Note:** Requires human approval (HITL) via tool call.
@@ -94,7 +96,7 @@ tfy_secret_groups_update(id="GROUP_ID", payload={"secrets": [{"key": "DB_PASSWOR
 ### Via Direct API
 
 ```bash
-$TFY_API_SH PUT /api/svc/v1/secret-groups/GROUP_ID '{"secrets":[{"key":"DB_PASSWORD","value":"new-value"},{"key":"API_KEY","value":"new-key"}]}'
+$TFY_API_SH PUT /api/svc/v1/secret-groups/GROUP_ID '{"secrets":[{"key":"DB_PASSWORD","value":"ROTATED_DB_PASSWORD"},{"key":"API_KEY","value":"ROTATED_API_KEY"}]}'
 ```
 
 ## Delete Secret Group

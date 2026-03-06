@@ -68,7 +68,7 @@ replicas:
   min: 2
   max: 5
 env:
-  DATABASE_URL: postgres://user:pass@db-host:5432/mydb
+  DATABASE_URL: postgres://user:DB_PASSWORD@db-host:5432/mydb
   LOG_LEVEL: info
 liveness_probe:
   config:

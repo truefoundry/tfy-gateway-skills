@@ -174,7 +174,7 @@ worker_config:
 worker_config:
   input_config:
     type: amqp
-    url: amqp://user:pass@rabbitmq.namespace.svc.cluster.local:5672
+    url: amqp://user:AMQP_PASSWORD@rabbitmq.namespace.svc.cluster.local:5672
     queue_name: my-queue
     wait_time_seconds: 10
   num_concurrent_workers: 1

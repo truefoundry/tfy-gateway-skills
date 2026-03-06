@@ -50,7 +50,7 @@ Deploy extra Kubernetes resources alongside the Helm chart (e.g., VirtualService
         },
         "type": "Opaque",
         "stringData": {
-          "password": "tfy-secret://tfy-eo:my-secrets:db-password"
+          "password": "tfy-secret://your-org:my-secrets:db-password"
         }
       }
     ],

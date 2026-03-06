@@ -1,10 +1,12 @@
 ---
 name: tracing
-description: Adds OpenTelemetry-based tracing to applications via TrueFoundry's tracing platform (Traceloop SDK). Creates tracing projects, instruments Python/TypeScript code, and captures LLM calls and custom spans. NOT for deploying services.
+description: Adds OpenTelemetry-based tracing to applications via TrueFoundry's tracing platform (Traceloop SDK). Creates tracing projects, instruments Python/TypeScript code, and captures LLM calls and custom spans.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(pip*) Bash(npm*)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 

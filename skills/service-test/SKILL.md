@@ -1,10 +1,12 @@
 ---
 name: service-test
-description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs and web apps. NOT for LLM benchmarking or log viewing.
+description: Validates deployed TrueFoundry services with health checks, endpoint smoke tests, and optional load soak tests. Covers REST APIs and web apps.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *) Bash(curl *)
 ---
+
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
 
 <objective>
 
@@ -19,9 +21,9 @@ Verify a deployed service is healthy and responding, run endpoint smoke tests, o
 ## When NOT to Use
 
 - User wants deep LLM inference benchmarking → use a dedicated benchmarking tool
-- User wants to view logs → use `logs` skill
-- User wants to check pod status only → use `applications` skill
-- User wants to deploy something → use `deploy` skill
+- User wants to view logs → prefer `logs` skill; ask if the user wants another valid path
+- User wants to check pod status only → prefer `applications` skill; ask if the user wants another valid path
+- User wants to deploy something → prefer `deploy` skill; ask if the user wants another valid path
 
 </objective>
 

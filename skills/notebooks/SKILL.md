@@ -6,6 +6,8 @@ compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(tfy*) Bash(*/tfy-api.sh *)
 ---
 
+> Routing note: For ambiguous user intents, use the shared clarification templates in [references/intent-clarification.md](references/intent-clarification.md).
+
 <objective>
 
 # Jupyter Notebooks
@@ -21,9 +23,9 @@ Launch Jupyter Notebooks on TrueFoundry with GPU support, persistent storage, au
 
 ## When NOT to Use
 
-- User wants to deploy a production service → use `deploy` skill
-- User wants to deploy a model → use `llm-deploy` skill
-- User wants an SSH server → use `ssh-server` skill
+- User wants to deploy a production service → prefer `deploy` skill; ask if the user wants another valid path
+- User wants to deploy a model → prefer `llm-deploy` skill; ask if the user wants another valid path
+- User wants an SSH server → prefer `ssh-server` skill; ask if the user wants another valid path
 
 </objective>
 
