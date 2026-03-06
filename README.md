@@ -22,16 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/s
 
 For reproducible installs, set `TFY_SKILLS_REF=vX.Y.Z` before running the installer.
 
-Set your credentials (env vars or `.env` in your project root):
-
-```bash
-export TFY_BASE_URL=https://your-org.truefoundry.cloud
-export TFY_API_KEY=tfy-...  # https://docs.truefoundry.com/docs/generate-api-key
-```
-
-Restart your agent. That's it.
-
-> Do not commit `.env` or API keys to Git.
+Restart your agent and start asking. When credentials are needed, your agent will prompt you for your `TFY_BASE_URL` and `TFY_API_KEY` ([how to generate](https://docs.truefoundry.com/docs/generate-api-key)).
 
 ## What You Can Do
 
