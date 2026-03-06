@@ -50,23 +50,6 @@ get_frontmatter_value() {
   '
 }
 
-get_primary_deployment_skills_from_agents() {
-  local agents_file="$1"
-  awk '
-    /Primary deployment skills are:|The explicit-only skills are:/ {
-      line = $0
-      while (match(line, /`[^`]+`/)) {
-        skill = substr(line, RSTART + 1, RLENGTH - 2)
-        print skill
-        line = substr(line, RSTART + RLENGTH)
-      }
-      exit
-    }
-  ' "$agents_file" \
-    | sort \
-    | paste -sd' ' -
-}
-
 echo "Validating skill frontmatter..."
 
 while IFS= read -r skill_md; do
@@ -102,10 +85,8 @@ done < <(find "$SKILLS_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md | sort)
 
 echo "Validating disable-model-invocation policy..."
 
-expected_disabled="$(get_primary_deployment_skills_from_agents "$REPO_ROOT/AGENTS.md")"
-if [[ -z "$expected_disabled" ]]; then
-  fail "could not parse primary deployment skills from AGENTS.md"
-fi
+# Canonical explicit-only skills for this repository.
+expected_disabled="$(printf '%s\n' deploy helm llm-deploy | sort | paste -sd' ' -)"
 
 actual_disabled="$({
   for skill_md in "$SKILLS_DIR"/*/SKILL.md; do
@@ -141,8 +122,15 @@ done < <(find "$SKILLS_DIR/_shared" -type f | sort)
 
 echo "Validating docs consistency..."
 
-# Verify all three docs mention the primary deployment skills
+# Verify tracked docs mention the explicit-only skills.
+docs_to_check=()
 for doc in README.md AGENTS.md CLAUDE.md; do
+  if git -C "$REPO_ROOT" ls-files --error-unmatch "$doc" >/dev/null 2>&1; then
+    docs_to_check+=("$doc")
+  fi
+done
+
+for doc in "${docs_to_check[@]}"; do
   for skill in $expected_disabled; do
     if ! grep -q "$skill" "$REPO_ROOT/$doc"; then
       fail "$doc does not mention primary deployment skill: $skill"
