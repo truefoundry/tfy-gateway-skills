@@ -296,4 +296,4 @@ After deploying, poll for status:
 $TFY_API_SH GET "/api/svc/v1/apps?workspaceFqn=${TFY_WORKSPACE_FQN}&applicationName=SERVICE_NAME"
 ```
 
-Look for `status` in the response. Common values: `BUILDING`, `BUILD_FAILED`, `DEPLOYING`, `RUNNING`, `FAILED`.
+Look for `status` in the response (a flat string, not a nested object). Common values: `BUILDING`, `BUILD_FAILED`, `DEPLOYING`, `DEPLOY_SUCCESS`, `DEPLOY_FAILED`, `NO_DEPLOYMENT`.

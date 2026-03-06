@@ -129,7 +129,7 @@ TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
 bash $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=SERVICE_NAME'
 ```
 
-Always report the observed status (`BUILDING`, `DEPLOYING`, `RUNNING`, `FAILED`, etc.) in the same response.
+Always report the observed status (`BUILDING`, `DEPLOYING`, `DEPLOY_SUCCESS`, `DEPLOY_FAILED`, etc.) in the same response.
 
 ### REST API fallback (when CLI unavailable)
 

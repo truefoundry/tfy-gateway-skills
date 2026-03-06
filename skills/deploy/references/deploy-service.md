@@ -359,14 +359,14 @@ Deployment successful!
 
 Service: {service-name}
 Workspace: {workspace-fqn}
-Status: {BUILDING|DEPLOYING|RUNNING}
+Status: {BUILDING|DEPLOYING|DEPLOY_SUCCESS|DEPLOY_FAILED}
 
 Endpoints:
-  Public URL:   https://{host} (available once status is RUNNING)
+  Public URL:   https://{host} (available once status is DEPLOY_SUCCESS)
   Internal DNS: {service-name}.{namespace}.svc.cluster.local:{port}
 
 Next steps:
-  - Wait for status to become RUNNING (check with: applications skill)
+  - Wait for status to become DEPLOY_SUCCESS (check with: applications skill)
   - Test the endpoint: curl https://{host}/health
   - View logs if issues: logs skill
 ```

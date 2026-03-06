@@ -118,10 +118,12 @@ image:
     repo_url: https://github.com/user/repo
     branch_name: main
   build_spec:
-    type: python
-    python_version: "3.11"
-    requirements_path: requirements.txt
+    type: tfy-python-buildpack
     command: python train.py
+    python_version: "3.11"
+    python_dependencies:
+      type: pip
+      requirements_path: requirements.txt
 resources:
   cpu_request: 2
   cpu_limit: 4

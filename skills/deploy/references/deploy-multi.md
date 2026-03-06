@@ -268,7 +268,7 @@ See `service-wiring.md` for the complete wiring algorithm and validation checkli
 
 ## Step 7: Verify Connectivity
 
-1. **Check deployment status** — Poll each service and confirm RUNNING
+1. **Check deployment status** — Poll each service and confirm `DEPLOY_SUCCESS`
 2. **Check logs for connection errors** — Use `logs` skill to search for `Connection refused`, `Authentication failed`, `Name resolution failed`
 3. **Hit service endpoints** — `curl` public URLs to verify HTTP 200
 4. Use the `service-test` skill for deeper validation.

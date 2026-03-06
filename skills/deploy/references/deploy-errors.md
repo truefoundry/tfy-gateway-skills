@@ -106,7 +106,7 @@ Common issues:
 ```
 No Dockerfile found. Options:
 1. Create a Dockerfile for your app
-2. Use PythonBuild in the manifest (no Dockerfile needed):
+2. Use TrueFoundry Python Buildpack in the manifest (no Dockerfile needed):
    image:
      type: build
      build_source:
@@ -114,10 +114,12 @@ No Dockerfile found. Options:
        repo_url: https://github.com/user/repo
        branch_name: main
      build_spec:
-       type: python
-       python_version: "3.12"
-       requirements_path: requirements.txt
+       type: tfy-python-buildpack
        command: uvicorn main:app --host 0.0.0.0 --port 8000
+       python_version: "3.12"
+       python_dependencies:
+         type: pip
+         requirements_path: requirements.txt
 ```
 
 ## `tfy apply` Fails with "must match exactly one schema in oneOf"
