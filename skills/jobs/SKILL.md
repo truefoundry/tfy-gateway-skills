@@ -59,6 +59,8 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 
 Based on the job requirements, create a YAML manifest.
 
+> **Security:** Always confirm container image sources and git repository URLs with the user before deploying. Do not pull untrusted container images or clone unverified git repositories. Pin image tags to specific versions — avoid `:latest` in production.
+
 #### Option A: Pre-built Image
 
 ```yaml
@@ -66,7 +68,7 @@ name: my-batch-job
 type: job
 image:
   type: image
-  image_uri: my-registry/my-image:latest
+  image_uri: my-registry/my-image:v1.0.0  # pin to a specific version
   command: python train.py
 resources:
   cpu_request: 2
@@ -144,7 +146,7 @@ trigger:
   schedule: "0 2 * * *"  # 2 AM daily
 image:
   type: image
-  image_uri: my-registry/my-image:latest
+  image_uri: my-registry/my-image:v1.0.0
   command: python train.py
 resources:
   cpu_request: 2
@@ -174,7 +176,7 @@ trigger:
   num_retries: 3
 image:
   type: image
-  image_uri: my-registry/my-image:latest
+  image_uri: my-registry/my-image:v1.0.0
   command: python job.py
 resources:
   cpu_request: 2
@@ -211,7 +213,7 @@ name: gpu-training-job
 type: job
 image:
   type: image
-  image_uri: my-registry/my-image:latest
+  image_uri: my-registry/my-image:v1.0.0
   command: python train.py
 resources:
   cpu_request: 4
@@ -232,7 +234,7 @@ name: training-job
 type: job
 image:
   type: image
-  image_uri: my-registry/my-image:latest
+  image_uri: my-registry/my-image:v1.0.0
   command: python train.py
 resources:
   cpu_request: 2

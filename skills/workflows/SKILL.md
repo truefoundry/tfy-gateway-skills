@@ -214,6 +214,8 @@ Use container tasks when:
 - The task runs non-Python code
 - You have a pre-built image with all dependencies baked in
 
+> **Security:** Verify container image sources before using them in workflow tasks. Pin image tags to specific versions — do not use `:latest`. For `pip_packages`, pin package versions to avoid supply-chain risks from unvetted upstream changes.
+
 ## Cron Workflows (Scheduling)
 
 Schedule workflows to run at fixed intervals using cron syntax. The schedule is always in **UTC timezone**.

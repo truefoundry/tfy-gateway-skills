@@ -24,6 +24,8 @@ View, download, and search application and job logs from TrueFoundry. Useful for
 
 ## Download Logs
 
+> **Security:** Log output may contain sensitive data (secrets, tokens, PII). Do not forward raw logs to external services or include them in responses without reviewing for sensitive content first.
+
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ### Via Tool Call

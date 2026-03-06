@@ -22,6 +22,12 @@ List, create, update, or delete secret groups and individual secrets on TrueFoun
 
 <instructions>
 
+> **Security Policy: Credential Handling**
+> - The agent MUST NOT accept, store, log, echo, or display raw secret values in any context.
+> - Always instruct the user to set secret values as environment variables before running commands.
+> - If the user provides a raw secret value directly in conversation, warn them and refuse to use it. Instruct them to set it as an env var instead.
+> - When displaying secrets, show only "(set)" or the first 4 characters followed by "***".
+
 ## List Secret Groups
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.

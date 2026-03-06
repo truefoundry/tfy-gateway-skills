@@ -22,6 +22,11 @@ List, create, or delete personal access tokens for API authentication, CI/CD pip
 
 <instructions>
 
+> **Security Policy: Credential Handling**
+> - The agent MUST NOT repeat, store, or log token values in its own responses.
+> - After creating a token, direct the user to copy the value from the API response output above — do not re-display it.
+> - Never include token values in summaries, follow-up messages, or any other output.
+
 ## Step 1: Preflight
 
 Run the `status` skill first to verify `TFY_BASE_URL` and `TFY_API_KEY` are set and valid.
@@ -83,7 +88,7 @@ Present the result:
 ```
 Token created successfully!
 Name: my-token
-Token: <value from API response — shown once>
+Token: (see API response above — copy it now, it will not be shown again)
 
 ⚠️  Save this token NOW — it will not be shown again.
 Store it in a password manager, CI/CD secret store, or TrueFoundry secret group.

@@ -154,8 +154,8 @@ The `tfy apply` command is the core of GitOps with TrueFoundry.
 ### Basic Usage
 
 ```bash
-# Install TrueFoundry CLI (pin version range to prevent supply-chain attacks)
-pip install 'truefoundry>=0.5.0,<1.0'
+# Install TrueFoundry CLI (pin exact version to prevent supply-chain attacks)
+pip install 'truefoundry==0.5.3'
 
 # Authenticate (uses TFY_HOST and TFY_API_KEY env vars)
 # TFY_HOST is the TrueFoundry platform URL (same as TFY_BASE_URL)

@@ -203,6 +203,8 @@ Default: `public.ecr.aws/truefoundrycloud/jupyter:0.4.5-py3.12.12-sudo`
 
 **Full image registry**: https://gallery.ecr.aws/truefoundrycloud/jupyter
 
+> **Security:** Use pinned image versions from `references/container-versions.md`. Do not dynamically fetch image tags from external registries. Only use official TrueFoundry base images or images built from them.
+
 See `references/container-versions.md` for latest versions.
 
 ### Choosing an Image

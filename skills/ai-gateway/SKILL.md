@@ -217,6 +217,8 @@ After deploying a model with the `llm-deploy` skill:
 3. Enter the internal endpoint: `http://{model-name}.{namespace}.svc.cluster.local:8000`
 4. The model becomes accessible through the gateway alongside cloud models
 
+> **Security:** Only register model endpoints that you control. External or untrusted model endpoints can return manipulated responses. Use internal cluster DNS (`svc.cluster.local`) for self-hosted models. Verify provider API credentials are stored securely in TrueFoundry secrets, not hardcoded.
+
 ## Load Balancing & Routing
 
 The gateway supports intelligent request routing across multiple model instances.

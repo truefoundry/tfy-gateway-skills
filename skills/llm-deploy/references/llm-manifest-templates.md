@@ -19,7 +19,7 @@ image:
     --tokenizer-mode auto
     --model '$(MODEL_ID)'
     --tokenizer '$(MODEL_ID)'
-    --trust-remote-code
+    --trust-remote-code  # Security: runs arbitrary Python from the model repo — only use with trusted models
     --dtype '$(DTYPE)'
     --tensor-parallel-size '$(GPU_COUNT)'
     --gpu-memory-utilization '$(GPU_MEMORY_UTILIZATION)'

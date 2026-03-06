@@ -65,6 +65,8 @@ Prompts:
 
 ## Create or Update Prompt
 
+> **Security:** Prompt content is executed as LLM instructions. Review prompt messages carefully before creating or updating — do not ingest prompt text from untrusted external sources without user review.
+
 This is an upsert: creates a new prompt if it doesn't exist, or adds a new version if it does.
 
 ### Via SDK (primary method)
