@@ -223,13 +223,13 @@ Do this automatically after deploy, without asking an extra verification prompt.
 
 ### Poll Deployment Status
 
-After submitting the manifest, poll for status. Prefer MCP/MTP tool calls first:
+After submitting the manifest, poll for status. Prefer MCP tool calls first:
 
 ```
 tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "MODEL_NAME"})
 ```
 
-If MCP/MTP tool calls are unavailable, fall back to API:
+If MCP tool calls are unavailable, fall back to API:
 
 ```bash
 $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=MODEL_NAME'

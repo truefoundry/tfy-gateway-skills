@@ -27,7 +27,7 @@ Skills work across Claude Code, Cursor, OpenAI Codex, and OpenCode.
 
 Deploy skills use this execution order:
 
-1. **MCP/MTP tool calls first for simple reads** — For list/get/status operations, use `tfy_*` tool calls first.
+1. **MCP tool calls first for simple reads** — For list/get/status operations, use `tfy_*` tool calls first.
 2. **CLI for deploy/write** — Use `tfy apply` / `tfy deploy` for deployment changes.
 3. **REST API fallback** — When tool calls or CLI are unavailable, convert YAML to JSON and use `tfy-api.sh`. See `cli-fallback.md`.
 

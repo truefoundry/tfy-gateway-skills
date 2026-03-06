@@ -44,11 +44,11 @@ Available skills in this repo:
 
 Execution order is:
 
-1. **MCP/MTP tool-call path (preferred for simple read operations)** -- For list/get/status calls (for example workspaces, clusters, applications, deployments, logs), invoke tool calls first.
+1. **MCP tool-call path (preferred for simple read operations)** -- For list/get/status calls (for example workspaces, clusters, applications, deployments, logs), invoke tool calls first.
 2. **CLI path (preferred for deploy/write operations)** -- Use `tfy` CLI commands (`tfy apply`, `tfy deploy workflow`, etc.) for deployment and infrastructure changes.
 3. **Direct API fallback** -- Use `scripts/tfy-api.sh` only when the tool-call path is unavailable or CLI is unavailable / missing the required operation. It reads `TFY_BASE_URL` and `TFY_API_KEY` from env or `.env`.
 
-If the MCP/MTP server is not configured or the tool call is unavailable, do not fail the task -- fall back automatically.
+If the MCP server is not configured or the tool call is unavailable, do not fail the task -- fall back automatically.
 
 **Script path:** Agents usually run commands from the project root, not the skill
 directory. Invoke `tfy-api.sh` with a full path or `cd` into the skill directory first.
@@ -104,7 +104,7 @@ Routing rule:
 Deployment verification is mandatory and automatic:
 - After every deploy/apply action, immediately perform at least one status check.
 - Do this without asking an extra "should I verify?" prompt.
-- Prefer MCP/MTP read tool calls for verification; fall back to CLI/API when unavailable.
+- Prefer MCP read tool calls for verification; fall back to CLI/API when unavailable.
 
 ## Shared Files
 
@@ -128,7 +128,7 @@ Shared files:
 ## Adding New Skills
 
 1. Create `skills/{name}/SKILL.md` with YAML frontmatter
-2. Include MCP/MTP-first read/list instructions, CLI guidance for deploy/write, and direct API fallback where needed
+2. Include MCP-first read/list instructions, CLI guidance for deploy/write, and direct API fallback where needed
 3. Reference the `status` skill for preflight checks
 4. Run `./scripts/sync-shared.sh` to copy shared files
 5. Test locally with `./scripts/install.sh` and reload your agent

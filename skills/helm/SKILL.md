@@ -240,7 +240,7 @@ For Kustomize patches and deploying additional Kubernetes manifests alongside He
 After applying the Helm manifest, verify status automatically without asking an extra prompt.
 
 Preferred verification path:
-1. MCP/MTP tool call first:
+1. MCP tool call first:
 ```
 tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "RELEASE_NAME"})
 ```
