@@ -4,9 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Skills](https://img.shields.io/badge/skills.sh-truefoundry-blue)](https://skills.sh/truefoundry/tfy-agent-skills)
 
-Deploy, monitor, and manage ML infrastructure — from your AI coding agent.
-
-25 skills that teach your agent to work with [TrueFoundry](https://truefoundry.com). Just install and start asking.
+Agent skills for [TrueFoundry](https://truefoundry.com) following the [Agent Skills](https://agentskills.io) open format. A curated set of skills that let AI coding assistants deploy, monitor, and manage ML infrastructure.
 
 Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
