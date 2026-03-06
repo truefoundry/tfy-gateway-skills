@@ -20,16 +20,20 @@ Or use the direct installer:
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
 
-For reproducible installs, set `TFY_SKILLS_REF=vX.Y.Z` before running the installer.
+Optional: for reproducible installs, pin a release tag directly:
 
-Restart your agent and start asking. When credentials are needed, your agent will prompt you for them.
+```bash
+curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/vX.Y.Z/scripts/install.sh | bash
+```
 
-If not set, your agent will prompt you for these when needed. You can also pre-set them via env vars or a `.env` file in your project root:
+Restart your agent and start asking. If credentials are not set, your agent will prompt for them. You can also pre-set them via env vars or a `.env` file in your project root:
 
 ```bash
 export TFY_BASE_URL=https://your-org.truefoundry.cloud
 export TFY_API_KEY=tfy-...  # https://docs.truefoundry.com/docs/generate-api-key
 ```
+
+Do not commit `.env` files or API keys to Git.
 
 ## What You Can Do
 
