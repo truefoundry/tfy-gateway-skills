@@ -12,23 +12,17 @@ Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
 ## Quick Start
 
-Install skills (recommended: pin to a release tag):
+Install skills:
 
 ```bash
-TFY_SKILLS_REF=vX.Y.Z \
-curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
+npx skills add truefoundry/tfy-agent-skills
 ```
 
-Replace `vX.Y.Z` with a published release tag (for example `v0.1.0`).
-
-Optional: verify the tarball checksum for the pinned release:
+Or use the direct installer:
 
 ```bash
-TFY_SKILLS_REF=vX.Y.Z TFY_SKILLS_SHA256=<release-sha256> \
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
-
-If you prefer always-latest behavior, omit `TFY_SKILLS_REF` and install from `main`.
 
 Set your credentials (environment variables or `.env` file in your project root):
 
