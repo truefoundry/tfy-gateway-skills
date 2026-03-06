@@ -109,11 +109,11 @@ Or use the `applications` skill.
 After any successful deploy/apply action, verify deployment status automatically without asking an extra prompt.
 
 Preferred verification path:
-1. Use MCP/MTP tool call first:
+1. Use MCP tool call first:
 ```
 tfy_applications_list(filters={"workspace_fqn": "WORKSPACE_FQN", "application_name": "SERVICE_NAME"})
 ```
-2. If MCP/MTP tool calls are unavailable, fall back to:
+2. If MCP tool calls are unavailable, fall back to:
 ```bash
 TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
 bash $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=SERVICE_NAME'

@@ -24,11 +24,11 @@ List workspaces and clusters, find workspace FQNs for deployment, check cluster 
 
 ## Execution Priority
 
-For simple read/list operations in this skill, always use MCP/MTP tool calls first:
+For simple read/list operations in this skill, always use MCP tool calls first:
 - `tfy_clusters_list`
 - `tfy_workspaces_list`
 
-If tool calls are unavailable because the MCP/MTP server is not configured, or a tool is missing, fall back automatically to direct API via `tfy-api.sh`.
+If tool calls are unavailable because the MCP server is not configured, or a tool is missing, fall back automatically to direct API via `tfy-api.sh`.
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
