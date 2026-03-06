@@ -24,7 +24,7 @@ For reproducible installs, set `TFY_SKILLS_REF=vX.Y.Z` before running the instal
 
 Restart your agent and start asking. When credentials are needed, your agent will prompt you for them.
 
-You can also pre-set credentials via env vars or a `.env` file in your project root:
+If not set, your agent will prompt you for these when needed. You can also pre-set them via env vars or a `.env` file in your project root:
 
 ```bash
 export TFY_BASE_URL=https://your-org.truefoundry.cloud
