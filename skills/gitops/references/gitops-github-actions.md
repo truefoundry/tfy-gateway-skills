@@ -118,13 +118,13 @@ jobs:
             [ -f "$file" ] || continue
             echo "Applying $file..."
             tfy apply --file "$file"
-          done
+          done < <(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- '*.yaml')
 
           # Warn about deleted files
           for file in $(git diff --name-only --diff-filter=D HEAD~1 HEAD -- '*.yaml'); do
             [ -z "$file" ] && continue
             echo "::warning::$file was deleted. Remove the corresponding resource from TrueFoundry dashboard."
-          done
+          done < <(git diff --name-only --diff-filter=D HEAD~1 HEAD -- '*.yaml')
 ```
 
 > **Tip:** For stronger supply-chain protection, generate a `requirements.txt` with hashes (`pip install pip-tools && pip-compile --generate-hashes`) and install with `pip install --require-hashes -r requirements.txt`.

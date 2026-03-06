@@ -28,7 +28,7 @@ pipelines:
                 [ -f "$file" ] || continue
                 echo "Validating $file..."
                 tfy apply --file "$file" --dry-run
-              done
+              done < <(git diff --name-only origin/"$BITBUCKET_PR_DESTINATION_BRANCH"...HEAD -- '*.yaml')
 
   branches:
     main:
@@ -44,7 +44,7 @@ pipelines:
                 [ -f "$file" ] || continue
                 echo "Applying $file..."
                 tfy apply --file "$file"
-              done
+              done < <(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- '*.yaml')
 ```
 
 > **Tip:** For stronger supply-chain protection, generate a `requirements.txt` with hashes (`pip install pip-tools && pip-compile --generate-hashes`) and install with `pip install --require-hashes -r requirements.txt`.

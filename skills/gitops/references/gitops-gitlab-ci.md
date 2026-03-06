@@ -43,7 +43,7 @@ dry-run:
         [ -f "$file" ] || continue
         echo "Validating $file..."
         tfy apply --file "$file" --dry-run
-      done
+      done < <(git diff --name-only origin/"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"...HEAD -- '*.yaml')
 
 apply:
   <<: *tfy-setup
@@ -62,7 +62,7 @@ apply:
         [ -f "$file" ] || continue
         echo "Applying $file..."
         tfy apply --file "$file"
-      done
+      done < <(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- '*.yaml')
 ```
 
 > **Tip:** For stronger supply-chain protection, generate a `requirements.txt` with hashes (`pip install pip-tools && pip-compile --generate-hashes`) and install with `pip install --require-hashes -r requirements.txt`.
