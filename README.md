@@ -12,11 +12,23 @@ Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
 ## Quick Start
 
-Install skills:
+Install skills (recommended: pin to a release tag):
 
 ```bash
+TFY_SKILLS_REF=vX.Y.Z \
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
+
+Replace `vX.Y.Z` with a published release tag (for example `v0.1.0`).
+
+Optional: verify the tarball checksum for the pinned release:
+
+```bash
+TFY_SKILLS_REF=vX.Y.Z TFY_SKILLS_SHA256=<release-sha256> \
+curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
+```
+
+If you prefer always-latest behavior, omit `TFY_SKILLS_REF` and install from `main`.
 
 Set your credentials (environment variables or `.env` file in your project root):
 
@@ -31,7 +43,15 @@ Restart your agent, then ask things like *"deploy my FastAPI app"*, *"show logs 
 
 ### Optional: Auto-Approve API Calls (Claude Code only)
 
-By default, Claude Code prompts for approval each time a skill runs `tfy-api.sh`. To auto-approve these calls, copy the hooks into your Claude Code config:
+By default, Claude Code prompts for approval each time a skill runs `tfy-api.sh`. To auto-approve these calls, copy the hooks into your Claude Code config.
+
+Requirement: `jq` must be installed, because the hook parses JSON tool input.
+
+```bash
+jq --version
+```
+
+Then install hooks:
 
 ```bash
 cp -r hooks/ ~/.claude/hooks/
