@@ -15,7 +15,7 @@
 
 In docker-compose, services reference each other by service name:
 ```yaml
-DATABASE_URL=postgresql://postgres:pass@db:5432/myapp
+DATABASE_URL=postgresql://postgres:DB_PASSWORD@db:5432/myapp
 REDIS_URL=redis://redis:6379/0
 BACKEND_URL=http://backend:8000
 ```
@@ -115,10 +115,10 @@ When the compose file has credentials in connection strings, translate them too:
 
 ```yaml
 # Compose
-DATABASE_URL=postgresql://postgres:mypass@db:5432/myapp
+DATABASE_URL=postgresql://postgres:DB_PASSWORD@db:5432/myapp
 
 # TFY (with same password set in Helm values.auth.postgresPassword)
-DATABASE_URL=postgresql://postgres:mypass@myapp-db-postgresql.your-workspace.svc.cluster.local:5432/myapp
+DATABASE_URL=postgresql://postgres:DB_PASSWORD@myapp-db-postgresql.your-workspace.svc.cluster.local:5432/myapp
 ```
 
 For production, store passwords in TrueFoundry secrets and reference them:
