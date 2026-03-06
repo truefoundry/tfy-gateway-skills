@@ -52,14 +52,14 @@ Your agent picks the right skill based on what you ask. For deploy actions, use 
 
 | Category | Skills |
 |----------|--------|
-| **Deploy** | deploy, gitops |
-| **LLM & AI** | llm-deploy, ai-gateway, mcp-servers |
-| **Infrastructure** | helm, volumes, secrets |
-| **Security** | guardrails, access-control |
-| **Jobs & Pipelines** | jobs, workflows |
-| **Dev Environments** | notebooks, ssh-server |
-| **Observe & Debug** | logs, service-test, applications, tracing |
-| **Utility** | status, workspaces, prompts, docs, preferences, access-tokens, ml-repos |
+| **Deploy** | [deploy](skills/deploy), [gitops](skills/gitops) |
+| **LLM & AI** | [llm-deploy](skills/llm-deploy), [ai-gateway](skills/ai-gateway), [mcp-servers](skills/mcp-servers) |
+| **Infrastructure** | [helm](skills/helm), [volumes](skills/volumes), [secrets](skills/secrets) |
+| **Security** | [guardrails](skills/guardrails), [access-control](skills/access-control) |
+| **Jobs & Pipelines** | [jobs](skills/jobs), [workflows](skills/workflows) |
+| **Dev Environments** | [notebooks](skills/notebooks), [ssh-server](skills/ssh-server) |
+| **Observe & Debug** | [logs](skills/logs), [service-test](skills/service-test), [applications](skills/applications), [tracing](skills/tracing) |
+| **Utility** | [status](skills/status), [workspaces](skills/workspaces), [prompts](skills/prompts), [docs](skills/docs), [preferences](skills/preferences), [access-tokens](skills/access-tokens), [ml-repos](skills/ml-repos) |
 
 Each skill is a standalone markdown file (`skills/{name}/SKILL.md`) following the [Agent Skills](https://agentskills.io) open format.
 
