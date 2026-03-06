@@ -47,7 +47,7 @@ allowed-tools: Bash(*/tfy-api.sh *)
 ```
 
 - `description` controls when the agent auto-invokes the skill (model-invoked).
-- Primary deployment skills are: `deploy`, `helm`, and `llm-deploy`.
+- The explicit-only skills are: `deploy`, `helm`, and `llm-deploy`.
 - If intent is ambiguous, ask a short clarifying question before selecting one.
 - `allowed-tools` grants the skill permission to run specific commands without prompting.
 

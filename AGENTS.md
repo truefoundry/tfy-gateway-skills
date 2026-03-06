@@ -10,7 +10,7 @@ matching each skill description. Each skill lives in `skills/{name}/SKILL.md`.
 
 Read `skills/{name}/SKILL.md` for detailed usage, examples, and error handling.
 
-Primary deployment skills are: `deploy`, `helm`, and `llm-deploy`.
+The explicit-only skills are: `deploy`, `helm`, and `llm-deploy`.
 If intent is ambiguous, ask a short clarifying question before selecting one.
 
 Available skills in this repo:

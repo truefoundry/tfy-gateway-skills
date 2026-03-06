@@ -20,12 +20,6 @@ Or use the direct installer:
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
 
-Optional: for reproducible installs, pin a release tag directly:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/vX.Y.Z/scripts/install.sh | bash
-```
-
 Restart your agent and start asking. If credentials are not set, your agent will prompt for them. You can also pre-set them via env vars or a `.env` file in your project root:
 
 ```bash
@@ -46,7 +40,7 @@ Just ask your agent in plain English:
 - *"deploy Postgres with Helm"*
 - *"set up a secret for my database password"*
 
-Your agent picks the right skill based on what you ask. For deploy actions, use explicit wording like "deploy", "helm", or "llm deploy".
+Your agent picks the right skill based on what you ask. Deployment skills are explicit-only: use wording like "deploy", "helm", or "llm deploy".
 
 ## Skills
 
