@@ -1,6 +1,6 @@
 ---
 name: status
-description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation.
+description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL/TFY_HOST, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 allowed-tools: Bash(*/tfy-api.sh *)
@@ -33,6 +33,7 @@ Verify TrueFoundry credentials and connectivity, or diagnose authentication issu
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `TFY_BASE_URL` | TrueFoundry platform URL | `https://your-org.truefoundry.cloud` |
+| `TFY_HOST` | CLI host alias (recommended when `TFY_API_KEY` is set for CLI commands) | `https://your-org.truefoundry.cloud` |
 | `TFY_API_KEY` | API key (raw, no Bearer prefix) | `tfy-...` |
 
 </context>
@@ -58,6 +59,7 @@ Check environment variables and test the connection. Set `TFY_API_SH` to the ful
 ```bash
 # Check env vars are set
 echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
+echo "TFY_HOST: ${TFY_HOST:-(not set)}"
 echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
 
 # Test connection — list workspaces (lightweight call). Use full path shown above.
@@ -126,6 +128,12 @@ Cannot reach TFY_BASE_URL. Check:
 ```
 TFY_BASE_URL and TFY_API_KEY are required.
 Set them via environment variables or add to .env in project root.
+```
+
+### CLI Host Missing (`TFY_HOST` error)
+```
+If tfy CLI says: "TFY_HOST env must be set since TFY_API_KEY env is set"
+run: export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 ```
 
 </troubleshooting>

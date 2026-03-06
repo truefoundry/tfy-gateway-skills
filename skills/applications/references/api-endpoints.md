@@ -6,8 +6,8 @@ Auth: `Authorization: Bearer $TFY_API_KEY`
 ## Applications
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/svc/v1/apps` | List applications (query: workspaceFqn, applicationName, clusterId) |
-| GET | `/api/svc/v1/apps/{appId}` | Get application by ID |
+| GET | `/api/svc/v1/apps` | List applications (query: workspaceFqn, applicationName, clusterId). Returns `{"data": [{"id", "name", "status" (string), "url", "activeDeployment", "manifest"}], "pagination": {...}}` |
+| GET | `/api/svc/v1/apps/{appId}` | Get application by ID. Returns single app object (same shape as `data[]` element above) |
 | GET | `/api/svc/v1/apps/{appId}/deployments` | List deployments for an app |
 | GET | `/api/svc/v1/apps/{appId}/deployments/{deploymentId}` | Get deployment details |
 | PUT | `/api/svc/v1/apps` | Create/update application deployment (body: manifest + options) |

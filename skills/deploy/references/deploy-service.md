@@ -22,6 +22,12 @@ env | grep '^TFY_' 2>/dev/null || true
 
 Use discovered values to skip unnecessary API calls and pre-fill questions below.
 
+If `TFY_BASE_URL` is present but `TFY_HOST` is missing, set it before running CLI commands:
+
+```bash
+[ -n "${TFY_BASE_URL:-}" ] && export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+```
+
 ### 0b. Detect Tools
 
 ```bash
@@ -167,6 +173,7 @@ Write to `tfy-manifest.yaml` (pre-built image) or `truefoundry.yaml` (build sour
 
 For pre-built images:
 ```bash
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 tfy apply -f tfy-manifest.yaml --dry-run --show-diff
 ```
 
@@ -182,11 +189,13 @@ After user confirms:
 
 **Pre-built image** (`image.type: image`):
 ```bash
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 tfy apply -f tfy-manifest.yaml
 ```
 
 **Build source** (`image.type: build`):
 ```bash
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 tfy deploy -f truefoundry.yaml --no-wait
 ```
 
@@ -312,6 +321,37 @@ TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
 bash $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationName=SERVICE_NAME'
 ```
 
+#### Example Response Shape
+
+The response is a JSON object with a `data` array. Each element is an application:
+
+```json
+{
+  "data": [
+    {
+      "id": "app-abc123",
+      "name": "my-service",
+      "status": "DEPLOY_SUCCESS",
+      "activeDeployment": {
+        "id": "deploy-xyz789",
+        "status": "DEPLOY_SUCCESS",
+        "createdAt": "2025-01-15T10:30:00Z"
+      },
+      "manifest": { "...": "full manifest as submitted" },
+      "url": "https://my-service-ws.ml.your-org.truefoundry.cloud"
+    }
+  ],
+  "pagination": { "total": 1, "offset": 0, "limit": 10 }
+}
+```
+
+Key fields to extract:
+- **Status**: `data[0].status` — string, one of: `BUILDING`, `BUILD_FAILED`, `DEPLOYING`, `DEPLOY_SUCCESS`, `DEPLOY_FAILED`, `NO_DEPLOYMENT`
+- **URL**: `data[0].url` — the service endpoint (may be `null` if not exposed)
+- **App ID**: `data[0].id` — needed for follow-up API calls (logs, deployments)
+
+> **Note:** `status` is a flat string, not a nested object. Do not try to parse it as `status.phase` or `status.type`.
+
 ### Report to User
 
 ```
@@ -334,6 +374,8 @@ Next steps:
 ## Error Handling
 
 For specific error messages and resolution steps, see `deploy-errors.md`. Covers:
+- `TFY_HOST` not set (CLI auth failure with `TFY_BASE_URL`)
+- Invalid `build_spec.type` (e.g. `docker` instead of `dockerfile`)
 - `TFY_WORKSPACE_FQN` not set
 - `tfy: command not found`
 - `tfy apply` validation errors

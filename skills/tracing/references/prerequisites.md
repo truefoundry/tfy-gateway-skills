@@ -8,6 +8,12 @@ Check if the TrueFoundry CLI is available:
 tfy --version 2>/dev/null
 ```
 
+If `TFY_API_KEY` is set and you use `tfy` CLI commands (`tfy apply`, `tfy deploy`), ensure `TFY_HOST` is set:
+
+```bash
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+```
+
 If not found, install it:
 
 ```bash
@@ -22,6 +28,7 @@ Run this to verify your environment:
 
 ```bash
 echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
+echo "TFY_HOST: ${TFY_HOST:-(not set)}"
 echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
 echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
 ```
@@ -31,6 +38,7 @@ echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `TFY_BASE_URL` | Yes | TrueFoundry platform URL (e.g., `https://your-org.truefoundry.cloud`) |
+| `TFY_HOST` | For CLI auth/deploy with API key | CLI host URL (usually same as `TFY_BASE_URL`, no trailing slash) |
 | `TFY_API_KEY` | Yes | API key for authentication |
 | `TFY_WORKSPACE_FQN` | For deploys | Workspace fully qualified name (e.g., `cluster-id:workspace-name`) |
 
@@ -44,6 +52,12 @@ Different tools use different variable names. The `tfy-api.sh` script auto-resol
 | `TFY_API_KEY` | -- | -- | Same name everywhere |
 
 If your `.env` uses `TFY_HOST` or `TFY_API_HOST`, the scripts will pick it up automatically. No manual renaming needed.
+
+If your `.env` only has `TFY_BASE_URL`, derive CLI host before running `tfy deploy`/`tfy apply`:
+
+```bash
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+```
 
 ## Workspace FQN Rule
 

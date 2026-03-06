@@ -18,6 +18,9 @@ tfy --version 2>/dev/null
 ## CLI Path (Primary)
 
 ```bash
+# tfy CLI expects TFY_HOST when TFY_API_KEY is set
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+
 # Write manifest to file
 cat > tfy-manifest.yaml << 'EOF'
 name: my-service
@@ -77,10 +80,10 @@ $TFY_API_SH GET "/api/svc/v1/apps?workspaceFqn=${TFY_WORKSPACE_FQN}&applicationN
 
 ```bash
 pip install truefoundry
-tfy login --host "$TFY_BASE_URL"
+tfy login --host "${TFY_HOST:-${TFY_BASE_URL%/}}"
 
 # Or with API key (non-interactive, for CI/CD)
-tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
+tfy login --host "${TFY_HOST:-${TFY_BASE_URL%/}}" --api-key "$TFY_API_KEY"
 ```
 
 ## `tfy apply` vs `tfy deploy`
@@ -99,6 +102,9 @@ tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
 ### `tfy deploy` Usage
 
 ```bash
+# Ensure TFY_HOST is set for CLI auth context
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+
 # Deploy from local source or git (builds remotely on TrueFoundry)
 tfy deploy -f truefoundry.yaml --no-wait
 

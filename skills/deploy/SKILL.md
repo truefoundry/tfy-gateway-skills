@@ -36,14 +36,18 @@ Route user intent to the right deployment workflow. Load only the references you
 grep '^TFY_' .env 2>/dev/null || true
 env | grep '^TFY_' 2>/dev/null || true
 
-# 2. Check CLI
+# 2. Derive TFY_HOST for CLI (MUST run before any tfy command)
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+
+# 3. Check CLI
 tfy --version 2>/dev/null || echo "Install: pip install truefoundry"
 
-# 3. Check for existing manifests
+# 4. Check for existing manifests
 ls tfy-manifest.yaml truefoundry.yaml 2>/dev/null
 ```
 
 - `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`).
+- **`TFY_HOST` must be set before any `tfy` CLI command.** The export above handles this automatically.
 - `TFY_WORKSPACE_FQN` required. **Never auto-pick. Always ask the user.**
 - For full credential setup, see `references/prerequisites.md`.
 
@@ -54,6 +58,9 @@ ls tfy-manifest.yaml truefoundry.yaml 2>/dev/null
 ### Apply a manifest (most common)
 
 ```bash
+# tfy CLI expects TFY_HOST when TFY_API_KEY is set
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+
 # Preview changes
 tfy apply -f tfy-manifest.yaml --dry-run --show-diff
 
@@ -64,6 +71,9 @@ tfy apply -f tfy-manifest.yaml
 ### Deploy from source (local code or git)
 
 ```bash
+# tfy CLI expects TFY_HOST when TFY_API_KEY is set
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+
 # tfy deploy builds remotely — use for local code or git sources
 tfy deploy -f truefoundry.yaml --no-wait
 ```

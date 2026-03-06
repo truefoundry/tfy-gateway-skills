@@ -646,6 +646,9 @@ image:
 
 Two build spec types are supported.
 
+> **Valid `build_spec.type` values: `dockerfile` | `tfy-python-buildpack`**
+> Do NOT use `docker`, `build`, `python`, or any other value — the API will reject them.
+
 #### Dockerfile Build
 
 | Field | Type | Required | Default | Description |

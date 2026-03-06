@@ -31,6 +31,36 @@ The diff shows changes you didn't expect. This usually means:
 Review the diff carefully before applying.
 ```
 
+## TFY_HOST Not Set (CLI auth failure)
+
+```
+tfy apply/deploy fails with authentication or "host not found" errors even though
+TFY_BASE_URL and TFY_API_KEY are set.
+
+Cause: The tfy CLI expects TFY_HOST (not TFY_BASE_URL) when using API key auth.
+
+Fix: Always set TFY_HOST before running any tfy CLI command:
+  export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+
+This is the #1 env-var mistake. The .env may have TFY_BASE_URL but the CLI
+reads TFY_HOST. The tfy-api.sh script auto-resolves aliases, but the CLI does not.
+```
+
+## Invalid `build_spec.type` Value
+
+```
+tfy apply/deploy fails with a validation error when build_spec.type is set to
+an invalid value like "docker", "build", or "python".
+
+Valid values:
+  - "dockerfile"           — for Dockerfile-based builds
+  - "tfy-python-buildpack" — for Python projects without a Dockerfile
+
+Common mistake: using "docker" instead of "dockerfile".
+
+Fix: Check manifest-schema.md → BuildSpec section for the exact type strings.
+```
+
 ## TFY_WORKSPACE_FQN Not Set
 
 ```

@@ -24,6 +24,7 @@ Restart your agent and start asking. If credentials are not set, your agent will
 
 ```bash
 export TFY_BASE_URL=https://your-org.truefoundry.cloud
+export TFY_HOST=https://your-org.truefoundry.cloud  # CLI host (same as TFY_BASE_URL)
 export TFY_API_KEY=tfy-...  # https://docs.truefoundry.com/docs/generate-api-key
 ```
 
