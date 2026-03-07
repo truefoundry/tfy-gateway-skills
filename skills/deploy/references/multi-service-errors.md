@@ -32,6 +32,7 @@ Check:
 2. DNS correct? Expected: {name}.{namespace}.svc.cluster.local:{port}
 3. Port correct? Check the dependency's port configuration
 4. Credentials match? Verify env vars match infrastructure passwords
+5. Any unresolved compose hostname left? (`db`, `redis`, `backend`, etc.)
 ```
 
 ## docker-compose Feature Not Supported

@@ -165,6 +165,18 @@ For passwords shared between infrastructure and services:
    }
    ```
 
+## Hard Validation: No Compose Hostnames Left
+
+Before deploying a dependent service, verify every cross-service env URL was rewritten to TFY DNS or an approved public URL.
+
+Reject manifests that still contain compose-style hostnames such as:
+- `@db:5432`
+- `redis://redis:6379`
+- `http://backend:8000`
+- `http://frontend:3000`
+
+If any unresolved hostname remains, fix the env mapping before deploy.
+
 ## Validation Checklist
 
 After deploying all services, verify wiring is correct:

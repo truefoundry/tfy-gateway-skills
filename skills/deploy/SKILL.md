@@ -216,3 +216,4 @@ These references are available for all workflows — load as needed:
 - Health probes configured for production deployments
 - Secrets stored securely (not hardcoded in manifests)
 - For multi-service: all services wired together and working end-to-end
+- For multi-service: no unresolved compose hostnames remain in env URLs

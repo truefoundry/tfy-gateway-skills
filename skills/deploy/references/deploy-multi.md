@@ -244,6 +244,12 @@ Use the `llm-deploy` skill's approach with GPU allocation.
 
 **This is the most critical step.** Every cross-service reference must be translated from compose service names to Kubernetes DNS.
 
+### Hard Gate Before Deploying Dependents
+
+Before deploying any service that depends on others, validate that its env values have no unresolved compose hostnames (for example `db`, `redis`, `backend`, `frontend`).
+
+If unresolved hostnames remain, stop and fix wiring first. Do not continue deployment with partially translated URLs.
+
 ### Translation Rule
 
 In docker-compose: `DATABASE_URL=postgresql://postgres:DB_PASSWORD@db:5432/myapp`
