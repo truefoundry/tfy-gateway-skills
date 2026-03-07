@@ -131,6 +131,24 @@ bash $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationNam
 
 Always report the observed status (`BUILDING`, `DEPLOYING`, `DEPLOY_SUCCESS`, `DEPLOY_FAILED`, etc.) in the same response.
 
+## Automatic Failure Debugging (Up to 2 Attempts)
+
+If status is `BUILD_FAILED` or `DEPLOY_FAILED`, do not stop at "it failed". Run a bounded remediation loop:
+
+1. Fetch failure signals (status, recent logs, and build/deploy error text)
+2. Apply the smallest safe fix (manifest/env/probe/port/start-command mismatch)
+3. Re-run deploy/apply and verify status again
+4. Stop after at most **2 automated retries**, then hand back a clear action plan
+
+Use the `logs` skill when available. If unavailable, call logs API directly:
+
+```bash
+TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
+bash $TFY_API_SH GET '/api/svc/v1/logs?applicationId=APP_ID'
+```
+
+Never loop indefinitely, and always report what changed on each retry.
+
 ### REST API fallback (when CLI unavailable)
 
 See `references/cli-fallback.md` for converting YAML to JSON and deploying via `tfy-api.sh`.

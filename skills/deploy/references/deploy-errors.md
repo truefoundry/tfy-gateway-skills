@@ -2,6 +2,8 @@
 
 Common deployment errors and how to resolve them.
 
+When possible, attempt up to two automated fix-and-redeploy iterations before escalating to the user. Keep a retry changelog with the exact change made in each attempt.
+
 ## CLI Errors
 
 ### tfy: command not found

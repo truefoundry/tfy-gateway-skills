@@ -371,6 +371,43 @@ Next steps:
   - View logs if issues: logs skill
 ```
 
+## Automatic Debug + Redeploy Loop (No-Touch First)
+
+If deployment status is `BUILD_FAILED` or `DEPLOY_FAILED`, attempt automated recovery before asking the user to intervene.
+
+### Retry Budget
+
+- Maximum retries: **2**
+- Each retry must include: (a) diagnosed cause, (b) concrete change, (c) re-deploy, (d) status check
+- If still failing after 2 retries, stop and return a concise escalation summary
+
+### Loop
+
+1. Fetch app status and app ID
+2. Fetch recent logs for the failing app (`logs` skill preferred)
+3. Classify likely root cause:
+   - Build failure -> Dockerfile/build context/command/dependency issue
+   - Runtime crash -> missing env var, wrong secret reference, invalid startup command
+   - Health check failure -> wrong probe path/port/timings
+   - Connectivity failure -> bad DNS/port/credential wiring
+4. Apply the smallest safe fix
+5. Re-run deploy (`tfy deploy -f ...` or `tfy apply -f ...`)
+6. Verify status again
+
+Always show a short retry changelog:
+
+```
+Retry 1:
+- Cause: readiness probe path `/healthz` returned 404
+- Change: switched readiness/liveness path to `/health`
+- Result: DEPLOYING
+```
+
+If retries are exhausted, include:
+- Last observed status
+- Most likely unresolved blocker
+- Exact next manual step for the user
+
 ## Error Handling
 
 For specific error messages and resolution steps, see `deploy-errors.md`. Covers:
