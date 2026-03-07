@@ -19,6 +19,7 @@ Route user intent to the right deployment workflow. Load only the references you
 | User Intent | Action | Reference |
 |---|---|---|
 | "deploy", "deploy my app", "ship this" | Single HTTP service | [deploy-service.md](references/deploy-service.md) |
+| "mount this file", "mount config file", "mount certificate file", "mount key file" | Single service with file mounts (no image rebuild) | [deploy-service.md](references/deploy-service.md) |
 | "tfy apply", "apply manifest", "deploy from yaml" | Declarative manifest apply | [deploy-apply.md](references/deploy-apply.md) |
 | "deploy everything", "full stack", docker-compose | Multi-service orchestration | [deploy-multi.md](references/deploy-multi.md) |
 | "async service", "queue consumer", "worker" | Async/queue service | [deploy-async.md](references/deploy-async.md) |
@@ -159,6 +160,16 @@ env:
 Pattern: `tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>` where TENANT_NAME is the subdomain of `TFY_BASE_URL`.
 
 Use the `secrets` skill for guided secret group creation. For the full secrets workflow, see `references/deploy-service.md` (Secrets Handling section).
+
+## File Mounts (Config, Secrets, Shared Data)
+
+When users ask to mount files into a deployment, prefer manifest `mounts` over Dockerfile edits:
+
+- `type: secret` for sensitive file content (keys, certs, credentials)
+- `type: config_map` for non-sensitive config files
+- `type: volume` for writable/shared runtime data
+
+See `references/deploy-service.md` (File Mounts section) for the end-to-end workflow.
 
 ## Shared References
 

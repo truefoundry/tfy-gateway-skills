@@ -233,6 +233,41 @@ bash $TFY_API_SH PUT /api/svc/v1/apps '{ "manifest": { ... }, "workspaceId": "WO
 
 **Do NOT deploy with hardcoded defaults without asking.**
 
+## File Mounts (Without Rebuilding Images)
+
+When users ask to "mount a file" or "inject config/certs/keys" into a service, prefer manifest `mounts` instead of editing Dockerfiles.
+
+### Mount Type Decision
+
+| Use Case | Mount Type | Notes |
+|---|---|---|
+| Sensitive file content (private keys, certs, credentials) | `secret` | Store content in a TrueFoundry secret group first, then mount read-only |
+| Non-sensitive config files | `config_map` | Mount as files under a config directory |
+| Writable/shared runtime data | `volume` | Create/manage with `volumes` skill, then mount at runtime path |
+
+### Workflow
+
+1. Collect exact target file paths expected by the app (for example: `/app/config.yaml`, `/etc/tls/tls.crt`)
+2. Classify each file as sensitive or non-sensitive
+3. Create backing resources:
+   - Sensitive -> secret group (`{service-name}-secrets`)
+   - Writable/shared -> volume (use `volumes` skill)
+4. Add mounts in manifest and keep sensitive mounts read-only
+
+```yaml
+mounts:
+  - type: secret
+    name: my-service-secrets
+    mount_path: /etc/my-service/secrets
+    read_only: true
+  - type: volume
+    name: shared-data
+    mount_path: /var/lib/my-service
+    read_only: false
+```
+
+Use `references/manifest-schema.md` (Mounts section) for all mount fields.
+
 ## Health Probes
 
 **Always configure health probes for production services.**

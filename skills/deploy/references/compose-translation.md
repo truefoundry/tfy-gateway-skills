@@ -447,6 +447,7 @@ readiness_probe:
 |---------------|----------------------|
 | Named volume on DB | `persistence.enabled: true, persistence.size: "10Gi"` in Helm values |
 | Named volume on app service | TrueFoundry Volume mount (use `mounts` field) |
+| Bind-mounted file (`./config.yaml:/app/config.yaml`) | Prefer `mounts` with `type: config_map` (non-sensitive) or `type: secret` (sensitive) |
 | Bind mount (`./data:/app/data`) | Not supported directly -- use a TrueFoundry Volume or bake data into the image |
 | tmpfs | `ephemeral_storage` in resources |
 
