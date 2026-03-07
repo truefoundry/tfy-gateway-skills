@@ -158,6 +158,11 @@ env:
 
 Pattern: `tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>` where TENANT_NAME is the subdomain of `TFY_BASE_URL`.
 
+Default behavior for deploy workflows:
+- Detect sensitive keys (`*PASSWORD*`, `*SECRET*`, `*TOKEN*`, `*KEY*`, `*CREDENTIAL*`, `*AUTH*`, `*DATABASE_URL*`, `*API_KEY*`)
+- Create/use a secret group for them
+- Put only `tfy-secret://...` references in manifest `env`
+
 Use the `secrets` skill for guided secret group creation. For the full secrets workflow, see `references/deploy-service.md` (Secrets Handling section).
 
 ## Shared References

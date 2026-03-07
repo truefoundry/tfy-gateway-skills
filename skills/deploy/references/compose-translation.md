@@ -472,6 +472,7 @@ secrets:
 - Host-env / substitution -> ask user, or create TrueFoundry secret
 - `env_file` -> read the file, add to `env` dict (warn about sensitive values)
 - Compose `secrets` -> create TrueFoundry secret group, reference as `tfy-secret://`
+- Sensitive env keys (`*PASSWORD*`, `*TOKEN*`, `*SECRET*`, `*API_KEY*`, `*DATABASE_URL*`) -> always move to secret groups by default
 
 ### Networks
 

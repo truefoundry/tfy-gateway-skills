@@ -288,6 +288,14 @@ For scaling guidelines and rollout options, see `deploy-scaling.md`.
 
 **Never put sensitive values directly in manifests.** Scan env vars for sensitive patterns (`*PASSWORD*`, `*SECRET*`, `*TOKEN*`, `*KEY*`, `*CREDENTIAL*`, `*AUTH*`, `*DATABASE_URL*`, `*API_KEY*`).
 
+### Default Policy (Mandatory)
+
+For every env var matching the sensitive patterns:
+
+1. Store value in a TrueFoundry secret group
+2. Reference it in manifest as `tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>`
+3. Do not keep the raw value inline in `env`
+
 ### Workflow
 
 1. **Identify** sensitive env vars and confirm with user
@@ -306,7 +314,7 @@ For scaling guidelines and rollout options, see `deploy-scaling.md`.
      ]
    }'
    ```
-4. **Reference in manifest**: `tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>`
+4. **Replace inline env values with references**: `tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>`
 
 Or use the `secrets` skill for a guided workflow.
 
