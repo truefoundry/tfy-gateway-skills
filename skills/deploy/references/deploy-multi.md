@@ -21,7 +21,7 @@ Each service gets its own YAML manifest, applied in dependency order with `tfy a
 
 ### Scan Order
 
-1. **`docker-compose.yml` / `compose.yaml`** — Primary source of truth if present. Parse to extract services, ports, environment variables, `depends_on`, volumes, health checks.
+1. **`docker-compose.yml` / `docker-compose.yaml` / `compose.yml` / `compose.yaml`** — Primary source of truth if present. Parse to extract services, ports, environment variables, `depends_on`, volumes, health checks.
 2. **Multiple Dockerfiles** — `Dockerfile`, `Dockerfile.*`, `*/Dockerfile`
 3. **Service directories** — Directories with their own `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`
 4. **Kubernetes manifests** — Check `k8s/`, `manifests/`, `deploy/` directories

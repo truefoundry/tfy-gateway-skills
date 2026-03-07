@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Deploys applications to TrueFoundry. Handles single HTTP services, async/queue workers, multi-service projects, and declarative manifest apply. Supports `tfy apply`, `tfy deploy`, docker-compose translation, and CI/CD pipelines. Use when deploying apps, applying manifests, shipping services, or orchestrating multi-service deployments.
+description: Deploys applications to TrueFoundry. Handles single HTTP services, async/queue workers, multi-service projects, and declarative manifest apply. Supports `tfy apply`, `tfy deploy`, docker-compose (`docker-compose.yml`/`docker-compose.yaml`/`compose.yml`/`compose.yaml`) translation, and CI/CD pipelines. Use when deploying apps, applying manifests, shipping services, or orchestrating multi-service deployments.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
 metadata:
@@ -20,7 +20,7 @@ Route user intent to the right deployment workflow. Load only the references you
 |---|---|---|
 | "deploy", "deploy my app", "ship this" | Single HTTP service | [deploy-service.md](references/deploy-service.md) |
 | "tfy apply", "apply manifest", "deploy from yaml" | Declarative manifest apply | [deploy-apply.md](references/deploy-apply.md) |
-| "deploy everything", "full stack", docker-compose | Multi-service orchestration | [deploy-multi.md](references/deploy-multi.md) |
+| "deploy everything", "full stack", docker-compose, docker-compose.yaml, compose.yml | Multi-service orchestration | [deploy-multi.md](references/deploy-multi.md) |
 | "async service", "queue consumer", "worker" | Async/queue service | [deploy-async.md](references/deploy-async.md) |
 | "deploy LLM", "serve model" | Model serving intent (may be ambiguous) | Ask user: dedicated model serving (`llm-deploy`) or generic service deploy (`deploy`) |
 | "deploy helm chart" | Helm chart intent | Confirm Helm path and collect chart details, then proceed with `helm` workflow |
@@ -139,7 +139,7 @@ See `references/cli-fallback.md` for converting YAML to JSON and deploying via `
 
 **Before creating any manifest, scan the project:**
 
-1. Check for `docker-compose.yml` / `compose.yaml` — if found, likely multi-service
+1. Check for `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml` — if found, likely multi-service
 2. Look for multiple `Dockerfile` files across the project
 3. Check for service directories with their own dependency files in `services/`, `apps/`, `frontend/`, `backend/`
 
