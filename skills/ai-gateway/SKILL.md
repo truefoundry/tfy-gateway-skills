@@ -323,6 +323,14 @@ Export traces to your observability stack:
 
 For content filtering, PII detection, prompt injection prevention, and custom safety rules, use the `guardrails` skill. It configures guardrail providers and rules that apply to this gateway's traffic.
 
+## MCP Gateway Attachment Flow
+
+If a user has already deployed a tool server and wants to attach it to MCP gateway:
+
+1. Verify deployment status and endpoint URL (`deploy` + `applications` skills)
+2. Register the endpoint as an MCP server (`mcp-servers` skill)
+3. Confirm registration ID/name and share how to reference it in policies
+
 ## Framework Integration
 
 The gateway works with popular AI frameworks:

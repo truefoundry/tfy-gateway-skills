@@ -19,6 +19,7 @@ Route user intent to the right deployment workflow. Load only the references you
 | User Intent | Action | Reference |
 |---|---|---|
 | "deploy", "deploy my app", "ship this" | Single HTTP service | [deploy-service.md](references/deploy-service.md) |
+| "attach this deployment to mcp gateway", "register deployed mcp service", "connect deployment to mcp gateway" | Post-deploy MCP registration | Use `mcp-servers` skill after deployment endpoint is known |
 | "mount this file", "mount config file", "mount certificate file", "mount key file" | Single service with file mounts (no image rebuild) | [deploy-service.md](references/deploy-service.md) |
 | "tfy apply", "apply manifest", "deploy from yaml" | Declarative manifest apply | [deploy-apply.md](references/deploy-apply.md) |
 | "deploy everything", "full stack", docker-compose | Multi-service orchestration | [deploy-multi.md](references/deploy-multi.md) |
@@ -132,6 +133,16 @@ bash $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationNam
 
 Always report the observed status (`BUILDING`, `DEPLOYING`, `DEPLOY_SUCCESS`, `DEPLOY_FAILED`, etc.) in the same response.
 
+## Optional Post-Deploy: Attach to MCP Gateway
+
+If the deployed service exposes an MCP endpoint, ask if the user wants to register it in MCP gateway right away.
+
+Handoff checklist to `mcp-servers` skill:
+- deployment/service name
+- endpoint URL (`https://.../mcp` or in-cluster URL)
+- transport (`streamable-http` or `sse`)
+- auth mode (`header`, `oauth2`, or `passthrough`)
+
 ### REST API fallback (when CLI unavailable)
 
 See `references/cli-fallback.md` for converting YAML to JSON and deploying via `tfy-api.sh`.
@@ -217,6 +228,7 @@ These references are available for all workflows — load as needed:
 - **Manage secrets**: Use `secrets` skill
 - **Deploy Helm charts**: Use `helm` skill
 - **Deploy LLMs**: Use `llm-deploy` skill
+- **Register deployment in MCP gateway**: Use `mcp-servers` skill
 - **Test after deploy**: Use `service-test` skill
 
 ## Success Criteria
