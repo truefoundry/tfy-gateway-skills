@@ -45,7 +45,7 @@ Two paths:
 
 1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
 2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
-3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install 'truefoundry==0.5.0'`.
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
@@ -62,7 +62,7 @@ For credential check commands and .env setup, see `references/prerequisites.md`.
 tfy --version 2>/dev/null
 
 # If not installed
-pip install truefoundry
+pip install 'truefoundry==0.5.0'
 ```
 
 ### Verify Container Image Versions
@@ -367,7 +367,7 @@ After deploying, you can connect the model to TrueFoundry's AI Gateway for unifi
 For common LLM deployment errors (GPU not available, OOM, CUDA errors, model download failures, probe timeouts, invalid GPU types, host configuration issues) and their fixes, see [references/llm-errors.md](references/llm-errors.md).
 
 ### CLI Errors
-- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy: command not found` -- Install with `pip install 'truefoundry==0.5.0'`
 - `tfy apply` validation errors -- Check YAML syntax, ensure required fields are present
 - Manifest validation failures -- Check `references/llm-manifest-templates.md` for correct field names
 

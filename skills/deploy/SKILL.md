@@ -42,7 +42,7 @@ env | grep '^TFY_' 2>/dev/null || true
 export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 
 # 3. Check CLI
-tfy --version 2>/dev/null || echo "Install: pip install truefoundry"
+tfy --version 2>/dev/null || echo "Install: pip install 'truefoundry==0.5.0'"
 
 # 4. Check for existing manifests
 ls tfy-manifest.yaml truefoundry.yaml 2>/dev/null

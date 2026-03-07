@@ -65,7 +65,7 @@ tfy --version
 |-----------|--------|--------|
 | `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` for deployment as documented below. |
 | `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade: `pip install -U truefoundry`. Core `tfy apply` should still work. |
-| Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
+| Command not found | Not installed | Install: `pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"` |
 | CLI unavailable (no pip/Python) | Fallback | Use REST API via `tfy-api.sh`. See `references/cli-fallback.md`. |
 
 ## Core Concepts
@@ -372,7 +372,7 @@ After deployment, monitor runs through:
 ```
 tfy: command not found
 Install the TrueFoundry CLI:
-  pip install truefoundry
+  pip install 'truefoundry==0.5.0'
   tfy login --host "$TFY_BASE_URL"
 ```
 

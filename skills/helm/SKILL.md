@@ -54,7 +54,7 @@ If user intent is "deploy Postgres/Redis/database" without saying Helm, ask whic
 
 1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
 2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
-3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install truefoundry`.
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, `pip install 'truefoundry==0.5.0'`.
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
@@ -296,7 +296,7 @@ Next steps:
 For error messages and troubleshooting (workspace issues, chart not found, values validation, insufficient resources, PVC binding, connection issues), see [references/helm-errors.md](references/helm-errors.md).
 
 Additional CLI-specific errors:
-- `tfy: command not found` -- Install with `pip install truefoundry`
+- `tfy: command not found` -- Install with `pip install 'truefoundry==0.5.0'`
 - `tfy apply` validation errors -- Check YAML syntax, ensure required fields (name, type, source, workspace_fqn) are present
 
 </troubleshooting>

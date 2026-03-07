@@ -8,7 +8,7 @@ Common deployment errors and how to resolve them.
 
 ```
 The TrueFoundry CLI is not installed.
-Install it with: pip install truefoundry
+Install it with: pip install 'truefoundry==0.5.0'
 Then verify: tfy --version
 ```
 

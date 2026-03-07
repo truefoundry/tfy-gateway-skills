@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install tfy CLI
-        run: pip install truefoundry
+        run: pip install 'truefoundry==0.5.0'
 
       - name: Login to TrueFoundry
         env:
@@ -43,7 +43,7 @@ deploy:
   stage: deploy
   image: python:3.12-slim
   before_script:
-    - pip install truefoundry
+    - pip install 'truefoundry==0.5.0'
     - tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"
   script:
     - export IMAGE_TAG="$CI_COMMIT_SHA"
@@ -60,7 +60,7 @@ deploy:
 set -euo pipefail
 
 # 1. Install CLI
-pip install truefoundry
+pip install 'truefoundry==0.5.0'
 
 # 2. Authenticate
 tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"

@@ -37,7 +37,7 @@ Launch an SSH server on TrueFoundry for remote development. Write a YAML manifes
 
 1. **Credentials** — `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
 2. **Workspace** — `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
-3. **CLI** — Check `tfy --version`. Install if missing: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"`
+3. **CLI** — Check `tfy --version`. Install if missing: `pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"`
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 
@@ -51,7 +51,7 @@ tfy --version
 |-----------|--------|--------|
 | `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` as documented below. |
 | `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade: `pip install -U truefoundry`. Core `tfy apply` should still work. |
-| Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
+| Command not found | Not installed | Install: `pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"` |
 | CLI unavailable (no pip/Python) | Fallback | Use REST API via `tfy-api.sh`. See `references/cli-fallback.md`. |
 
 ## Launch SSH Server via UI
@@ -354,7 +354,7 @@ pip install torch transformers
 ```
 tfy: command not found
 Install the TrueFoundry CLI:
-  pip install truefoundry
+  pip install 'truefoundry==0.5.0'
   tfy login --host "$TFY_BASE_URL"
 ```
 

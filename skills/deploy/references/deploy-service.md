@@ -47,7 +47,7 @@ docker --version 2>/dev/null
 git branch --show-current 2>/dev/null
 ```
 
-If `tfy` CLI is not installed: `pip install truefoundry`
+If `tfy` CLI is not installed: `pip install 'truefoundry==0.5.0'`
 
 ### 0c. Ask Workspace (Mandatory)
 

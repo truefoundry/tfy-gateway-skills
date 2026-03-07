@@ -9,7 +9,7 @@ YAML manifest examples for each deployment option. Use `tfy apply -f tfy-manifes
 tfy --version
 
 # If not installed
-pip install truefoundry
+pip install 'truefoundry==0.5.0'
 ```
 
 For REST API fallback, see `cli-fallback.md`.
@@ -71,6 +71,7 @@ image:
     type: git
     repo_url: https://github.com/user/repo
     branch_name: main
+    ref: 3f2a1c9b0d7e6f5a4b3c2d1e0f9876543210abcd
   build_spec:
     type: dockerfile
     dockerfile_path: Dockerfile
@@ -116,6 +117,7 @@ image:
     type: git
     repo_url: https://github.com/user/repo
     branch_name: main
+    ref: 3f2a1c9b0d7e6f5a4b3c2d1e0f9876543210abcd
   build_spec:
     type: tfy-python-buildpack
     build_context_path: ./

@@ -18,7 +18,7 @@ Create or update TrueFoundry resources from YAML manifest files using `tfy apply
 | `tfy version X.Y.Z` (>= 0.5.0) | Current | Use `tfy apply` as documented |
 | `tfy version X.Y.Z` (0.3.x-0.4.x) | Outdated | Upgrade: `pip install -U truefoundry`. Core `tfy apply` still works. |
 | `servicefoundry version X.Y.Z` | Legacy CLI | Upgrade: `pip install -U truefoundry` |
-| Command not found | Not installed | Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"` |
+| Command not found | Not installed | Install: `pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"` |
 
 For full environment detection (SDK + CLI + Python):
 ```bash
@@ -213,7 +213,7 @@ For complete CI/CD examples (GitHub Actions, GitLab CI, generic deploy scripts),
 ## Error Handling
 
 ### tfy CLI Not Found
-Install: `pip install truefoundry && tfy login --host "$TFY_BASE_URL"`
+Install: `pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"`
 
 ### Authentication Failed
 Check `TFY_BASE_URL` is correct, `TFY_API_KEY` is valid. Or re-run: `tfy login --host "$TFY_BASE_URL" --api-key "$TFY_API_KEY"`

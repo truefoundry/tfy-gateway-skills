@@ -17,7 +17,7 @@ export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 If not found, install it:
 
 ```bash
-pip install truefoundry && tfy login --host "$TFY_BASE_URL"
+pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"
 ```
 
 > **Note:** The CLI (`tfy apply`) is the recommended deployment method, but it is not strictly required. All skills fall back to the REST API via `tfy-api.sh` when the CLI is unavailable.
