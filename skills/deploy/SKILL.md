@@ -19,6 +19,7 @@ Route user intent to the right deployment workflow. Load only the references you
 | User Intent | Action | Reference |
 |---|---|---|
 | "deploy", "deploy my app", "ship this" | Single HTTP service | [deploy-service.md](references/deploy-service.md) |
+| "deploy guardrails server", "guardrails server", "guardrails backend" | Deploy guardrails server from scaffold template | [guardrails-template.md](references/guardrails-template.md) |
 | "tfy apply", "apply manifest", "deploy from yaml" | Declarative manifest apply | [deploy-apply.md](references/deploy-apply.md) |
 | "deploy everything", "full stack", docker-compose | Multi-service orchestration | [deploy-multi.md](references/deploy-multi.md) |
 | "async service", "queue consumer", "worker" | Async/queue service | [deploy-async.md](references/deploy-async.md) |
@@ -182,6 +183,7 @@ These references are available for all workflows — load as needed:
 | Reference | Used By |
 |---|---|
 | `deploy-api-examples.md` | deploy-service |
+| `guardrails-template.md` | deploy-service (guardrails-server intent) |
 | `deploy-errors.md` | deploy-service |
 | `deploy-scaling.md` | deploy-service |
 | `load-analysis-questions.md` | deploy-service |

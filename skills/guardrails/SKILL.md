@@ -18,6 +18,10 @@ Configure content safety guardrails for TrueFoundry AI Gateway. Guardrails add s
 
 Set up guardrail providers, create guardrail rules, or manage content safety policies for AI Gateway endpoints. This includes PII filtering, content moderation, prompt injection detection, secret detection, and custom validation rules.
 
+## When NOT to Use
+
+- User asks to deploy a new guardrails server/codebase -> use `deploy` skill and bootstrap from `custom-guardrails-template`
+
 </objective>
 
 <instructions>
