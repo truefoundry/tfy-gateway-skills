@@ -153,7 +153,7 @@ See `references/cli-fallback.md` for converting YAML to JSON and deploying via `
 
 **Before creating any manifest, scan the project:**
 
-1. **Check for `docker-compose.yml` / `compose.yaml` first.** If present (or user mentions docker-compose), treat it as the **primary source of truth**: load [deploy-multi.md](references/deploy-multi.md) and [compose-translation.md](references/compose-translation.md), generate manifests from the compose file, wire services per [service-wiring.md](references/service-wiring.md), then complete deployment. Do not ask the user to manually create manifests when a compose file exists.
+1. **Check for `docker-compose.yml`, `docker-compose.yaml`, or `compose.yaml` first.** If present (or user mentions docker-compose), treat it as the **primary source of truth**: load [deploy-multi.md](references/deploy-multi.md) and [compose-translation.md](references/compose-translation.md), generate manifests from the compose file, wire services per [service-wiring.md](references/service-wiring.md), then complete deployment. Do not ask the user to manually create manifests when a compose file exists.
 2. Look for multiple `Dockerfile` files across the project
 3. Check for service directories with their own dependency files in `services/`, `apps/`, `frontend/`, `backend/`
 
