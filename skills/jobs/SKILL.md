@@ -40,7 +40,7 @@ Deploy, schedule, and monitor TrueFoundry job runs. Two paths:
 
 1. **Credentials** -- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`)
 2. **Workspace** -- `TFY_WORKSPACE_FQN` required. **Never auto-pick. Ask the user if missing.**
-3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, install a pinned version (`pip install 'truefoundry==0.5.0'==0.5.0`).
+3. **CLI** -- Check if `tfy` CLI is available: `tfy --version`. If not, install a pinned version (`pip install 'truefoundry==0.5.0'`).
 
 For credential check commands and .env setup, see `references/prerequisites.md`.
 

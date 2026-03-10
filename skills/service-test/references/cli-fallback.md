@@ -11,8 +11,8 @@ tfy --version 2>/dev/null
 | Result | Action |
 |--------|--------|
 | `tfy version X.Y.Z` (>= 0.5.0) | Use `tfy apply -f manifest.yaml` (primary path) |
-| `tfy version X.Y.Z` (0.3.x-0.4.x) | Upgrade recommended: install a pinned version (example: `pip install 'truefoundry==0.5.0'==0.5.0`). Core `tfy apply` should still work. |
-| `servicefoundry version X.Y.Z` | Legacy CLI. Upgrade to pinned `truefoundry` package (example: `pip install 'truefoundry==0.5.0'==0.5.0`) |
+| `tfy version X.Y.Z` (0.3.x-0.4.x) | Upgrade recommended: install a pinned version (example: `pip install 'truefoundry==0.5.0'`). Core `tfy apply` should still work. |
+| `servicefoundry version X.Y.Z` | Legacy CLI. Upgrade to pinned `truefoundry` package (example: `pip install 'truefoundry==0.5.0'`) |
 | Command not found | Fall back to REST API (see below) |
 
 ## CLI Path (Primary)
