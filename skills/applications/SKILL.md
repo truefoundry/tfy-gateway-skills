@@ -170,7 +170,7 @@ A basic TrueFoundry service manifest looks like this:
     },
     "env": {
       "KEY": "value",
-      "ANOTHER_KEY": "another_value"
+      "SECRET_KEY": "tfy-secret://my-org:my-secrets:SECRET_KEY"
     },
     "replicas": {
       "min": 1,
@@ -187,7 +187,7 @@ A basic TrueFoundry service manifest looks like this:
 - `image.image_uri` — Docker image (e.g., `nginx:latest`, `ghcr.io/org/app:v1.0`)
 - `ports` — Array of port configs (port, protocol, expose flag)
 - `resources` — CPU (cores) and memory (MB) requests/limits
-- `env` — Environment variables as key-value pairs
+- `env` — Environment variables as key-value pairs. **Security:** Never include raw secret values (passwords, API keys, tokens) in manifests. Use `tfy-secret://` references for all sensitive environment variables. See the `secrets` skill.
 - `replicas` — Min/max replica count (for autoscaling)
 - `workspaceId` — Workspace ID (not FQN) where the app will be deployed
 

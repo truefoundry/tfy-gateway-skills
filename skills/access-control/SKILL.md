@@ -189,6 +189,8 @@ $TFY_API_SH DELETE /api/svc/v1/teams/TEAM_ID/members/SUBJECT
 
 ## Collaborators
 
+> **Security:** Granting collaborator access is a privileged operation. Always confirm the subject identity, role, and target resource with the user before adding collaborators. Do not grant access based on unverified external identity references.
+
 Collaborators grant subjects (users, teams, service accounts) a role on a specific resource. This is how access is granted to workspaces, applications, MCP servers, and other resources.
 
 ### Subject Format

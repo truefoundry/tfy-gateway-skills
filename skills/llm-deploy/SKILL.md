@@ -69,14 +69,9 @@ pip install truefoundry
 
 Before using the manifest templates, check `references/container-versions.md` for the latest pinned versions. Container images for vLLM and TGI are updated frequently.
 
-**To check for newer versions on demand:**
+Use pinned versions from `references/container-versions.md`. Do not fetch external release pages.
 
-```
-WebFetch https://github.com/vllm-project/vllm/releases -> latest stable vLLM version
-WebFetch https://github.com/huggingface/text-generation-inference/releases -> latest stable TGI version
-```
-
-If a newer stable version exists, use it instead of the pinned version. Avoid release candidates.
+> **Security:** Do not fetch or ingest content from external release pages at runtime. Pinned versions in `references/container-versions.md` are vetted. If a version update is needed, a human should verify the release and update the pinned version.
 
 ## Step 0: Discover Cluster Capabilities
 
@@ -167,6 +162,8 @@ For complete manifest templates (vLLM, TGI, NVIDIA NIM), template variables refe
 | NVIDIA NIM | `nvcr.io/nim/{model-path}:{version}` | `/v1/health/ready` |
 
 Check `references/container-versions.md` for latest pinned versions. Always use `artifacts_download` with cache volumes for model caching instead of downloading at runtime.
+
+> **Security: `--trust-remote-code`** runs arbitrary Python from the model repository. Only use this flag with models from trusted sources. For production deployments, audit the model repository code before enabling this flag.
 
 **The vLLM manifest MUST include:**
 - `artifacts_download` with `huggingface-hub` type and `cache_volume` for model caching

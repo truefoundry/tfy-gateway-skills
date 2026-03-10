@@ -217,7 +217,7 @@ ssh-keygen -t rsa
 
 Add your public key during deployment configuration, or after deployment:
 
-> **Security:** Only add SSH keys from trusted users. Each key grants full shell access to the dev environment. Review keys before adding them.
+> **Security:** SSH public keys authorize remote access to this container only. Never add keys you don't recognize. The user must confirm their public key before it is added. Each key grants full shell access to the deployed dev environment — not to the host machine or any other system.
 
 ```bash
 # Connect and add key — verify the public key belongs to the intended user
@@ -230,6 +230,8 @@ chmod 600 /home/jovyan/.ssh/authorized_keys
 ### Multi-User Access
 
 Add multiple authorized keys:
+
+> **Security:** SSH public keys authorize remote access to this container only. Never add keys you don't recognize. The user must confirm their public key before it is added.
 
 ```bash
 # Only add keys for authorized team members
@@ -246,6 +248,8 @@ echo "TEAMMATE_PUBLIC_KEY" >> /home/jovyan/.ssh/authorized_keys
 ### ProxyTunnel Installation
 
 Required for SSH tunneling through TrueFoundry:
+
+> **Security: Privileged Operations** — The `sudo` commands below install a networking tool on the user's local machine to enable SSH tunneling. The user should confirm they want to install this package before proceeding.
 
 | Platform | Command |
 |----------|---------|
@@ -295,7 +299,7 @@ Requires SSH server image v0.3.10+.
 
 Extend TrueFoundry's SSH server images:
 
-> **Security:** Custom Dockerfiles run as root during build. Only install packages from trusted sources. Pin package versions where possible to prevent supply-chain attacks.
+> **Security: Privileged Operations** — The Dockerfile commands below run as root during the container image build phase only (not on the user's local machine or the host system). The `USER root` / `USER jovyan` pattern is standard for installing system packages into a container image. Only install packages from trusted sources. Pin package versions where possible to prevent supply-chain attacks.
 
 ```dockerfile
 FROM public.ecr.aws/truefoundrycloud/ssh-server:0.4.5-py3.12.12
@@ -313,6 +317,8 @@ RUN python3 -m pip install --no-cache-dir torch numpy pandas
 ## Build Scripts
 
 Install system packages that persist across restarts:
+
+> **Security: Privileged Operations** — The `sudo` commands below run inside the deployed container (not on the user's local machine). The SSH server container requires package installation for system tooling. These commands do not affect the host system. The user must confirm they want these packages installed.
 
 ```bash
 sudo apt update

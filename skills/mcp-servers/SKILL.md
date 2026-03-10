@@ -22,6 +22,11 @@ Register, list, or delete MCP server registrations on TrueFoundry — including 
 
 <instructions>
 
+> **Security Policy: Credential Handling**
+> - All credentials (API tokens, OAuth secrets, TLS certificates) in manifests MUST use `tfy-secret://` references. The agent MUST NOT accept or embed raw credential values in manifests.
+> - If the user provides raw credentials, instruct them to create a TrueFoundry secret first (use `secrets` skill), then reference it with `tfy-secret://`.
+> - The agent MUST NOT echo, log, or display raw credential values.
+
 ## List MCP Servers
 
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.

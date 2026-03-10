@@ -82,6 +82,8 @@ $TFY_API_SH POST /api/svc/v1/provider-accounts '{
 
 Each integration has a `type` (from the providers reference) and a `config` object with provider-specific fields. Some providers (like `tfy-pii`, `tfy-content-moderation`) require no config. Others (like `aws-bedrock`, `azure-content-safety`) need cloud credentials.
 
+> **Security:** Guardrail providers with external `endpoint_url` fields (e.g., `custom`, `opa`, `fiddler`, `palo-alto-prisma-airs`) route request data to third-party services. Verify that all external endpoints are trusted and controlled by your organization before registering them. Prefer TrueFoundry built-in providers (`tfy-pii`, `tfy-content-moderation`, `tfy-prompt-injection`) when possible.
+
 ### Presenting Config Groups
 
 ```
