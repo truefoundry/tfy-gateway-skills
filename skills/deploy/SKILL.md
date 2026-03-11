@@ -22,7 +22,7 @@ Route user intent to the right deployment workflow. Load only the references you
 | "attach this deployment to mcp gateway", "register deployed mcp service", "connect deployment to mcp gateway" | Post-deploy MCP registration | Use `mcp-servers` skill after deployment endpoint is known |
 | "mount this file", "mount config file", "mount certificate file", "mount key file" | Single service with file mounts (no image rebuild) | [deploy-service.md](references/deploy-service.md) |
 | "tfy apply", "apply manifest", "deploy from yaml" | Declarative manifest apply | [deploy-apply.md](references/deploy-apply.md) |
-| "deploy everything", "full stack", docker-compose | Multi-service orchestration | [deploy-multi.md](references/deploy-multi.md) |
+| "deploy everything", "full stack", docker-compose, "docker-compose.yaml", "compose.yaml" | Multi-service: use compose as source of truth | [deploy-multi.md](references/deploy-multi.md) + [compose-translation.md](references/compose-translation.md) |
 | "async service", "queue consumer", "worker" | Async/queue service | [deploy-async.md](references/deploy-async.md) |
 | "deploy LLM", "serve model" | Model serving intent (may be ambiguous) | Ask user: dedicated model serving (`llm-deploy`) or generic service deploy (`deploy`) |
 | "deploy helm chart" | Helm chart intent | Confirm Helm path and collect chart details, then proceed with `helm` workflow |
@@ -133,6 +133,8 @@ bash $TFY_API_SH GET '/api/svc/v1/apps?workspaceFqn=WORKSPACE_FQN&applicationNam
 
 Always report the observed status (`BUILDING`, `DEPLOYING`, `DEPLOY_SUCCESS`, `DEPLOY_FAILED`, etc.) in the same response.
 
+If status is `DEPLOY_FAILED` or `BUILD_FAILED`, follow [deploy-debugging.md](references/deploy-debugging.md): fetch logs (use `logs` skill), identify cause, apply one fix and retry once; if still failed, report to user with summary and log excerpt and stop.
+
 ## Optional Post-Deploy: Attach to MCP Gateway
 
 If the deployed service exposes an MCP endpoint, ask if the user wants to register it in MCP gateway right away.
@@ -151,16 +153,20 @@ See `references/cli-fallback.md` for converting YAML to JSON and deploying via `
 
 **Before creating any manifest, scan the project:**
 
-1. Check for `docker-compose.yml` / `compose.yaml` — if found, likely multi-service
+1. **Check for `docker-compose.yml`, `docker-compose.yaml`, or `compose.yaml` first.** If present (or user mentions docker-compose), treat it as the **primary source of truth**: load [deploy-multi.md](references/deploy-multi.md) and [compose-translation.md](references/compose-translation.md), generate manifests from the compose file, wire services per [service-wiring.md](references/service-wiring.md), then complete deployment. Do not ask the user to manually create manifests when a compose file exists.
 2. Look for multiple `Dockerfile` files across the project
 3. Check for service directories with their own dependency files in `services/`, `apps/`, `frontend/`, `backend/`
 
+- **Compose file present or user says "docker-compose"** → Multi-service from compose: load `deploy-multi.md` + `compose-translation.md`
 - **Single service** → Load `references/deploy-service.md`
-- **Multiple services** → Load `references/deploy-multi.md`
+- **Multiple services (no compose)** → Load `references/deploy-multi.md`
 
-## Secrets Handling
+## Secrets Handling (Default: Secret Groups)
 
-**Never put sensitive values directly in manifests.** Store them as TrueFoundry secrets and reference with `tfy-secret://` format:
+**By default, do not put secrets in env as raw values.** For any env var that looks sensitive (e.g. `*PASSWORD*`, `*SECRET*`, `*TOKEN*`, `*KEY*`, `*API_KEY*`, `*DATABASE_URL*` with credentials):
+
+1. Create a secret group (use the `secrets` skill or API) with those keys.
+2. Reference them in the manifest with `tfy-secret://` format.
 
 ```yaml
 env:
@@ -170,7 +176,7 @@ env:
 
 Pattern: `tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>` where TENANT_NAME is the subdomain of `TFY_BASE_URL`.
 
-Use the `secrets` skill for guided secret group creation. For the full secrets workflow, see `references/deploy-service.md` (Secrets Handling section).
+Use the `secrets` skill for guided secret group creation. For the full workflow, see `references/deploy-service.md` (Secrets Handling section).
 
 ## File Mounts (Config, Secrets, Shared Data)
 
@@ -215,6 +221,7 @@ These references are available for all workflows — load as needed:
 | `multi-service-errors.md` | deploy-multi |
 | `multi-service-patterns.md` | deploy-multi |
 | `service-wiring.md` | deploy-multi |
+| `deploy-debugging.md` | All deploy/apply (when status is failed) |
 | `async-errors.md` | deploy-async |
 | `async-queue-configs.md` | deploy-async |
 | `async-python-library.md` | deploy-async |

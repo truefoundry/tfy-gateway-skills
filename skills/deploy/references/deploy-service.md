@@ -319,13 +319,13 @@ For scaling guidelines and rollout options, see `deploy-scaling.md`.
    ```
 5. **Internal-only** — Set `expose: false` and omit `host`.
 
-## Secrets Handling
+## Secrets Handling (Default: Secret Groups)
 
-**Never put sensitive values directly in manifests.** Scan env vars for sensitive patterns (`*PASSWORD*`, `*SECRET*`, `*TOKEN*`, `*KEY*`, `*CREDENTIAL*`, `*AUTH*`, `*DATABASE_URL*`, `*API_KEY*`).
+**By default, secrets must be stored in secret groups and referenced in the manifest, not set as raw env values.** Scan env vars for sensitive patterns (`*PASSWORD*`, `*SECRET*`, `*TOKEN*`, `*KEY*`, `*CREDENTIAL*`, `*AUTH*`, `*DATABASE_URL*`, `*API_KEY*`). For any match, create a secret group and use `tfy-secret://` in the manifest.
 
 ### Workflow
 
-1. **Identify** sensitive env vars and confirm with user
+1. **Identify** sensitive env vars (and confirm with user if needed)
 2. **Find secret store** integration:
    ```bash
    TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh

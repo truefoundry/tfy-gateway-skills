@@ -21,7 +21,7 @@ Each service gets its own YAML manifest, applied in dependency order with `tfy a
 
 ### Scan Order
 
-1. **`docker-compose.yml` / `compose.yaml`** — Primary source of truth if present. Parse to extract services, ports, environment variables, `depends_on`, volumes, health checks.
+1. **`docker-compose.yml`, `docker-compose.yaml`, or `compose.yaml`** — Primary source of truth if present. Parse to extract services, ports, environment variables, `depends_on`, volumes, health checks.
 2. **Multiple Dockerfiles** — `Dockerfile`, `Dockerfile.*`, `*/Dockerfile`
 3. **Service directories** — Directories with their own `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`
 4. **Kubernetes manifests** — Check `k8s/`, `manifests/`, `deploy/` directories
@@ -170,6 +170,22 @@ Pick wildcard domain, strip `*.` for base domain. Public URL pattern: `{service-
 | RabbitMQ | `{release-name}-rabbitmq.{ns}.svc.cluster.local` | 5672 |
 
 Use short names like `myapp-db` (not `myapp-postgresql`) to avoid redundant DNS. See `service-wiring.md` for the complete DNS reference.
+
+## Step 4b: MANDATORY — Wire ENV URLs for Every Service
+
+**Before deploying, every service must have env vars that point to its dependencies.** Wrong or missing URLs are the main cause of "multi-service deployment doesn't work."
+
+1. **For each application service** in the graph, list its dependencies (from compose `depends_on` or env vars that reference other services).
+2. **For each dependency**, determine:
+   - TFY release/app name (e.g. `myapp-db`, `myapp-backend`)
+   - Correct DNS and port from `service-wiring.md` (Helm suffix vs application service)
+3. **Set or replace env vars** in that service's manifest:
+   - Replace compose hostnames (e.g. `db`, `redis`, `backend`) with the full TFY DNS from `service-wiring.md`.
+   - Use `tfy-secret://` for any credential in the connection string; never put raw passwords in the manifest.
+4. **Validation checklist** (from `service-wiring.md`): After writing manifests, verify:
+   - No env still contains `@db:5432` or `redis:6379` — must be full DNS like `@myapp-db-postgresql.{ns}.svc.cluster.local:5432`
+   - Frontend/backend URLs use internal DNS or public URL consistently
+   - Passwords are referenced via `tfy-secret://`, not inline
 
 ## Step 5: Deploy in Graph Order
 
