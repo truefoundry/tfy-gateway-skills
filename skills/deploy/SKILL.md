@@ -16,8 +16,11 @@ Route user intent to the right deployment workflow. Load only the references you
 
 ## Intent Router
 
+> **Gateway configs are NOT services.** If the user says "apply" or "deploy" in the context of a gateway YAML (`type: gateway-*`, `type: provider-account/*`), run `tfy apply -f <file>` and test the endpoint. Do not build Docker images, create secrets, or spin up new services.
+
 | User Intent | Action | Reference |
 |---|---|---|
+| "apply gateway config", "apply gateway yaml", "tfy apply gateway", "deploy gateway" | Gateway manifest apply — use `tfy apply -f <file>` directly; do NOT build a service image | Inline: `tfy apply -f gateway.yaml` |
 | "deploy", "deploy my app", "ship this" | Single HTTP service | [deploy-service.md](references/deploy-service.md) |
 | "attach this deployment to mcp gateway", "register deployed mcp service", "connect deployment to mcp gateway" | Post-deploy MCP registration | Use `mcp-servers` skill after deployment endpoint is known |
 | "mount this file", "mount config file", "mount certificate file", "mount key file" | Single service with file mounts (no image rebuild) | [deploy-service.md](references/deploy-service.md) |

@@ -208,7 +208,7 @@ Currently done through the TrueFoundry dashboard UI:
 4. Enter API credentials
 5. Select models to enable
 
-### Adding Self-Hosted Models
+### Adding Self-Hosted Models (Cluster-Internal)
 
 After deploying a model with the `llm-deploy` skill:
 
@@ -218,6 +218,82 @@ After deploying a model with the `llm-deploy` skill:
 4. The model becomes accessible through the gateway alongside cloud models
 
 > **Security:** Only register model endpoints that you control. External or untrusted model endpoints can return manipulated responses. Use internal cluster DNS (`svc.cluster.local`) for self-hosted models. Verify provider API credentials are stored securely in TrueFoundry secrets, not hardcoded.
+
+### Adding External OpenAI-Compatible APIs (NVIDIA, custom providers)
+
+For externally hosted APIs that are OpenAI-compatible (e.g. NVIDIA Cloud APIs, custom inference endpoints), use `type: provider-account/self-hosted-model` with `auth_data`:
+
+```yaml
+# gateway.yaml — External hosted API (e.g. NVIDIA Cloud)
+- name: nvidia-external
+  type: provider-account/self-hosted-model
+  integrations:
+    - name: nemotron-nano
+      type: integration/model/self-hosted-model
+      hosted_model_name: nvidia/nemotron-3-nano-30b-a3b
+      url: "https://integrate.api.nvidia.com/v1"
+      model_server: "openai-compatible"
+      model_types: ["chat"]
+      auth_data:
+        type: bearer-auth
+        bearer_token: "tfy-secret://<tenant>:<group>:<key>"
+```
+
+And in a virtual model routing target, reference it as `"<provider-account-name>/<integration-name>"`:
+
+```yaml
+targets:
+  - model: "nvidia-external/nemotron-nano"  # "<provider-account-name>/<integration-name>"
+```
+
+Apply with:
+```bash
+tfy apply -f gateway.yaml
+```
+
+> **WARNING:** `provider-account/nvidia-nim` does **not** exist in the schema — do not use it. Use `provider-account/self-hosted-model` with `auth_data` for all external OpenAI-compatible APIs (as shown above).
+
+> **Schema source of truth:** For authoritative field names and types, read `servicefoundry-server/src/autogen/models.ts` in the platform repo. Do not guess field names from documentation alone.
+
+## Applying Gateway Config
+
+Gateway YAML is applied directly with `tfy apply` — no service build or Docker image involved:
+
+```bash
+# Preview changes
+tfy apply -f gateway.yaml --dry-run --show-diff
+
+# Apply
+tfy apply -f gateway.yaml
+```
+
+**Do NOT delegate gateway applies to the `deploy` skill** (which is for service/application deployments). Gateway configs (`type: gateway-*`, `type: provider-account/*`) are applied inline with `tfy apply`.
+
+**Test after apply:**
+```bash
+# Quick smoke test via curl
+curl "${TFY_BASE_URL}/api/llm/chat/completions" \
+  -H "Authorization: Bearer ${TFY_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "nvidia-external/nemotron-nano",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 50
+  }'
+```
+
+Or via Python:
+```python
+from openai import OpenAI
+client = OpenAI(api_key="<PAT-or-VAT>", base_url=f"{TFY_BASE_URL}/api/llm")
+resp = client.chat.completions.create(
+    model="nvidia-external/nemotron-nano",
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+print(resp.choices[0].message.content)
+```
+
+> **Note:** The `deploy` skill reference in the Routing Config section below is only for CI/CD GitOps pipelines — not for one-off gateway config applies.
 
 ## Load Balancing & Routing
 

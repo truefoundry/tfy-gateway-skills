@@ -298,6 +298,19 @@ Key name does not support underscores (_)
 ```
 Azure Key Vault does not allow underscores in secret key names. Use hyphens (`DB-PASSWORD`) or choose a different secret store integration (AWS Secrets Manager supports underscores).
 
+### Azure Key Vault: Secret Stuck in Soft-Delete State
+```
+Error: Secret <name> is already in a deleted state / conflict with soft-deleted resource
+```
+Azure Key Vault has a default 90-day soft-delete retention. The TrueFoundry API cannot purge soft-deleted secrets — only the Azure portal or CLI can.
+
+**Recovery options:**
+1. **Purge via Azure Portal:** Go to Key Vault → Manage deleted secrets → Purge
+2. **Purge via Azure CLI:** `az keyvault secret purge --vault-name <vault> --name <secret-name>`
+3. **Use a different name:** Create a new secret group with a different name (fastest workaround)
+
+> **Note:** If the platform's Key Vault has soft-delete protection but not purge protection, options 1/2 work. If purge protection is also enabled, you must wait out the retention period (up to 90 days).
+
 ### Missing Required Fields
 ```
 Unprocessable entity. Ensure all secrets have both "key" and "value" fields.
