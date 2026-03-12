@@ -81,9 +81,84 @@ For production applications (recommended):
 - Support granular model access control
 - Better for tracking per-application usage
 
+## First-Time Onboarding Trigger
+
+Treat these user intents as **gateway onboarding**:
+- "set up gateway"
+- "onboard me to gateway"
+- "connect my app to gateway"
+- "make OpenAI SDK work with TrueFoundry"
+- "quickstart gateway"
+
 </context>
 
 <instructions>
+
+## Gateway Onboarding Fast Path (Recommended)
+
+Use this flow when the user asks to get started quickly.
+
+### Step 1: Preflight
+
+Run `status` skill first to verify `TFY_BASE_URL` and `TFY_API_KEY`.
+
+Then ask exactly one short question:
+
+```text
+Do you already have at least one model enabled in AI Gateway, or should I help you add one first?
+```
+
+### Step 2: Auth Choice (PAT vs VAT)
+
+- If user is testing locally or individually, use **PAT**.
+- If user is setting up production/app usage, recommend **VAT**.
+
+Keep this simple:
+- PAT = faster start
+- VAT = better production isolation and access control
+
+### Step 3: Copy-Paste Setup
+
+Provide this exact setup block:
+
+```bash
+export OPENAI_BASE_URL="${TFY_BASE_URL%/}/api/llm"
+export OPENAI_API_KEY="<your-PAT-or-VAT>"
+```
+
+If the user already has `TFY_API_KEY` and wants fastest path:
+
+```bash
+export OPENAI_BASE_URL="${TFY_BASE_URL%/}/api/llm"
+export OPENAI_API_KEY="${TFY_API_KEY}"
+```
+
+### Step 4: 30-Second Smoke Test
+
+Run one request and confirm the response is non-empty:
+
+```bash
+curl "${OPENAI_BASE_URL}/chat/completions" \
+  -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "<model-name-from-gateway>",
+    "messages": [{"role": "user", "content": "Say hello in 5 words"}],
+    "max_tokens": 30
+  }'
+```
+
+If this works, onboarding is complete.
+
+### Step 5: If Model Is Not Ready Yet
+
+If the user does not have a model configured yet:
+1. Go to **AI Gateway → Models**
+2. Add a provider account
+3. Enable at least one model
+4. Re-run the smoke test
+
+For self-hosted models, route through `llm-deploy` first, then attach to gateway.
 
 ## Calling Models
 
@@ -471,6 +546,7 @@ Usage:
 
 ## Success Criteria
 
+- First-time users can complete gateway onboarding in a short flow (preflight → auth → smoke test)
 - The user can call LLMs through the gateway endpoint using an OpenAI-compatible SDK or cURL
 - The user has a valid authentication token (PAT or VAT) configured for gateway access
 - The agent has confirmed the target model name is available in the user's gateway configuration
