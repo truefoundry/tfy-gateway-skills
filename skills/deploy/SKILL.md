@@ -36,6 +36,10 @@ Route user intent to the right deployment workflow. Load only the references you
 
 ## Prerequisites (All Workflows)
 
+**New user?** Run `tfy register` first — it creates an account, verifies email, and logs in. No env vars needed to get started.
+
+**Existing user?** Check credentials:
+
 ```bash
 # 1. Check credentials
 grep '^TFY_' .env 2>/dev/null || true
@@ -51,7 +55,7 @@ tfy --version 2>/dev/null || echo "Install: pip install 'truefoundry==0.5.0'"
 ls tfy-manifest.yaml truefoundry.yaml 2>/dev/null
 ```
 
-- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`).
+- `TFY_BASE_URL` and `TFY_API_KEY` must be set (env or `.env`), or the user must be logged in via `tfy register` / `tfy login`.
 - **`TFY_HOST` must be set before any `tfy` CLI command.** The export above handles this automatically.
 - `TFY_WORKSPACE_FQN` required. **HARD RULE: Never auto-pick a workspace. Always ask the user to confirm, even if only one workspace exists or a preference is saved.** See `references/prerequisites.md` for the full workspace confirmation flow.
 - For full credential setup, see `references/prerequisites.md`.
@@ -140,7 +144,9 @@ If status is `DEPLOY_FAILED` or `BUILD_FAILED`, follow [deploy-debugging.md](ref
 
 ## Optional Post-Deploy: Attach to MCP Gateway
 
-If the deployed service exposes an MCP endpoint, ask if the user wants to register it in MCP gateway right away.
+If the deployed service exposes an MCP endpoint, **either** the user asked to "deploy and attach" (then do attach right away without asking) **or** ask if they want to register it in the MCP gateway.
+
+**Deploy and attach in one request:** When the user says "deploy this and attach to gateway" or "deploy and attach", complete the deployment first, then attach using the resulting endpoint (hand off to `mcp-servers` skill or gateway manifest with the deployment URL). Do not ask again for the URL — use the one from the deploy result.
 
 Handoff checklist to `mcp-servers` skill:
 - deployment/service name

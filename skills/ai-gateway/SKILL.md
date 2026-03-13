@@ -16,7 +16,7 @@ Use TrueFoundry's AI Gateway to access 1000+ LLMs through a unified OpenAI-compa
 
 ## When to Use
 
-Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure auth tokens (PAT/VAT), set up rate limiting, budget controls, or load balancing across providers.
+Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure auth tokens (PAT/VAT), set up rate limiting, budget controls, or load balancing across providers. **Attach a model to the user's gateway:** when the user wants to add a provider or model (e.g. "add OpenAI to my gateway", "attach this URL to the gateway", "connect my Anthropic API key") — collect provider/URL and credentials, generate the provider-account manifest, and apply with `tfy apply -f <file>`.
 
 ## When NOT to Use
 
@@ -46,6 +46,15 @@ Your App → AI Gateway → OpenAI / Anthropic / Azure / Self-hosted vLLM / etc.
 - **Budget controls** to enforce cost limits
 - **Load balancing** across model instances with fallback
 - **Observability** — request logging, cost tracking, analytics
+
+## Getting started (new users)
+
+Prefer this order for zero-to-gateway onboarding:
+
+1. **Register:** Run `tfy register`. It prompts for company name, email, and use case (AI Gateway / LLMOps), asks you to accept T&C, then sends a 6-digit verification code to your email. After entering the code you are logged in — no separate `tfy login` needed.
+2. **Optional — install agent skills:** `tfy register` asks "Install TrueFoundry agent skills now?" at the end. Say yes, or run later: `npx skills add truefoundry/tfy-agent-skills`.
+3. **First gateway request:** Use the session token from `tfy register` (stored in `~/.truefoundry/credentials`), or create a PAT from the dashboard (**Access** → **Personal Access Tokens**). For production apps, create a VAT instead.
+4. **Set up models and providers** via the dashboard or YAML manifests.
 
 ## Gateway Endpoint
 
@@ -198,62 +207,147 @@ The gateway supports 25+ providers including:
 
 **Model names depend on how they're configured in your gateway.** Check the TrueFoundry dashboard → AI Gateway → Models for exact names.
 
+## Attach model to gateway
+
+When the user wants to **add a model to their gateway** (e.g. "attach this model to my gateway", "add OpenAI to my gateway", "attach llama to gateway", "connect this URL to the gateway"):
+
+**Ask for clarity; do not assume.** If the user’s request is vague (e.g. "attach llama to gateway", "add this model"), ask for the missing details before generating a manifest. Do not guess provider, URL, model id, or credentials. For example: "Attach llama to gateway" could mean a self-hosted Llama URL, or Llama on Together AI, or another provider — ask which one and for the URL or API key and model id as needed. Only after you have provider/URL, credentials (or secret FQN), and model identifier(s) should you generate and apply the manifest.
+
+1. **Collect details** from the user:
+   - **Cloud provider** (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Google Vertex/Gemini, Cohere, Groq, Mistral, etc.): provider name, API key (or secret FQN), and model id(s) to enable.
+   - **External URL** (OpenAI-compatible endpoint): URL, optional auth (bearer or basic), hosted model name, model types (e.g. chat).
+   - **Cluster-internal self-hosted**: after a model is deployed with `llm-deploy`, internal URL `http://<svc>.<namespace>.svc.cluster.local:8000` and model name.
+2. **Generate** a provider-account manifest (YAML) matching the provider type. Use the structures below; for any provider not explicitly shown, use the same pattern: `type: provider-account/<provider>`, `name`, `auth_data` (if required), `integrations` with `type: integration/model/<provider>`, `model_id` (or `url`/`hosted_model_name` for self-hosted).
+3. **Write** the manifest to a file (e.g. `gateway.yaml`) and run:
+   ```bash
+   tfy apply -f gateway.yaml --dry-run --show-diff   # optional preview
+   tfy apply -f gateway.yaml
+   ```
+4. **Tell the user** the model will be available as `{provider-account-name}/{integration-name}` (e.g. `openai-prod/gpt-4o`) and how to call it (gateway endpoint + PAT/VAT).
+
+All providers shown in the dashboard (AI Gateway → Models → Add Provider Account) can be attached this way via manifest; the schema for each is in `servicefoundry-server/src/autogen/models.ts`.
+
+### Deploy and attach (single flow)
+
+When the user says **"deploy and attach to gateway"** (or "deploy this and attach it to the gateway"):
+
+1. **Deploy first:** Use the right skill for what they’re deploying — `deploy` for an MCP/service, `llm-deploy` for a self-hosted LLM. Get the deployment to a healthy state and note the **endpoint URL** (and transport/auth for MCP).
+2. **Attach next:** Using that URL (and any other details from step 1), attach to the gateway — for **models**: generate a `provider-account/self-hosted-model` manifest with the internal/public URL and apply with `tfy apply`; for **MCP**: use the `mcp-servers` skill (or `provider-account/mcp-server-group` manifest) to register the endpoint. No need to ask again for URL if it came from the deploy; if anything is missing (e.g. transport for MCP), ask only for that.
+
+So yes — **deploy and attach in one go** is supported: do deploy, then attach using the resulting endpoint.
+
 ## Adding Models & Providers
 
-Currently done through the TrueFoundry dashboard UI:
+You can add models by **generating a provider-account manifest and applying it** with `tfy apply -f gateway.yaml`. This works for every provider shown in the dashboard (OpenAI, Anthropic, AWS Bedrock, Google Vertex/Gemini, Azure OpenAI, Cohere, Groq, Mistral, Perplexity, Together, xAI, OpenRouter, AI21, etc.) as well as self-hosted and external URLs. Alternatively, users can add providers via the TrueFoundry dashboard (AI Gateway → Models → Add Provider Account).
 
-1. Go to **AI Gateway → Models**
-2. Click **Add Provider Account**
-3. Select provider (OpenAI, Anthropic, etc.)
-4. Enter API credentials
-5. Select models to enable
+### Cloud providers (OpenAI, Anthropic, etc.)
 
-### Adding Self-Hosted Models (Cluster-Internal)
-
-After deploying a model with the `llm-deploy` skill:
-
-1. Go to **AI Gateway → Models → Add Provider Account**
-2. Select **"Self Hosted"** as the provider type
-3. Enter the internal endpoint: `http://{model-name}.{namespace}.svc.cluster.local:8000`
-4. The model becomes accessible through the gateway alongside cloud models
-
-> **Security:** Only register model endpoints that you control. External or untrusted model endpoints can return manipulated responses. Use internal cluster DNS (`svc.cluster.local`) for self-hosted models. Verify provider API credentials are stored securely in TrueFoundry secrets, not hardcoded.
-
-### Adding External OpenAI-Compatible APIs (NVIDIA, custom providers)
-
-For externally hosted APIs that are OpenAI-compatible (e.g. NVIDIA Cloud APIs, custom inference endpoints), use `type: provider-account/self-hosted-model` with `auth_data`:
+Generate a manifest with `type: provider-account/<provider>`, `name`, `auth_data` (API key or `tfy-secret://` FQN), and `integrations` (each with `type: integration/model/<provider>`, `name`, `model_id`, `model_types`). Example — **OpenAI**:
 
 ```yaml
-# gateway.yaml — External hosted API (e.g. NVIDIA Cloud)
-- name: nvidia-external
-  type: provider-account/self-hosted-model
-  integrations:
-    - name: nemotron-nano
-      type: integration/model/self-hosted-model
-      hosted_model_name: nvidia/nemotron-3-nano-30b-a3b
-      url: "https://integrate.api.nvidia.com/v1"
-      model_server: "openai-compatible"
-      model_types: ["chat"]
-      auth_data:
-        type: bearer-auth
-        bearer_token: "tfy-secret://<tenant>:<group>:<key>"
+# openai-gateway.yaml — attach OpenAI to gateway
+name: openai-prod
+type: provider-account/openai
+auth_data:
+  type: api-key
+  api_key: "tfy-secret://<tenant>:<secret-group>:<key>"   # or user's API key
+integrations:
+  - name: gpt-4o
+    type: integration/model/openai
+    model_id: gpt-4o
+    model_types: ["chat"]
+  - name: gpt-4o-mini
+    type: integration/model/openai
+    model_id: gpt-4o-mini
+    model_types: ["chat"]
 ```
 
-And in a virtual model routing target, reference it as `"<provider-account-name>/<integration-name>"`:
+Example — **Anthropic**:
 
 ```yaml
-targets:
-  - model: "nvidia-external/nemotron-nano"  # "<provider-account-name>/<integration-name>"
+# anthropic-gateway.yaml — attach Anthropic to gateway
+name: anthropic-prod
+type: provider-account/anthropic
+auth_data:
+  type: api-key
+  api_key: "tfy-secret://<tenant>:<secret-group>:<key>"
+integrations:
+  - name: claude-sonnet
+    type: integration/model/anthropic
+    model_id: claude-3-5-sonnet-20241022
+    model_types: ["chat"]
 ```
 
-Apply with:
-```bash
-tfy apply -f gateway.yaml
+Apply with `tfy apply -f openai-gateway.yaml` (or the chosen file). The model is then callable as `openai-prod/gpt-4o`, `anthropic-prod/claude-sonnet`, etc.
+
+**Provider reference (cloud):** Use the same pattern for other cloud providers. Key fields:
+
+| Provider (type) | Integration type | Auth | Model identifier |
+|-----------------|------------------|------|-------------------|
+| provider-account/openai | integration/model/openai | auth_data.type: api-key, api_key | model_id |
+| provider-account/anthropic | integration/model/anthropic | auth_data.type: api-key, api_key | model_id |
+| provider-account/google-vertex | integration/model/google-vertex | (see schema) | model_id |
+| provider-account/google-gemini | integration/model/google-gemini | (see schema) | model_id |
+| provider-account/azure-openai | integration/model/azure-openai | (see schema) | model_id |
+| provider-account/aws-bedrock | integration/model/aws-bedrock | (see schema) | model_id |
+| provider-account/cohere | integration/model/cohere | auth_data | model_id |
+| provider-account/groq | integration/model/groq | auth_data | model_id |
+| provider-account/mistral-ai | integration/model/mistral-ai | auth_data | model_id |
+| provider-account/openrouter | integration/model/openrouter | auth_data | model_id |
+| … (others) | integration/model/<provider> | per schema | model_id |
+
+For exact fields (auth_data shape, optional base_url, etc.) consult `servicefoundry-server/src/autogen/models.ts`. Store API keys in TrueFoundry secrets and reference as `tfy-secret://<tenant>:<group>:<key>` where supported.
+
+### Self-hosted (cluster-internal)
+
+After deploying a model with the `llm-deploy` skill, attach it to the gateway via manifest or UI:
+
+**Option A — Manifest:** Use `provider-account/self-hosted-model` with internal URL:
+
+```yaml
+# self-hosted-internal.yaml
+name: my-llama
+type: provider-account/self-hosted-model
+integrations:
+  - name: llama-3
+    type: integration/model/self-hosted-model
+    hosted_model_name: meta-llama/Llama-3.2-3B
+    url: "http://my-llama-service.my-namespace.svc.cluster.local:8000"
+    model_server: "openai-compatible"
+    model_types: ["chat"]
 ```
 
-> **WARNING:** `provider-account/nvidia-nim` does **not** exist in the schema — do not use it. Use `provider-account/self-hosted-model` with `auth_data` for all external OpenAI-compatible APIs (as shown above).
+Then `tfy apply -f self-hosted-internal.yaml`. Call as `my-llama/llama-3`.
 
-> **Schema source of truth:** For authoritative field names and types, read `servicefoundry-server/src/autogen/models.ts` in the platform repo. Do not guess field names from documentation alone.
+**Option B — Dashboard:** AI Gateway → Models → Add Provider Account → Self-Hosted → enter the same internal URL.
+
+### External OpenAI-compatible APIs (NVIDIA, custom endpoints)
+
+For externally hosted OpenAI-compatible APIs (e.g. NVIDIA Cloud, custom inference URL), use `provider-account/self-hosted-model` with `url` and optional `auth_data`:
+
+```yaml
+# gateway.yaml — external hosted API (e.g. NVIDIA Cloud)
+name: nvidia-external
+type: provider-account/self-hosted-model
+integrations:
+  - name: nemotron-nano
+    type: integration/model/self-hosted-model
+    hosted_model_name: nvidia/nemotron-3-nano-30b-a3b
+    url: "https://integrate.api.nvidia.com/v1"
+    model_server: "openai-compatible"
+    model_types: ["chat"]
+    auth_data:
+      type: bearer-auth
+      bearer_token: "tfy-secret://<tenant>:<group>:<key>"
+```
+
+Reference in routing as `"nvidia-external/nemotron-nano"`. Apply with `tfy apply -f gateway.yaml`.
+
+> **WARNING:** `provider-account/nvidia-nim` does **not** exist. Use `provider-account/self-hosted-model` with `auth_data` for all external OpenAI-compatible APIs.
+
+> **Security:** Only register endpoints you control. Prefer internal cluster DNS (`svc.cluster.local`) for self-hosted. Store credentials in TrueFoundry secrets; use `tfy-secret://` in manifests.
+
+> **Schema source of truth:** Authoritative field names and types: `servicefoundry-server/src/autogen/models.ts`. Do not guess field names from documentation alone.
 
 ## Applying Gateway Config
 
@@ -269,27 +363,20 @@ tfy apply -f gateway.yaml
 
 **Do NOT delegate gateway applies to the `deploy` skill** (which is for service/application deployments). Gateway configs (`type: gateway-*`, `type: provider-account/*`) are applied inline with `tfy apply`.
 
-**Test after apply:**
+**Test after apply:** Use the model name `{provider-account-name}/{integration-name}` (e.g. `openai-prod/gpt-4o`, `nvidia-external/nemotron-nano`):
+
 ```bash
-# Quick smoke test via curl
 curl "${TFY_BASE_URL}/api/llm/chat/completions" \
   -H "Authorization: Bearer ${TFY_API_KEY}" \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "nvidia-external/nemotron-nano",
-    "messages": [{"role": "user", "content": "Hello!"}],
-    "max_tokens": 50
-  }'
+  -d '{"model": "<account>/<integration>", "messages": [{"role": "user", "content": "Hello!"}], "max_tokens": 50}'
 ```
 
 Or via Python:
 ```python
 from openai import OpenAI
 client = OpenAI(api_key="<PAT-or-VAT>", base_url=f"{TFY_BASE_URL}/api/llm")
-resp = client.chat.completions.create(
-    model="nvidia-external/nemotron-nano",
-    messages=[{"role": "user", "content": "Hello!"}],
-)
+resp = client.chat.completions.create(model="<account>/<integration>", messages=[{"role": "user", "content": "Hello!"}])
 print(resp.choices[0].message.content)
 ```
 
@@ -401,13 +488,17 @@ Export traces to your observability stack:
 
 For content filtering, PII detection, prompt injection prevention, and custom safety rules, use the `guardrails` skill. It configures guardrail providers and rules that apply to this gateway's traffic.
 
-## MCP Gateway Attachment Flow
+## MCP server attachment to gateway
 
-If a user has already deployed a tool server and wants to attach it to MCP gateway:
+Attaching MCP servers to the AI gateway is supported. The same gateway that serves LLM models also exposes MCP servers (e.g. for tool use).
 
-1. Verify deployment status and endpoint URL (`deploy` + `applications` skills)
-2. Register the endpoint as an MCP server (`mcp-servers` skill)
-3. Confirm registration ID/name and share how to reference it in policies
+**Ask for clarity; do not assume.** If the user says "attach this MCP to gateway" or "attach MCP to gateway" without details, ask for: **MCP endpoint URL** (or which existing deployment to use), **transport** (streamable-http or sse), **auth** (if any; use secret references). Do not invent URLs or assume a deployment. The gateway is the user’s tenant gateway (from session); if the user has multiple gateways or contexts, confirm which one. Only after you have URL, transport, and auth (if needed) should you generate the manifest and apply or register.
+
+Two options:
+
+**Option A — mcp-servers skill (recommended for single remote/virtual servers):** Register the endpoint with a manifest (`mcp-server/remote`, `mcp-server/virtual`, or `mcp-server/openapi`) and use the MCP API. See the `mcp-servers` skill. Flow: verify deployment/endpoint → register via mcp-servers skill → confirm ID/name and policy reference.
+
+**Option B — Provider-account manifest (same apply path as model providers):** Use `type: provider-account/mcp-server-group` with `name`, `collaborators`, and `integrations` (each `integration/mcp-server/remote` or `integration/mcp-server/virtual` with `name`, `description`, `url`, `transport`, optional `auth_data`). Apply with `tfy apply -f <file>`. Schema: `servicefoundry-server/src/autogen/models.ts` (MCPServerProviderAccount, MCPServerIntegration, VirtualMCPServerIntegration).
 
 ## Framework Integration
 
@@ -477,6 +568,7 @@ Usage:
 - The user can verify successful responses from the gateway with correct model output
 - The agent has provided working code snippets tailored to the user's language and framework
 - Rate limiting, budget controls, or routing are configured if the user requested them
+- **Attach model:** When the user asked to add a model/provider, a valid provider-account manifest was generated and applied with `tfy apply`; the model is available as `{account-name}/{integration-name}` and the user knows how to call it
 
 </success_criteria>
 
@@ -484,11 +576,12 @@ Usage:
 
 ## Composability
 
-- **Deploy model first**: Use `llm-deploy` skill to deploy a self-hosted model, then add to gateway
-- **Need API key**: Create PAT/VAT in TrueFoundry dashboard → Access
+- **Attach model to gateway**: Generate provider-account manifest from user's provider/URL and credentials, then `tfy apply -f <file>` (covers all dashboard providers and self-hosted).
+- **Deploy model first**: Use `llm-deploy` skill to deploy a self-hosted model, then attach to gateway via manifest or dashboard.
+- **Need API key**: Create PAT/VAT in TrueFoundry dashboard → Access; store provider API keys in secrets and use `tfy-secret://` in manifests.
 - **Rate limiting**: Configure in dashboard → AI Gateway → Rate Limiting
 - **Routing config**: Use `deploy` skill (declarative apply workflow) to apply routing YAML via GitOps
-- **tool servers**: Use `deploy` skill to deploy tool servers (service with tool-proxy), register in gateway
+- **tool servers / MCP**: Use `deploy` skill to deploy tool servers; attach to gateway via `mcp-servers` skill or `provider-account/mcp-server-group` manifest + `tfy apply`
 - **Check deployed models**: Use `applications` skill to see running model services
 - **Benchmark through gateway**: Use your preferred load-testing tool against gateway endpoints
 

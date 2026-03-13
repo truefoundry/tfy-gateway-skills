@@ -74,9 +74,11 @@ Connects to an existing MCP endpoint over streamable-http or SSE.
 
 ### Attach an Existing TrueFoundry Deployment
 
-Use this flow when the user says "attach deployment to MCP gateway" or already has a deployed MCP-compatible service.
+Use this flow when the user says "attach deployment to MCP gateway", "attach this MCP to gateway", "deploy this and attach to gateway", or already has a deployed MCP-compatible service. For **"deploy and attach"**, the deploy step is done first (via `deploy` skill); once the deployment URL is known, use that URL here to register — no need to ask for URL again.
 
-1. Confirm the deployment is healthy (`DEPLOY_SUCCESS`) and endpoint is reachable
+**Ask for clarity; do not assume.** If the user does not give enough detail, ask for: **MCP endpoint URL** (or which deployment by name), **transport** (`streamable-http` or `sse`), **auth** (none, header, oauth2, or passthrough). Do not invent URLs or assume a deployment. Only after you have URL, transport, and auth (if any) should you register.
+
+1. Confirm the deployment is healthy (`DEPLOY_SUCCESS`) and endpoint is reachable (or get URL from user)
 2. Collect endpoint details:
    - URL (public or internal)
    - transport (`streamable-http` or `sse`)
