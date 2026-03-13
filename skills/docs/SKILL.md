@@ -70,10 +70,11 @@ curl -s https://truefoundry.com/docs/api-reference/applications/list-application
 | LLM Deployment | `https://truefoundry.com/docs/llm-deployment` |
 | LLM Tracing | `https://truefoundry.com/docs/llm-tracing` |
 
-### Authentication
+### Getting Started
 
 | Topic | URL |
 |-------|-----|
+| Register (CLI) | Run `tfy register` — creates account, verifies email, logs in |
 | Generating API Keys | `https://docs.truefoundry.com/docs/generating-truefoundry-api-keys` |
 
 ## Fetching Docs

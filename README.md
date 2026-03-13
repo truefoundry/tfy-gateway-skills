@@ -20,6 +20,12 @@ Or use the direct installer:
 curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
 ```
 
+### New to TrueFoundry?
+
+Run `tfy register` to create a free account from the terminal. It prompts for company name, email, and use case, then logs you in automatically — no env vars needed to get started.
+
+### Existing users
+
 Restart your agent and start asking. If credentials are not set, your agent will prompt for them. You can also pre-set them via env vars or a `.env` file in your project root:
 
 ```bash

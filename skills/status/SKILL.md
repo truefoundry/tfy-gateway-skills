@@ -28,7 +28,13 @@ Verify TrueFoundry credentials and connectivity, or diagnose authentication issu
 
 <context>
 
+## New User?
+
+If you don't have a TrueFoundry account yet, run `tfy register` first. It creates your account, verifies your email, and logs you in — no env vars or API keys needed to get started.
+
 ## Required Environment Variables
+
+For existing users or CI/CD, set these env vars:
 
 | Variable | Description | Example |
 |----------|-------------|---------|

@@ -1,5 +1,9 @@
 # Prerequisites
 
+## New User? Register First
+
+If the user doesn't have a TrueFoundry account yet, run `tfy register`. It creates an account, verifies email, and logs in — no env vars or API keys needed to get started. After registration, credentials are stored in `~/.truefoundry/credentials` and the CLI is ready to use.
+
 ## Step 0: CLI Check
 
 Check if the TrueFoundry CLI is available:
