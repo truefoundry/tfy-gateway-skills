@@ -36,7 +36,7 @@ Route user intent to the right deployment workflow. Load only the references you
 
 ## Prerequisites (All Workflows)
 
-**New user?** Run `tfy register` first — it creates an account, verifies email, and logs in. No env vars needed to get started.
+**New user?** Run `tfy register` first — it creates an account, verifies email, and logs in.
 
 **Existing user?** Check credentials:
 

@@ -232,7 +232,7 @@ All providers shown in the dashboard (AI Gateway → Models → Add Provider Acc
 When the user says **"deploy and attach to gateway"** (or "deploy this and attach it to the gateway"):
 
 1. **Deploy first:** Use the right skill for what they’re deploying — `deploy` for an MCP/service, `llm-deploy` for a self-hosted LLM. Get the deployment to a healthy state and note the **endpoint URL** (and transport/auth for MCP).
-2. **Attach next:** Using that URL (and any other details from step 1), attach to the gateway — for **models**: generate a `provider-account/self-hosted-model` manifest with the internal/public URL and apply with `tfy apply`; for **MCP**: use the `mcp-servers` skill (or `provider-account/mcp-server-group` manifest) to register the endpoint. No need to ask again for URL if it came from the deploy; if anything is missing (e.g. transport for MCP), ask only for that.
+2. **Attach next:** Using that URL (and any other details from step 1), attach to the gateway — for **models**: generate a `provider-account/self-hosted-model` manifest with the internal/public URL and apply with `tfy apply`; for **MCP on AI Gateway**: generate a `provider-account/mcp-server-group` manifest and apply it. If the user also wants **Agent Gateway** discovery/policies, register the same endpoint with the `mcp-servers` skill (`mcp-server/remote|virtual|openapi`). No need to ask again for URL if it came from the deploy; if anything is missing (e.g. transport for MCP), ask only for that.
 
 So yes — **deploy and attach in one go** is supported: do deploy, then attach using the resulting endpoint.
 
@@ -490,15 +490,15 @@ For content filtering, PII detection, prompt injection prevention, and custom sa
 
 ## MCP server attachment to gateway
 
-Attaching MCP servers to the AI gateway is supported. The same gateway that serves LLM models also exposes MCP servers (e.g. for tool use).
+Attaching MCP servers to the **AI Gateway** is supported via provider-account manifests. Separately, MCP servers can also be registered in the **Agent Gateway** for discovery and access control.
 
 **Ask for clarity; do not assume.** If the user says "attach this MCP to gateway" or "attach MCP to gateway" without details, ask for: **MCP endpoint URL** (or which existing deployment to use), **transport** (streamable-http or sse), **auth** (if any; use secret references). Do not invent URLs or assume a deployment. The gateway is the user’s tenant gateway (from session); if the user has multiple gateways or contexts, confirm which one. Only after you have URL, transport, and auth (if needed) should you generate the manifest and apply or register.
 
-Two options:
+Two options (different targets):
 
-**Option A — mcp-servers skill (recommended for single remote/virtual servers):** Register the endpoint with a manifest (`mcp-server/remote`, `mcp-server/virtual`, or `mcp-server/openapi`) and use the MCP API. See the `mcp-servers` skill. Flow: verify deployment/endpoint → register via mcp-servers skill → confirm ID/name and policy reference.
+**Option A — mcp-servers skill (Agent Gateway registration):** Register the endpoint with a manifest (`mcp-server/remote`, `mcp-server/virtual`, or `mcp-server/openapi`) and use the MCP API. See the `mcp-servers` skill. Flow: verify deployment/endpoint → register via mcp-servers skill → confirm ID/name and policy reference.
 
-**Option B — Provider-account manifest (same apply path as model providers):** Use `type: provider-account/mcp-server-group` with `name`, `collaborators`, and `integrations` (each `integration/mcp-server/remote` or `integration/mcp-server/virtual` with `name`, `description`, `url`, `transport`, optional `auth_data`). Apply with `tfy apply -f <file>`. Schema: `servicefoundry-server/src/autogen/models.ts` (MCPServerProviderAccount, MCPServerIntegration, VirtualMCPServerIntegration).
+**Option B — Provider-account manifest (AI Gateway attachment):** Use `type: provider-account/mcp-server-group` with `name`, `collaborators`, and `integrations` (each `integration/mcp-server/remote` or `integration/mcp-server/virtual` with `name`, `description`, `url`, `transport`, optional `auth_data`). Apply with `tfy apply -f <file>`. Schema: `servicefoundry-server/src/autogen/models.ts` (MCPServerProviderAccount, MCPServerIntegration, VirtualMCPServerIntegration).
 
 ## Framework Integration
 
