@@ -9,7 +9,7 @@ Thank you for your interest in contributing! This guide covers how to add new sk
 git clone https://github.com/truefoundry/tfy-agent-skills.git
 cd tfy-agent-skills
 
-# Install skills locally (auto-detects your agents)
+# Install skills locally (default: gateway track)
 ./scripts/install.sh
 
 # After editing shared files, sync to all skills
@@ -46,12 +46,16 @@ cd tfy-agent-skills
 
 5. **Reference the `status` skill** for preflight checks.
 
-6. **Add the skill name** to the `SKILL_NAMES` array in `scripts/install.sh`.
+6. **Assign the skill to an install track** in `scripts/install.sh`:
+   - `SHARED_SKILLS` for skills exposed in both product tracks
+   - `GATEWAY_SKILLS` for Gateway-only skills
+   - `DEPLOY_SKILLS` for Deploy-only skills
 
 7. **Sync and test:**
    ```bash
    ./scripts/sync-shared.sh
-   ./scripts/install.sh
+   ./scripts/install.sh gateway
+   ./scripts/install.sh deploy
    ```
 
 ## Modifying Shared Files
@@ -105,7 +109,8 @@ Before submitting a PR:
 
 4. Run the installer to verify skills install correctly:
    ```bash
-   ./scripts/install.sh
+   ./scripts/install.sh gateway
+   ./scripts/install.sh deploy
    ```
 
 5. Spot-check modified skills by reading them end-to-end for coherence.
@@ -132,6 +137,5 @@ Before submitting a PR:
 ## Questions?
 
 - Open an issue at https://github.com/truefoundry/tfy-agent-skills/issues
-- See [CLAUDE.md](CLAUDE.md) for detailed architecture and conventions
 - See [AGENTS.md](AGENTS.md) for agent-specific documentation
 - See [SUPPORT.md](SUPPORT.md) for troubleshooting guidance

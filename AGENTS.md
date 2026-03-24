@@ -1,12 +1,12 @@
 # TrueFoundry Agent Skills — Developer Guide
 
-A collection of 24 AI coding-agent skill definitions (markdown + shell scripts) following the [Agent Skills](https://agentskills.io) open format. Skills let AI assistants deploy, monitor, and manage ML infrastructure on TrueFoundry.
+A collection of 25 AI coding-agent skill definitions (markdown + shell scripts) following the [Agent Skills](https://agentskills.io) open format. Skills let AI assistants deploy, monitor, and manage ML infrastructure on TrueFoundry.
 
 ## Repository Overview
 
 This is a **content/tooling repository** — there are no application servers, databases, or Docker containers. The codebase consists of:
 
-- **skills/** — 24 skill directories (e.g. `deploy`, `helm`, `llm-deploy`, `logs`, `status`, etc.) each containing a `SKILL.md` frontmatter file, plus `_shared/` with canonical scripts and references synced to all skills.
+- **skills/** — 25 skill directories (e.g. `deploy`, `helm`, `llm-deploy`, `logs`, `status`, etc.) each containing a `SKILL.md` frontmatter file, plus `_shared/` with canonical scripts and references synced to all skills.
 - **scripts/** — development and CI tooling (validation, sync, install, tests).
 - **hooks/** — git pre-push hook and Claude Code auto-approve hook.
 
@@ -19,7 +19,7 @@ This is a **content/tooling repository** — there are no application servers, d
 | Security checks | `./scripts/validate-skill-security.sh` |
 | Unit tests | `./scripts/test-tfy-api.sh` |
 | Sync shared files | `./scripts/sync-shared.sh` |
-| Install locally | `./scripts/install.sh` |
+| Install locally | `./scripts/install.sh` (default: gateway track) |
 | Install help | `bash scripts/install.sh --help` |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full development workflow.
@@ -52,3 +52,4 @@ shellcheck scripts/*.sh hooks/auto-approve-tfy-api.sh skills/_shared/scripts/tfy
 - **Pre-push hook**: run `./scripts/setup-git-hooks.sh` once to enable automatic validation before every `git push`.
 - **`test-tfy-api.sh`** spins up a Python 3 mock HTTP server on an ephemeral port. It requires `python3` and `curl`.
 - **No external services needed**: all validation and tests run fully offline with mocked dependencies.
+- **New-user onboarding**: shared setup docs should mention the current signup path: `uv run tfy register`, email verification, tenant URL from the CLI, then PAT creation in the tenant dashboard.
