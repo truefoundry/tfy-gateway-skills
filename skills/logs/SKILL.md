@@ -96,9 +96,9 @@ Logs for tfy-tool-server (last 20 lines):
 
 ## Composability
 
-- **Find app first**: Use `applications` skill to get app ID or FQN
+- **Find app first**: Get the app ID or FQN from the TrueFoundry dashboard
 - **Find workspace**: Use `workspaces` skill to get workspace ID
-- **After deploy**: Check logs to verify the app started
+- **After deploy**: Check logs to verify the app started correctly
 - **Debug failures**: Download logs with `searchString=error`
 
 </references>

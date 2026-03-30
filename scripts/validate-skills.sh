@@ -83,25 +83,6 @@ while IFS= read -r skill_md; do
 
 done < <(find "$SKILLS_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md | sort)
 
-echo "Validating disable-model-invocation policy..."
-
-# Canonical explicit-only skills for this repository.
-expected_disabled="$(printf '%s\n' deploy helm llm-deploy | sort | paste -sd' ' -)"
-
-actual_disabled="$({
-  for skill_md in "$SKILLS_DIR"/*/SKILL.md; do
-    # Check both legacy top-level field and current metadata nested field.
-    frontmatter="$(get_frontmatter_block "$skill_md")"
-    if echo "$frontmatter" | grep -Eq "^[[:space:]]*disable-model-invocation:[[:space:]]*(true|\"true\"|'true')([[:space:]]*#.*)?$"; then
-      basename "$(dirname "$skill_md")"
-    fi
-  done
-} | sort | paste -sd' ' -)"
-
-if [[ "$actual_disabled" != "$expected_disabled" ]]; then
-  fail "disable-model-invocation mismatch. expected='$expected_disabled' actual='$actual_disabled'"
-fi
-
 echo "Validating shared file sync..."
 
 while IFS= read -r shared_file; do
@@ -120,23 +101,23 @@ while IFS= read -r shared_file; do
   done < <(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
 done < <(find "$SKILLS_DIR/_shared" -type f | sort)
 
-echo "Validating docs consistency..."
+echo "Validating skill coverage..."
 
-# Verify tracked docs mention the explicit-only skills.
-docs_to_check=()
-for doc in README.md AGENTS.md CLAUDE.md; do
-  if git -C "$REPO_ROOT" ls-files --error-unmatch "$doc" >/dev/null 2>&1; then
-    docs_to_check+=("$doc")
-  fi
-done
+all_skill_dirs="$(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d ! -name _shared -exec basename {} \; | sort | paste -sd' ' -)"
+installer_skills="$(awk '
+  /^SKILL_NAMES=\(/ { in_array=1; next }
+  in_array && /^\)/ { exit }
+  in_array {
+    gsub(/#.*/, "", $0)
+    for (i = 1; i <= NF; i++) {
+      if ($i != "") print $i
+    }
+  }
+' "$REPO_ROOT/scripts/install.sh" | sort -u | paste -sd' ' -)"
 
-for doc in "${docs_to_check[@]}"; do
-  for skill in $expected_disabled; do
-    if ! grep -q "$skill" "$REPO_ROOT/$doc"; then
-      fail "$doc does not mention primary deployment skill: $skill"
-    fi
-  done
-done
+if [[ "$installer_skills" != "$all_skill_dirs" ]]; then
+  fail "install skill list mismatch. expected='$all_skill_dirs' actual='$installer_skills'"
+fi
 
 if [[ "$errors" -gt 0 ]]; then
   echo "Validation failed with $errors error(s)." >&2

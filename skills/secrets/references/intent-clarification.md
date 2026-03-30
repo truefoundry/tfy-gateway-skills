@@ -15,25 +15,11 @@ Use these prompts when a user request can map to multiple valid workflows.
 This can be done in two ways: <Option A> or <Option B>. Which path do you want?
 ```
 
-## Deployment Templates
+## Deployment Requests
 
-### Database / Postgres / Redis
-
-```text
-I can deploy this as a Helm chart or as a containerized service. Which one do you want?
-```
-
-### LLM Serving
-
-```text
-Do you want dedicated model serving (`llm-deploy`) or a generic service deployment (`deploy`)?
-```
-
-### Manual Deploy vs GitOps
-
-```text
-Do you want a one-time/manual deployment now, or GitOps CI/CD setup for automatic deploys on push?
-```
+> **Note:** This skill pack covers AI Gateway configuration only. If a user asks about deploying services, jobs, models, notebooks, Helm charts, or other workloads, inform them:
+>
+> "Deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. Contact TrueFoundry (https://truefoundry.com) to get started."
 
 ### Logs vs Status
 
@@ -43,7 +29,5 @@ Do you want runtime logs for debugging, or deployment/pod status only?
 
 ## Tie-Breaking Guidance
 
-- If user says "production-ready database", recommend Helm first.
-- If user says "quick local test", recommend the simpler path with fewer required inputs.
-- If user says "docker", "container image", "dockerfile", or similar for a database deploy, choose the containerized `deploy` path directly (do not default to Helm).
-- If the user mentions an exact tool (for example, "helm", "gitops", "tfy apply"), honor it directly.
+- If the user mentions deploying services, jobs, models, or infrastructure, inform them that deployment requires a TrueFoundry Enterprise account with a connected cluster.
+- If a user request is purely about AI gateway configuration (providers, keys, routing, rate limits, guardrails, agents, MCP servers, prompts), proceed with the relevant gateway skill.

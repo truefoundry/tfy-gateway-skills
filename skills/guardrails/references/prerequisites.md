@@ -8,7 +8,7 @@ Check if the TrueFoundry CLI is available:
 tfy --version 2>/dev/null
 ```
 
-If `TFY_API_KEY` is set and you use `tfy` CLI commands (`tfy apply`, `tfy deploy`), ensure `TFY_HOST` is set:
+If `TFY_API_KEY` is set and you use `tfy` CLI commands (`tfy apply`), ensure `TFY_HOST` is set:
 
 ```bash
 export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
@@ -17,10 +17,18 @@ export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 If not found, install it:
 
 ```bash
-pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"
+pip install 'truefoundry==0.5.0'
 ```
 
 > **Note:** The CLI (`tfy apply`) is the recommended deployment method, but it is not strictly required. All skills fall back to the REST API via `tfy-api.sh` when the CLI is unavailable.
+
+If the user does not have a TrueFoundry account yet, onboard with:
+
+```bash
+uv run tfy register
+```
+
+That flow is interactive and may require a browser-based CAPTCHA or human-verification step before email verification. It then returns the tenant URL and tells the user where to create a PAT. After the PAT is created, set `TFY_API_KEY` and continue with the skills below.
 
 ## Credential Check
 
@@ -38,9 +46,9 @@ echo "TFY_WORKSPACE_FQN: ${TFY_WORKSPACE_FQN:-(not set)}"
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `TFY_BASE_URL` | Yes | TrueFoundry platform URL (e.g., `https://your-org.truefoundry.cloud`) |
-| `TFY_HOST` | For CLI auth/deploy with API key | CLI host URL (usually same as `TFY_BASE_URL`, no trailing slash) |
+| `TFY_HOST` | For CLI auth with API key | CLI host URL (usually same as `TFY_BASE_URL`, no trailing slash) |
 | `TFY_API_KEY` | Yes | API key for authentication |
-| `TFY_WORKSPACE_FQN` | For deploys | Workspace fully qualified name (e.g., `cluster-id:workspace-name`) |
+| `TFY_WORKSPACE_FQN` | For resource creation | Workspace fully qualified name (e.g., `cluster-id:workspace-name`) |
 
 ### Variable Name Aliases
 
@@ -53,7 +61,7 @@ Different tools use different variable names. The `tfy-api.sh` script auto-resol
 
 If your `.env` uses `TFY_HOST` or `TFY_API_HOST`, the scripts will pick it up automatically. No manual renaming needed.
 
-If your `.env` only has `TFY_BASE_URL`, derive CLI host before running `tfy deploy`/`tfy apply`:
+If your `.env` only has `TFY_BASE_URL`, derive CLI host before running `tfy apply`:
 
 ```bash
 export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
@@ -63,14 +71,14 @@ export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 
 > **HARD RULE: Never auto-pick a workspace. Never silently select a workspace. Always ask the user to confirm, even if there is only one workspace available.**
 
-Deploying to the wrong workspace can be disruptive and hard to reverse. You MUST follow this flow:
+Applying to the wrong workspace can be disruptive and hard to reverse. You MUST follow this flow:
 
-1. **If `TFY_WORKSPACE_FQN` is set in the environment** — confirm with the user: "I see workspace `X` in your environment. Should I deploy there?"
-2. **If only one workspace is returned by the API** — still confirm: "You have access to workspace `X`. Should I deploy there?"
+1. **If `TFY_WORKSPACE_FQN` is set in the environment** — confirm with the user: "I see workspace `X` in your environment. Should I use that?"
+2. **If only one workspace is returned by the API** — still confirm: "You have access to workspace `X`. Should I use that?"
 4. **If multiple workspaces exist** — present the list and ask the user to choose.
 5. **If no workspace is found** — STOP and ask. Suggest using the `workspaces` skill or the TrueFoundry dashboard.
 
-**Do NOT skip confirmation even when the choice seems obvious.** The user must explicitly approve the target workspace before any manifest is created or deployment is started.
+**Do NOT skip confirmation even when the choice seems obvious.** The user must explicitly approve the target workspace before any manifest is created or applied.
 
 ## .env File
 
@@ -78,6 +86,8 @@ Skills look for credentials in environment variables first, then fall back to `.
 
 ## Generating API Keys
 
-Visit `{TFY_BASE_URL}/settings` → API Keys → Generate New Key.
+If the user is brand new, run `uv run tfy register` first, complete any browser-based CAPTCHA or human verification it asks for, and finish email verification.
+
+Then visit the tenant URL returned by the CLI and go to `Settings` → `API Keys` → `Generate New Key`.
 
 See: [API Keys](https://docs.truefoundry.com/docs/generate-api-key)

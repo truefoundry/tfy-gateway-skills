@@ -1,6 +1,6 @@
 # Manifest Schema Reference
 
-Complete YAML manifest field reference for all TrueFoundry deployment types. This is the single source of truth for manifest structure used by `tfy apply -f manifest.yaml` and REST API `PUT /api/svc/v1/apps`.
+YAML manifest field reference for TrueFoundry gateway resource types. Used by `tfy apply -f manifest.yaml` and REST API `PUT /api/svc/v1/apps`.
 
 ---
 
@@ -106,1013 +106,6 @@ rollout_strategy:
   max_surge_percentage: 25
 workspace_fqn: cluster-id:workspace-name
 ```
-
----
-
-## Job
-
-Batch workload that runs to completion and exits. Supports manual and cron triggers.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Job name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `job` |
-| `image` | object | Yes | -- | Image source. See [Image](#image). |
-| `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
-| `env` | object | No | `{}` | Environment variables as key-value pairs. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `retries` | int | No | `0` | Number of retry attempts on failure. |
-| `timeout` | int | No | `3600` | Maximum job duration in seconds. |
-| `trigger` | object | No | -- | Trigger configuration. See [Trigger](#trigger). |
-| `mounts` | array | No | -- | Volume mounts. See [Mounts](#mounts). |
-
-### Minimal Example
-
-```yaml
-name: data-pipeline
-type: job
-image:
-  type: image
-  image_uri: docker.io/myorg/pipeline:v1.0
-  command: "python run_job.py"
-resources:
-  cpu_request: 1.0
-  cpu_limit: 2.0
-  memory_request: 2048
-  memory_limit: 4096
-  ephemeral_storage_request: 1000
-  ephemeral_storage_limit: 2000
-retries: 3
-timeout: 3600
-workspace_fqn: cluster-id:workspace-name
-```
-
-### Scheduled Job Example
-
-```yaml
-name: nightly-etl
-type: job
-image:
-  type: image
-  image_uri: docker.io/myorg/etl:v1.0
-  command: "python etl.py"
-resources:
-  cpu_request: 2.0
-  cpu_limit: 4.0
-  memory_request: 4096
-  memory_limit: 8192
-  ephemeral_storage_request: 2000
-  ephemeral_storage_limit: 5000
-retries: 2
-timeout: 7200
-trigger:
-  type: cron
-  schedule: "0 2 * * *"
-env:
-  INPUT_BUCKET: s3://data/input
-  OUTPUT_BUCKET: s3://data/output
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## Helm
-
-Deploy any OCI-compatible Helm chart (databases, caches, message queues, monitoring).
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Release name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `helm` |
-| `source` | object | Yes | -- | Chart source. See [Helm Source](#helm-source). |
-| `values` | object | No | `{}` | Helm values passed to the chart. Chart-specific. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-
-### Source (Helm Repo)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `helm-repo` |
-| `repo_url` | string | Yes | Helm repository URL |
-| `chart` | string | Yes | Chart name |
-| `version` | string | Yes | Chart version |
-
-### Source (OCI Repo)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `oci-repo` |
-| `oci_chart_url` | string | Yes | OCI chart URL (e.g., `oci://REGISTRY/CHART_NAME` — search [Artifact Hub](https://artifacthub.io) for the official chart) |
-| `version` | string | Yes | Chart version |
-
-### Source (Git Helm Repo)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `git-helm-repo` |
-| `repo_url` | string | Yes | Git repository URL containing the Helm chart |
-| `chart_path` | string | Yes | Path to chart within the repo |
-| `version` | string | No | Git ref (branch, tag, commit) |
-
-### Minimal Example
-
-```yaml
-name: postgres-prod
-type: helm
-source:
-  type: oci-repo
-  version: "16.7.21"
-  oci_chart_url: oci://REGISTRY/CHART_NAME  # Search Artifact Hub for the official chart
-values:
-  auth:
-    postgresPassword: "STRONG_PASSWORD_HERE"
-    database: myapp
-  primary:
-    persistence:
-      enabled: true
-      size: 50Gi
-    resources:
-      requests:
-        cpu: "2"
-        memory: 2Gi
-      limits:
-        cpu: "4"
-        memory: 4Gi
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## Async Service
-
-Queue-based processing service that consumes messages from SQS, NATS, Kafka, or Google AMQP. Supports scale-to-zero.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Service name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `async-service` |
-| `image` | object | Yes | -- | Image source. See [Image](#image). |
-| `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
-| `ports` | array | No | -- | Port configurations. See [Port](#port). |
-| `env` | object | No | `{}` | Environment variables as key-value pairs. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `replicas` | int or object | No | `1` | Fixed integer or `{"min": N, "max": M}`. Set `min: 0` for scale-to-zero. |
-| `worker_config` | object | Yes | -- | Worker and queue configuration. See [Worker Config](#worker-config). |
-| `mounts` | array | No | -- | Volume mounts. See [Mounts](#mounts). |
-
-### Worker Config
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `input_config` | object | Yes | Input queue configuration. See [Queue Input Config](#queue-input-config). |
-| `num_concurrent_workers` | int | No | Number of concurrent workers. Default: `1`. |
-
-### Queue Input Config
-
-Four queue types are supported.
-
-**SQS:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `sqs` |
-| `queue_url` | string | Yes | SQS queue URL |
-| `region_name` | string | Yes | AWS region |
-| `wait_time_seconds` | int | No | Long polling wait time |
-| `visibility_timeout` | int | No | Message visibility timeout in seconds |
-
-**NATS:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `nats` |
-| `nats_url` | string | Yes | NATS server URL |
-| `stream_name` | string | Yes | NATS JetStream stream name |
-| `root_subject` | string | Yes | Root subject to subscribe to |
-| `consumer_name` | string | Yes | Consumer name |
-| `nats_metrics_url` | string | No | NATS metrics URL for autoscaling |
-| `wait_time_seconds` | int | No | Wait time |
-
-**Kafka:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `kafka` |
-| `bootstrap_servers` | string | Yes | Kafka bootstrap servers |
-| `topic_name` | string | Yes | Kafka topic |
-| `consumer_group` | string | Yes | Consumer group ID |
-| `tls` | bool | No | Enable TLS. Default: `false` |
-| `wait_time_seconds` | int | No | Wait time |
-
-**AMQP:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `amqp` |
-| `url` | string | Yes | AMQP connection URL |
-| `queue_name` | string | Yes | Queue name |
-| `wait_time_seconds` | int | No | Wait time |
-
-### Minimal Example
-
-```yaml
-name: my-async-worker
-type: async-service
-image:
-  type: image
-  image_uri: docker.io/myorg/worker:v1.0
-ports:
-  - port: 8000
-    protocol: TCP
-    expose: false
-    app_protocol: http
-resources:
-  cpu_request: 0.2
-  cpu_limit: 0.5
-  memory_request: 200
-  memory_limit: 500
-  ephemeral_storage_request: 1000
-  ephemeral_storage_limit: 2000
-worker_config:
-  input_config:
-    type: sqs
-    queue_url: "https://sqs.us-east-1.amazonaws.com/123456789/my-queue"
-    region_name: us-east-1
-    wait_time_seconds: 20
-    visibility_timeout: 30
-  num_concurrent_workers: 1
-replicas: 1
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## Notebook
-
-Jupyter notebook environment with persistent storage and optional GPU.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Notebook name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `notebook` |
-| `image` | object | Yes | -- | Image source. See [Image](#image). |
-| `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
-| `env` | object | No | `{}` | Environment variables. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `cull_timeout` | int | No | `30` | Minutes of inactivity before auto-shutdown. |
-| `home_directory_size` | int | No | `20` | Home directory size in GB. |
-
-> **Note:** `node.capacity_type` can be set to `on_demand` or `spot` in the resources section.
-
-### Minimal Example
-
-```yaml
-name: research-notebook
-type: notebook
-image:
-  type: image
-  image_uri: jupyter/scipy-notebook:latest
-resources:
-  cpu_request: 1.0
-  cpu_limit: 2.0
-  memory_request: 2048
-  memory_limit: 4096
-  ephemeral_storage_request: 2000
-  ephemeral_storage_limit: 5000
-home_directory_size: 20
-cull_timeout: 60
-env:
-  JUPYTER_TOKEN: tfy-secret://my-org:notebook-secrets:JUPYTER_TOKEN
-workspace_fqn: cluster-id:workspace-name
-```
-
-### GPU Notebook Example
-
-```yaml
-name: ml-notebook
-type: notebook
-image:
-  type: image
-  image_uri: jupyter/tensorflow-notebook:latest
-resources:
-  cpu_request: 4.0
-  cpu_limit: 8.0
-  memory_request: 16384
-  memory_limit: 32768
-  ephemeral_storage_request: 5000
-  ephemeral_storage_limit: 10000
-  devices:
-    - type: nvidia_gpu
-      name: T4
-      count: 1
-home_directory_size: 50
-cull_timeout: 120
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## SSH Server
-
-Remote development environment accessible via SSH.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | SSH server name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `ssh-server` |
-| `image` | object | Yes | -- | Image source. See [Image](#image). |
-| `resources` | object | Yes | -- | CPU, memory, GPU, storage. See [Resources](#resources). |
-| `env` | object | No | `{}` | Environment variables. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `home_directory_size` | int | No | `20` | Home directory size in GB. |
-
-> **Note:** `node.capacity_type` can be set to `on_demand` or `spot` in the resources section.
-
-### Minimal Example
-
-```yaml
-name: dev-server
-type: ssh-server
-image:
-  type: image
-  image_uri: ubuntu:22.04
-resources:
-  cpu_request: 2.0
-  cpu_limit: 4.0
-  memory_request: 4096
-  memory_limit: 8192
-  ephemeral_storage_request: 5000
-  ephemeral_storage_limit: 10000
-home_directory_size: 50
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## Volume
-
-Persistent volume for data storage shared across services.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Volume name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `volume` |
-| `size` | string | Yes | -- | Volume size (e.g., `"10Gi"`, `"100Gi"`) |
-| `access_mode` | string | No | `ReadWriteOnce` | `ReadWriteOnce`, `ReadWriteMany`, or `ReadOnlyMany` |
-| `storage_class` | string | No | -- | Kubernetes storage class. Cluster-specific. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-
-### Minimal Example
-
-```yaml
-name: shared-data
-type: volume
-size: "100Gi"
-access_mode: ReadWriteOnce
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## Application Set
-
-Deploy multiple related resources as a single unit.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Application set name. |
-| `type` | string | Yes | -- | Must be `application-set` |
-| `components` | array | Conditional | -- | Array of manifest objects (service, job, helm, etc.). Required if not using template pattern. |
-| `workspace_fqn` | string | Yes | -- | Workspace FQN. |
-| `template` | string | Conditional | -- | Template name (e.g., `finetune-qlora`). Required if using template pattern. |
-| `convert_template_manifest` | bool | Conditional | -- | Must be `true` when using template pattern. |
-| `values` | object | Conditional | -- | Template values. Structure depends on template. |
-
-> **Note:** Either `components` OR `template`+`values` must be provided, not both.
-
-### Components Example
-
-```yaml
-name: my-app-stack
-type: application-set
-components:
-  - name: api-service
-    type: service
-    image:
-      type: image
-      image_uri: docker.io/myorg/api:v1.0
-    ports:
-      - port: 8000
-        protocol: TCP
-        expose: true
-        app_protocol: http
-    resources:
-      cpu_request: 0.5
-      cpu_limit: 1.0
-      memory_request: 512
-      memory_limit: 1024
-      ephemeral_storage_request: 1000
-      ephemeral_storage_limit: 2000
-  - name: worker-job
-    type: job
-    image:
-      type: image
-      image_uri: docker.io/myorg/worker:v1.0
-    resources:
-      cpu_request: 1.0
-      cpu_limit: 2.0
-      memory_request: 1024
-      memory_limit: 2048
-      ephemeral_storage_request: 1000
-      ephemeral_storage_limit: 2000
-workspace_fqn: cluster-id:workspace-name
-```
-
-### Template Example (QLoRA Fine-tuning)
-
-```yaml
-name: qlora-my-model
-type: application-set
-template: finetune-qlora
-convert_template_manifest: true
-values:
-  name: qlora-my-model
-  model_id: unsloth/Llama-3.3-70B-Instruct
-  hf_token: ""
-  ml_repo: my-ml-repo
-  data_type: chat
-  data:
-    type: upload
-    training_uri: ""
-  hyperparams:
-    batch_size: 1
-    epochs: 10
-    learning_rate: 0.0001
-    lora_alpha: 64
-    lora_r: 32
-    max_length: 2048
-  image_uri: tfy.jfrog.io/tfy-images/llm-finetune:0.4.1
-  resources:
-    node:
-      type: node_selector
-    devices:
-      - type: nvidia_gpu
-        count: 2
-        name: H100_94GB
-    cpu_request: 78
-    cpu_limit: 80
-    memory_request: 535500
-    memory_limit: 630000
-    ephemeral_storage_request: 710000
-    ephemeral_storage_limit: 810000
-    shared_memory_size: 534500
-workspace_fqn: cluster-id:workspace-name
-```
-
----
-
-## Shared Object Schemas
-
-### Image
-
-The `image` field defines how the container image is sourced. Two forms are supported.
-
-#### Pre-built Image
-
-Use an existing Docker image directly.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `image` |
-| `image_uri` | string | Yes | Full image URI with tag (e.g., `docker.io/org/app:v1`) |
-| `command` | string or array | No | Override container entrypoint. Omit if not needed -- do NOT set to `null`. |
-
-```yaml
-image:
-  type: image
-  image_uri: "docker.io/org/app:v1"
-  command: "python main.py"
-```
-
-#### Build from Source
-
-Build the image from a Git repository.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `build` |
-| `build_source` | object | Yes | Source code location. See [BuildSource](#buildsource). |
-| `build_spec` | object | Yes | Build instructions. See [BuildSpec](#buildspec). |
-| `docker_registry` | string | No | Docker registry FQN for pushing built images. TrueFoundry auto-selects if omitted. |
-
-```yaml
-image:
-  type: build
-  build_source:
-    type: git
-    repo_url: "https://github.com/user/repo"
-    branch_name: "main"
-    ref: "3f2a1c9b0d7e6f5a4b3c2d1e0f9876543210abcd"
-  build_spec:
-    type: dockerfile
-    dockerfile_path: "Dockerfile"
-    build_context_path: "."
-```
-
-### BuildSource
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | `git` or `local` |
-| `repo_url` | string | Yes (git) | Git repository URL |
-| `branch_name` | string | No (git) | Branch to build from. Default: current branch (`git branch --show-current`). |
-| `ref` | string | Yes (git) | Git ref (branch name, commit SHA, or tag). Required by `tfy apply` for git build sources. Typically set to the same value as `branch_name`. |
-
-> **Security:** For `build_source.type: git`, use trusted repositories only and prefer immutable refs (commit SHA or pinned tag) over floating branches.
-| `project_root_path` | string | Yes (local) | Path to local project root |
-
-### BuildSpec
-
-Two build spec types are supported.
-
-> **Valid `build_spec.type` values: `dockerfile` | `tfy-python-buildpack`**
-> Do NOT use `docker`, `build`, `python`, or any other value — the API will reject them.
-
-#### Dockerfile Build
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | Yes | -- | Must be `dockerfile` |
-| `dockerfile_path` | string | No | `Dockerfile` | Path to Dockerfile relative to build context |
-| `build_context_path` | string | No | `.` | Build context directory |
-| `build_args` | object | No | `{}` | Docker build arguments as key-value pairs |
-
-```yaml
-build_spec:
-  type: dockerfile
-  dockerfile_path: "Dockerfile"
-  build_context_path: "."
-  build_args:
-    PYTHON_VERSION: "3.12"
-```
-
-#### TrueFoundry Python Buildpack (No Dockerfile)
-
-For Python projects without a Dockerfile, TrueFoundry can auto-build the image.
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | Yes | -- | Must be `tfy-python-buildpack` |
-| `build_context_path` | string | No | `./` | Build context directory |
-| `command` | string | Yes | -- | Start command (e.g., `uvicorn app:app --host 0.0.0.0 --port 8000`) |
-| `python_version` | string | No | `3.10` | Python version to use |
-| `python_dependencies` | object | Yes | -- | Dependency config. See below. |
-
-**Python Dependencies:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `pip` |
-| `requirements_path` | string | Yes | Path to requirements file (e.g., `requirements.txt`) |
-
-```yaml
-build_spec:
-  type: tfy-python-buildpack
-  build_context_path: ./
-  command: uvicorn app:app --host 0.0.0.0 --port 8000
-  python_version: "3.10"
-  python_dependencies:
-    type: pip
-    requirements_path: requirements.txt
-```
-
-### Port
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `port` | int | Yes | -- | Container port number |
-| `protocol` | string | No | `TCP` | Protocol: `TCP` or `UDP` |
-| `expose` | bool | No | `false` | Whether to expose externally via ingress |
-| `host` | string | Conditional | -- | Hostname for external access. Required when `expose: true`. Must match a cluster-configured domain. |
-| `app_protocol` | string | No | `http` | Application protocol: `http` or `grpc` |
-
-```yaml
-ports:
-  - port: 8000
-    protocol: TCP
-    expose: true
-    host: my-api-ws.ml.example.truefoundry.cloud
-    app_protocol: http
-  - port: 50051
-    protocol: TCP
-    expose: false
-    app_protocol: grpc
-```
-
-### Environment Variables
-
-The `env` field is a key-value object. Values can be plain strings or `tfy-secret://` references to TrueFoundry secret groups.
-
-#### Plain Values
-
-```yaml
-env:
-  LOG_LEVEL: info
-  APP_PORT: "8000"
-```
-
-#### Secret References
-
-For sensitive values (passwords, tokens, API keys), use the `tfy-secret://` format instead of inline values:
-
-```
-tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>
-```
-
-| Component | Description | Example |
-|-----------|-------------|---------|
-| `TENANT_NAME` | Subdomain of `TFY_BASE_URL` | `my-org` (from `https://my-org.truefoundry.cloud`) |
-| `SECRET_GROUP_NAME` | Name of the secret group | `my-app-secrets` |
-| `SECRET_KEY` | Key of the secret within the group | `DB_PASSWORD` |
-
-#### Mixed Example
-
-```yaml
-env:
-  LOG_LEVEL: info
-  APP_PORT: "8000"
-  DB_PASSWORD: tfy-secret://my-org:my-app-secrets:DB_PASSWORD
-  API_KEY: tfy-secret://my-org:my-app-secrets:API_KEY
-```
-
-The secret group must be created before deploying. See the `secrets` skill for how to create secret groups and the `deploy` skill for the full secrets workflow.
-
-### Resources
-
-| Field | Type | Unit | Required | Default | Description |
-|-------|------|------|----------|---------|-------------|
-| `cpu_request` | float | cores | Yes | -- | Guaranteed CPU allocation |
-| `cpu_limit` | float | cores | Yes | -- | Maximum CPU allocation |
-| `memory_request` | int | MB | Yes | -- | Guaranteed memory in megabytes |
-| `memory_limit` | int | MB | Yes | -- | Maximum memory in megabytes |
-| `ephemeral_storage_request` | int | MB | Yes | -- | Guaranteed ephemeral disk in megabytes |
-| `ephemeral_storage_limit` | int | MB | Yes | -- | Maximum ephemeral disk in megabytes |
-| `devices` | array | -- | No | -- | GPU devices. See [GPU](#gpu). |
-| `shared_memory_size` | int | MB | No | -- | Shared memory (/dev/shm) size in MB. Important for multi-GPU training and large model inference. |
-| `node` | object | -- | No | -- | Node selection preferences. See [Node](#node). |
-
-#### Node
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `node_selector` |
-| `capacity_type` | string | No | `on_demand` or `spot`. Default: any. |
-
-```yaml
-resources:
-  cpu_request: 0.5
-  cpu_limit: 1.0
-  memory_request: 512
-  memory_limit: 1024
-  ephemeral_storage_request: 1000
-  ephemeral_storage_limit: 2000
-  devices:
-    - type: nvidia_gpu
-      name: T4
-      count: 1
-  node:
-    type: node_selector
-    capacity_type: on_demand
-```
-
-### GPU
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `nvidia_gpu` |
-| `name` | string | Yes | GPU type name. See enum values below. |
-| `count` | int | Yes | Number of GPUs (1, 2, 4, 8) |
-
-#### GPU Type Enum Values
-
-| Value | VRAM | Architecture | Typical Use |
-|-------|------|--------------|-------------|
-| `T4` | 16 GB | Turing | Inference, small models |
-| `A10G` | 24 GB | Ampere | Medium inference, fine-tuning |
-| `L4` | 24 GB | Ada Lovelace | Inference optimized |
-| `L40S` | 48 GB | Ada Lovelace | Large inference |
-| `A100_40GB` | 40 GB | Ampere | Large models, training |
-| `A100_80GB` | 80 GB | Ampere | Very large models |
-| `H100_80GB` | 80 GB | Hopper | Training, large models |
-| `H100_94GB` | 94 GB | Hopper | Training, large models |
-| `H200` | 141 GB | Hopper | Next-gen training |
-| `B200` | 192 GB | Blackwell | Next-gen training |
-
-Additional fractional GPU types: `A10_4GB`, `A10_8GB`, `A10_12GB`, `A10_24GB`.
-
-Check available GPU types on the cluster before specifying -- not all types are available on every cluster.
-
-```yaml
-devices:
-  - type: nvidia_gpu
-    name: A100_80GB
-    count: 2
-```
-
-### Probes
-
-All three probe types (`liveness_probe`, `readiness_probe`, `startup_probe`) share the same structure.
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `config` | object | Yes | -- | Probe check configuration. See below. |
-| `initial_delay_seconds` | int | No | `5` | Seconds to wait before first probe |
-| `period_seconds` | int | No | `10` | Seconds between probes |
-| `timeout_seconds` | int | No | `2` | Seconds before probe times out |
-| `failure_threshold` | int | No | `3` | Consecutive failures before action |
-| `success_threshold` | int | No | `1` | Consecutive successes needed |
-
-#### Probe Config Types
-
-**HTTP Probe:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `http` |
-| `path` | string | Yes | HTTP path to check (e.g., `/health`) |
-| `port` | int | Yes | Port to check |
-
-```yaml
-liveness_probe:
-  config:
-    type: http
-    path: /health
-    port: 8000
-  initial_delay_seconds: 5
-  period_seconds: 10
-  timeout_seconds: 2
-  failure_threshold: 3
-```
-
-**TCP Probe:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `tcp` |
-| `port` | int | Yes | Port to check |
-
-```yaml
-readiness_probe:
-  config:
-    type: tcp
-    port: 5432
-  initial_delay_seconds: 5
-  period_seconds: 10
-  timeout_seconds: 2
-  failure_threshold: 3
-```
-
-**Command Probe:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `command` |
-| `command` | array | Yes | Command to execute. Exit 0 = healthy. |
-
-```yaml
-liveness_probe:
-  config:
-    type: command
-    command: ["pg_isready", "-U", "postgres"]
-  initial_delay_seconds: 10
-  period_seconds: 10
-  timeout_seconds: 5
-  failure_threshold: 3
-```
-
-### Trigger
-
-Used by `job` type to configure execution triggers.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Trigger type: `manual` or `cron` |
-| `schedule` | string | Yes (cron) | Cron expression (e.g., `"0 2 * * *"` for 2 AM daily) |
-
-```yaml
-trigger:
-  type: cron
-  schedule: "0 2 * * *"
-```
-
-### Queue Config
-
-Queue configuration is now part of `worker_config.input_config` in the async-service manifest. See [Queue Input Config](#queue-input-config) under the Async Service section for full details on all four supported queue types (SQS, NATS, Kafka, AMQP).
-
-### Artifacts Download
-
-Used for downloading model files from HuggingFace Hub or other sources before container start.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `artifacts` | array | Yes | List of artifact sources to download. |
-| `cache_volume` | object | No | Cache volume for downloaded artifacts. |
-
-#### Artifact (HuggingFace Hub)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `huggingface-hub` |
-| `model_id` | string | Yes | HuggingFace model ID (e.g., `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`) |
-| `revision` | string | No | Specific commit SHA or branch |
-| `ignore_patterns` | array | No | Glob patterns to skip (e.g., `["*.h5", "*.ot", "pytorch_model*.bin"]`) |
-| `download_path_env_variable` | string | No | Env var name set to download path (default: `MODEL_ID`) |
-
-#### Cache Volume
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cache_size` | int | Yes | Cache size in GB |
-| `storage_class` | string | No | Storage class (e.g., `azureblob-nfs-premium`) |
-
-### Rollout Strategy
-
-Controls how deployments are rolled out for services.
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | Yes | `rolling` | Strategy type: `rolling` |
-| `max_unavailable_percentage` | int | No | `25` | Max percentage of pods that can be unavailable during update |
-| `max_surge_percentage` | int | No | `25` | Max percentage of extra pods that can be created during update |
-
-```yaml
-rollout_strategy:
-  type: rolling
-  max_unavailable_percentage: 25
-  max_surge_percentage: 25
-```
-
-### Autoscaling
-
-When `replicas` is an object instead of an integer, autoscaling is enabled.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `min` | int | Yes | Minimum number of replicas. Set `0` for scale-to-zero (async-service only). |
-| `max` | int | Yes | Maximum number of replicas |
-
-```yaml
-# Fixed replicas
-replicas: 1
-
-# Autoscaling
-replicas:
-  min: 2
-  max: 10
-
-# Scale-to-zero (async-service only)
-replicas:
-  min: 0
-  max: 5
-```
-
-### Mounts
-
-Mount volumes or secrets into the container.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Mount type: `volume`, `secret`, `config_map` |
-| `mount_path` | string | Yes | Path inside the container |
-| `name` | string | Yes | Name of the volume, secret, or config map to mount |
-| `read_only` | bool | No | Whether to mount read-only (default: `false`) |
-
-```yaml
-mounts:
-  - type: volume
-    name: shared-data
-    mount_path: /data
-    read_only: false
-  - type: secret
-    name: my-secret-group
-    mount_path: /secrets
-    read_only: true
-```
-
-### Capacity Type (Node Affinity)
-
-For GPU or resource-intensive workloads, specify node capacity preference.
-
-| Value | Description |
-|-------|-------------|
-| `on_demand` | Use on-demand (non-preemptible) nodes. Best for production. |
-| `spot` | Use spot/preemptible nodes. Cheaper but may be interrupted. |
-| `any` | Use any available node type. |
-
----
-
-## Workflow
-
-Python-based DAG orchestration built on [Flyte](https://flyte.org/). Workflows are defined using `@task`/`@workflow` decorators in Python and deployed via `tfy deploy workflow` CLI or `tfy apply`.
-
-### Top-level Fields
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | -- | Workflow name. Lowercase alphanumeric and hyphens only. |
-| `type` | string | Yes | -- | Must be `workflow` |
-| `source` | object | Yes | -- | Source code location. See [Workflow Source](#workflow-source). |
-| `workflow_file_path` | string | Yes | -- | Path to Python file containing the `@workflow` decorated function. |
-| `alerts` | array | No | -- | Alert/notification config. See [Workflow Alerts](#workflow-alerts). |
-
-> **Note:** `workspace_fqn` is passed via CLI flag (`--workspace_fqn`) or as a sibling key in the REST API, not inside the manifest itself.
-
-### Workflow Source
-
-**Local Source:**
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | Yes | -- | Must be `local` |
-| `project_root_path` | string | No | `./` | Path to project root directory |
-
-**Remote Source:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `remote` |
-| `remote_uri` | string | Yes | URI to remote source archive |
-
-### Workflow Alerts
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `notification_target` | object | No | -- | Where to send alerts. See notification types below. |
-| `on_completion` | bool | No | `false` | Alert on successful completion |
-| `on_failure` | bool | No | `true` | Alert on failure |
-
-**Notification target types:**
-
-- `Email`: `type: email`, `notification_channel` (string), `to_emails` (array of strings)
-- `SlackWebhook`: `type: slack-webhook`, `notification_channel` (string)
-- `SlackBot`: `type: slack-bot`, `notification_channel` (string), `channels` (array of strings)
-
-### Minimal Example (CLI -- Primary)
-
-```bash
-tfy deploy workflow \
-  --name my-ml-pipeline \
-  --file workflow.py \
-  --workspace_fqn "cluster-id:workspace-name"
-```
-
-### YAML Manifest Example (Alternative)
-
-```yaml
-name: my-ml-pipeline
-type: workflow
-source:
-  type: local
-  project_root_path: ./
-workflow_file_path: workflow.py
-```
-
-```bash
-tfy apply -f workflow-manifest.yaml --workspace-fqn "cluster-id:workspace-name"
-```
-
-### With Alerts Example
-
-```yaml
-name: nightly-pipeline
-type: workflow
-source:
-  type: local
-  project_root_path: ./
-workflow_file_path: workflow.py
-alerts:
-  - notification_target:
-      type: slack-webhook
-      notification_channel: my-slack-channel
-    on_failure: true
-    on_completion: false
-```
-
-> **Important:** Workflow task definitions (resources, images, pip packages) live in the Python code via `PythonTaskConfig`, not in the YAML manifest. The manifest only controls the deployment wrapper. See the `workflows` skill for Python code patterns.
 
 ---
 
@@ -1589,6 +582,516 @@ integrations:
 
 ---
 
+## Gateway Load Balancing Config
+
+Configure virtual models with intelligent request routing across multiple model targets.
+
+### Top-level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Config name. |
+| `type` | string | Yes | Must be `gateway-load-balancing-config` |
+| `rules` | array | Yes | Routing rules. See below. |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique rule identifier. |
+| `type` | string | Yes | `weight-based-routing`, `latency-based-routing`, or `priority-based-routing` |
+| `when` | object | Yes | Match conditions: `subjects`, `models`, `metadata`. |
+| `sticky_routing` | object | No | Pin sessions to targets. `ttl_seconds` + `session_identifiers` (key/source pairs). |
+| `load_balance_targets` | array | Yes | Target configurations. See below. |
+
+### Load Balance Target
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target` | string | Yes | Model reference: `"<provider-account>/<integration>"` |
+| `weight` | int | No | Traffic weight (weight-based only). |
+| `priority` | int | No | Priority rank, 0 = highest (priority-based only). |
+| `fallback_candidate` | bool | No | Eligible for failover. |
+| `fallback_status_codes` | array | No | Status codes that trigger failover. |
+| `sla_cutoff` | object | No | `time_per_output_token_ms` threshold (priority-based). |
+| `retry_config` | object | No | `delay` (ms), `attempts`, `on_status_codes`. |
+| `headers_override` | object | No | `set` (key-value) and `remove` (array) headers per target. |
+| `override_params` | object | No | Override model params (e.g., `temperature`, `top_p`). |
+
+---
+
+## Gateway Rate Limiting Config
+
+Configure rate limits per user, team, model, or custom metadata. First matching rule wins.
+
+### Top-level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Config name. |
+| `type` | string | Yes | Must be `gateway-rate-limiting-config` |
+| `rules` | array | Yes | Rate limit rules. |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique rule identifier. |
+| `when` | object | Yes | Match conditions: `subjects`, `models`, `metadata`. Empty `{}` matches all. |
+| `limit_to` | int | Yes | Numeric limit value. |
+| `unit` | string | Yes | `requests_per_minute`, `requests_per_hour`, `requests_per_day`, `tokens_per_minute`, `tokens_per_hour`, or `tokens_per_day`. |
+| `rate_limit_applies_per` | array | No | Create separate limits per entity (max 2). Options: `user`, `model`, `virtualaccount`, `metadata.<key>`. |
+
+---
+
+## Gateway Budget Config
+
+Enforce cost limits with optional alert notifications.
+
+### Top-level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Config name. |
+| `type` | string | Yes | Must be `gateway-budget-config` |
+| `rules` | array | Yes | Budget rules. |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique rule identifier. |
+| `when` | object | Yes | Match conditions: `subjects`, `models`, `metadata`. |
+| `limit_to` | number | Yes | Dollar limit. |
+| `unit` | string | Yes | `cost_per_day`, `cost_per_week`, or `cost_per_month`. |
+| `budget_applies_per` | array | No | Separate budgets per entity. Options: `user`, `model`, `team`, `virtualaccount`, `metadata.<key>`. |
+| `alerts` | object | No | Alert config. See below. |
+
+### Alerts
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `thresholds` | array | Yes | Percentage thresholds (e.g., `[75, 90, 100]`). |
+| `notification_target` | array | Yes | Notification channels: `email`, `slack-webhook`, or `slack-bot`. |
+
+---
+
+## Shared Object Schemas
+
+### Image
+
+The `image` field defines how the container image is sourced. Two forms are supported.
+
+#### Pre-built Image
+
+Use an existing Docker image directly.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `image` |
+| `image_uri` | string | Yes | Full image URI with tag (e.g., `docker.io/org/app:v1`) |
+| `command` | string or array | No | Override container entrypoint. Omit if not needed -- do NOT set to `null`. |
+
+```yaml
+image:
+  type: image
+  image_uri: "docker.io/org/app:v1"
+  command: "python main.py"
+```
+
+#### Build from Source
+
+Build the image from a Git repository.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `build` |
+| `build_source` | object | Yes | Source code location. See [BuildSource](#buildsource). |
+| `build_spec` | object | Yes | Build instructions. See [BuildSpec](#buildspec). |
+| `docker_registry` | string | No | Docker registry FQN for pushing built images. TrueFoundry auto-selects if omitted. |
+
+```yaml
+image:
+  type: build
+  build_source:
+    type: git
+    repo_url: "https://github.com/user/repo"
+    branch_name: "main"
+    ref: "3f2a1c9b0d7e6f5a4b3c2d1e0f9876543210abcd"
+  build_spec:
+    type: dockerfile
+    dockerfile_path: "Dockerfile"
+    build_context_path: "."
+```
+
+### BuildSource
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | `git` or `local` |
+| `repo_url` | string | Yes (git) | Git repository URL |
+| `branch_name` | string | No (git) | Branch to build from. Default: current branch (`git branch --show-current`). |
+| `ref` | string | Yes (git) | Git ref (branch name, commit SHA, or tag). Required by `tfy apply` for git build sources. Typically set to the same value as `branch_name`. |
+
+> **Security:** For `build_source.type: git`, use trusted repositories only and prefer immutable refs (commit SHA or pinned tag) over floating branches.
+| `project_root_path` | string | Yes (local) | Path to local project root |
+
+### BuildSpec
+
+Two build spec types are supported.
+
+> **Valid `build_spec.type` values: `dockerfile` | `tfy-python-buildpack`**
+> Do NOT use `docker`, `build`, `python`, or any other value — the API will reject them.
+
+#### Dockerfile Build
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `dockerfile` |
+| `dockerfile_path` | string | No | `Dockerfile` | Path to Dockerfile relative to build context |
+| `build_context_path` | string | No | `.` | Build context directory |
+| `build_args` | object | No | `{}` | Docker build arguments as key-value pairs |
+
+```yaml
+build_spec:
+  type: dockerfile
+  dockerfile_path: "Dockerfile"
+  build_context_path: "."
+  build_args:
+    PYTHON_VERSION: "3.12"
+```
+
+#### TrueFoundry Python Buildpack (No Dockerfile)
+
+For Python projects without a Dockerfile, TrueFoundry can auto-build the image.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | -- | Must be `tfy-python-buildpack` |
+| `build_context_path` | string | No | `./` | Build context directory |
+| `command` | string | Yes | -- | Start command (e.g., `uvicorn app:app --host 0.0.0.0 --port 8000`) |
+| `python_version` | string | No | `3.10` | Python version to use |
+| `python_dependencies` | object | Yes | -- | Dependency config. See below. |
+
+**Python Dependencies:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `pip` |
+| `requirements_path` | string | Yes | Path to requirements file (e.g., `requirements.txt`) |
+
+```yaml
+build_spec:
+  type: tfy-python-buildpack
+  build_context_path: ./
+  command: uvicorn app:app --host 0.0.0.0 --port 8000
+  python_version: "3.10"
+  python_dependencies:
+    type: pip
+    requirements_path: requirements.txt
+```
+
+### Port
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `port` | int | Yes | -- | Container port number |
+| `protocol` | string | No | `TCP` | Protocol: `TCP` or `UDP` |
+| `expose` | bool | No | `false` | Whether to expose externally via ingress |
+| `host` | string | Conditional | -- | Hostname for external access. Required when `expose: true`. Must match a cluster-configured domain. |
+| `app_protocol` | string | No | `http` | Application protocol: `http` or `grpc` |
+
+```yaml
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: true
+    host: my-api-ws.ml.example.truefoundry.cloud
+    app_protocol: http
+  - port: 50051
+    protocol: TCP
+    expose: false
+    app_protocol: grpc
+```
+
+### Environment Variables
+
+The `env` field is a key-value object. Values can be plain strings or `tfy-secret://` references to TrueFoundry secret groups.
+
+#### Plain Values
+
+```yaml
+env:
+  LOG_LEVEL: info
+  APP_PORT: "8000"
+```
+
+#### Secret References
+
+For sensitive values (passwords, tokens, API keys), use the `tfy-secret://` format instead of inline values:
+
+```
+tfy-secret://<TENANT_NAME>:<SECRET_GROUP_NAME>:<SECRET_KEY>
+```
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| `TENANT_NAME` | Subdomain of `TFY_BASE_URL` | `my-org` (from `https://my-org.truefoundry.cloud`) |
+| `SECRET_GROUP_NAME` | Name of the secret group | `my-app-secrets` |
+| `SECRET_KEY` | Key of the secret within the group | `DB_PASSWORD` |
+
+#### Mixed Example
+
+```yaml
+env:
+  LOG_LEVEL: info
+  APP_PORT: "8000"
+  DB_PASSWORD: tfy-secret://my-org:my-app-secrets:DB_PASSWORD
+  API_KEY: tfy-secret://my-org:my-app-secrets:API_KEY
+```
+
+The secret group must be created before deploying. See the `secrets` skill for how to create secret groups.
+
+### Resources
+
+| Field | Type | Unit | Required | Default | Description |
+|-------|------|------|----------|---------|-------------|
+| `cpu_request` | float | cores | Yes | -- | Guaranteed CPU allocation |
+| `cpu_limit` | float | cores | Yes | -- | Maximum CPU allocation |
+| `memory_request` | int | MB | Yes | -- | Guaranteed memory in megabytes |
+| `memory_limit` | int | MB | Yes | -- | Maximum memory in megabytes |
+| `ephemeral_storage_request` | int | MB | Yes | -- | Guaranteed ephemeral disk in megabytes |
+| `ephemeral_storage_limit` | int | MB | Yes | -- | Maximum ephemeral disk in megabytes |
+| `devices` | array | -- | No | -- | GPU devices. See [GPU](#gpu). |
+| `shared_memory_size` | int | MB | No | -- | Shared memory (/dev/shm) size in MB. Important for multi-GPU training and large model inference. |
+| `node` | object | -- | No | -- | Node selection preferences. See [Node](#node). |
+
+#### Node
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `node_selector` |
+| `capacity_type` | string | No | `on_demand` or `spot`. Default: any. |
+
+```yaml
+resources:
+  cpu_request: 0.5
+  cpu_limit: 1.0
+  memory_request: 512
+  memory_limit: 1024
+  ephemeral_storage_request: 1000
+  ephemeral_storage_limit: 2000
+  devices:
+    - type: nvidia_gpu
+      name: T4
+      count: 1
+  node:
+    type: node_selector
+    capacity_type: on_demand
+```
+
+### GPU
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `nvidia_gpu` |
+| `name` | string | Yes | GPU type name. See enum values below. |
+| `count` | int | Yes | Number of GPUs (1, 2, 4, 8) |
+
+#### GPU Type Enum Values
+
+| Value | VRAM | Architecture | Typical Use |
+|-------|------|--------------|-------------|
+| `T4` | 16 GB | Turing | Inference, small models |
+| `A10G` | 24 GB | Ampere | Medium inference, fine-tuning |
+| `L4` | 24 GB | Ada Lovelace | Inference optimized |
+| `L40S` | 48 GB | Ada Lovelace | Large inference |
+| `A100_40GB` | 40 GB | Ampere | Large models, training |
+| `A100_80GB` | 80 GB | Ampere | Very large models |
+| `H100_80GB` | 80 GB | Hopper | Training, large models |
+| `H100_94GB` | 94 GB | Hopper | Training, large models |
+| `H200` | 141 GB | Hopper | Next-gen training |
+| `B200` | 192 GB | Blackwell | Next-gen training |
+
+Additional fractional GPU types: `A10_4GB`, `A10_8GB`, `A10_12GB`, `A10_24GB`.
+
+Check available GPU types on the cluster before specifying -- not all types are available on every cluster.
+
+```yaml
+devices:
+  - type: nvidia_gpu
+    name: A100_80GB
+    count: 2
+```
+
+### Probes
+
+All three probe types (`liveness_probe`, `readiness_probe`, `startup_probe`) share the same structure.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `config` | object | Yes | -- | Probe check configuration. See below. |
+| `initial_delay_seconds` | int | No | `5` | Seconds to wait before first probe |
+| `period_seconds` | int | No | `10` | Seconds between probes |
+| `timeout_seconds` | int | No | `2` | Seconds before probe times out |
+| `failure_threshold` | int | No | `3` | Consecutive failures before action |
+| `success_threshold` | int | No | `1` | Consecutive successes needed |
+
+#### Probe Config Types
+
+**HTTP Probe:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `http` |
+| `path` | string | Yes | HTTP path to check (e.g., `/health`) |
+| `port` | int | Yes | Port to check |
+
+```yaml
+liveness_probe:
+  config:
+    type: http
+    path: /health
+    port: 8000
+  initial_delay_seconds: 5
+  period_seconds: 10
+  timeout_seconds: 2
+  failure_threshold: 3
+```
+
+**TCP Probe:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `tcp` |
+| `port` | int | Yes | Port to check |
+
+```yaml
+readiness_probe:
+  config:
+    type: tcp
+    port: 5432
+  initial_delay_seconds: 5
+  period_seconds: 10
+  timeout_seconds: 2
+  failure_threshold: 3
+```
+
+**Command Probe:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `command` |
+| `command` | array | Yes | Command to execute. Exit 0 = healthy. |
+
+```yaml
+liveness_probe:
+  config:
+    type: command
+    command: ["pg_isready", "-U", "postgres"]
+  initial_delay_seconds: 10
+  period_seconds: 10
+  timeout_seconds: 5
+  failure_threshold: 3
+```
+
+### Artifacts Download
+
+Used for downloading model files from HuggingFace Hub or other sources before container start.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `artifacts` | array | Yes | List of artifact sources to download. |
+| `cache_volume` | object | No | Cache volume for downloaded artifacts. |
+
+#### Artifact (HuggingFace Hub)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `huggingface-hub` |
+| `model_id` | string | Yes | HuggingFace model ID (e.g., `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`) |
+| `revision` | string | No | Specific commit SHA or branch |
+| `ignore_patterns` | array | No | Glob patterns to skip (e.g., `["*.h5", "*.ot", "pytorch_model*.bin"]`) |
+| `download_path_env_variable` | string | No | Env var name set to download path (default: `MODEL_ID`) |
+
+#### Cache Volume
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `cache_size` | int | Yes | Cache size in GB |
+| `storage_class` | string | No | Storage class (e.g., `azureblob-nfs-premium`) |
+
+### Rollout Strategy
+
+Controls how deployments are rolled out for services.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `type` | string | Yes | `rolling` | Strategy type: `rolling` |
+| `max_unavailable_percentage` | int | No | `25` | Max percentage of pods that can be unavailable during update |
+| `max_surge_percentage` | int | No | `25` | Max percentage of extra pods that can be created during update |
+
+```yaml
+rollout_strategy:
+  type: rolling
+  max_unavailable_percentage: 25
+  max_surge_percentage: 25
+```
+
+### Autoscaling
+
+When `replicas` is an object instead of an integer, autoscaling is enabled.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `min` | int | Yes | Minimum number of replicas. |
+| `max` | int | Yes | Maximum number of replicas |
+
+```yaml
+# Fixed replicas
+replicas: 1
+
+# Autoscaling
+replicas:
+  min: 2
+  max: 10
+```
+
+### Mounts
+
+Mount volumes or secrets into the container.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Mount type: `volume`, `secret`, `config_map` |
+| `mount_path` | string | Yes | Path inside the container |
+| `name` | string | Yes | Name of the volume, secret, or config map to mount |
+| `read_only` | bool | No | Whether to mount read-only (default: `false`) |
+
+```yaml
+mounts:
+  - type: volume
+    name: shared-data
+    mount_path: /data
+    read_only: false
+  - type: secret
+    name: my-secret-group
+    mount_path: /secrets
+    read_only: true
+```
+
+### Capacity Type (Node Affinity)
+
+For GPU or resource-intensive workloads, specify node capacity preference.
+
+| Value | Description |
+|-------|-------------|
+| `on_demand` | Use on-demand (non-preemptible) nodes. Best for production. |
+| `spot` | Use spot/preemptible nodes. Cheaper but may be interrupted. |
+| `any` | Use any available node type. |
+
+---
+
 ## Enum Reference
 
 ### Type Values
@@ -1596,14 +1099,6 @@ integrations:
 | Value | Description |
 |-------|-------------|
 | `service` | Long-running HTTP/gRPC service |
-| `job` | Batch workload that runs to completion |
-| `helm` | Helm chart deployment |
-| `async-service` | Queue-based processing service |
-| `notebook` | Jupyter notebook environment |
-| `ssh-server` | Remote development via SSH |
-| `volume` | Persistent volume |
-| `application-set` | Multi-resource deployment |
-| `workflow` | Python DAG orchestration (Flyte-based) |
 | `agent` | AI agent registration for Agent Gateway |
 | `mcp-server/remote` | Remote MCP server registration |
 | `mcp-server/virtual` | Virtual MCP server (aggregates multiple servers) |
@@ -1611,7 +1106,13 @@ integrations:
 | `role` | Role definition for access control |
 | `team` | Team definition with members |
 | `gateway-guardrails-config` | Guardrail rules for AI Gateway |
+| `gateway-load-balancing-config` | Virtual model routing (weight/latency/priority) |
+| `gateway-rate-limiting-config` | Rate limiting rules (RPM/TPM per user/team/model) |
+| `gateway-budget-config` | Cost budget limits with alerts |
+| `gateway-fallback-config` | Fallback behavior configuration |
+| `gateway-data-routing-config` | Data-based routing rules |
 | `provider-account/guardrail-config-group` | Guardrail provider integration |
+| `provider-account/self-hosted-model` | External OpenAI-compatible model endpoint |
 
 ### Protocol Values
 
@@ -1633,7 +1134,6 @@ integrations:
 |-------|-------------|
 | `dockerfile` | Build from Dockerfile |
 | `tfy-python-buildpack` | Auto-build Python project (no Dockerfile needed) |
-| `python` | Auto-build Python app (no Dockerfile needed) |
 
 ### Build Source Type Values
 
@@ -1641,22 +1141,6 @@ integrations:
 |-------|-------------|
 | `git` | Clone and build from Git repository |
 | `local` | Build from local source code |
-
-### Trigger Type Values
-
-| Value | Description |
-|-------|-------------|
-| `manual` | Triggered manually via API or dashboard |
-| `cron` | Triggered on a cron schedule |
-
-### Queue Type Values
-
-| Value | Description |
-|-------|-------------|
-| `sqs` | Amazon SQS |
-| `nats` | NATS JetStream |
-| `kafka` | Apache Kafka |
-| `amqp` | Google AMQP / RabbitMQ |
 
 ### Probe Config Type Values
 
@@ -1677,8 +1161,5 @@ integrations:
 5. **`replicas` can be int or object** -- Use `1` for fixed, or `{"min": 2, "max": 10}` for autoscaling.
 6. **`workspace_fqn` goes in the manifest** -- When using the REST API, also pass `workspaceId` (internal ID) as a sibling of `manifest`.
 7. **Git repos must be accessible** -- For private repos, ensure credentials are configured in TrueFoundry.
-8. **Scale-to-zero is async-service only** -- Setting `min: 0` on a regular service is not supported.
-9. **Workflow `workspace_fqn` is a CLI flag, not a manifest field** -- Pass it via `--workspace_fqn` on `tfy deploy workflow` or as a sibling key in the REST API.
-10. **Workflow task config lives in Python, not YAML** -- Resources, images, and pip packages for individual tasks are defined in the Python file via `PythonTaskConfig`, not in the deployment manifest.
-11. **MCP server types vs MCP service** -- `mcp-server/remote`, `mcp-server/virtual`, and `mcp-server/openapi` register servers with the Agent Gateway. To actually run an MCP server, deploy it as a `service` type.
-12. **Agent `collaborators` is required** -- Every agent manifest must include at least one collaborator for access control.
+8. **MCP server types vs MCP service** -- `mcp-server/remote`, `mcp-server/virtual`, and `mcp-server/openapi` register servers with the Agent Gateway. To actually run an MCP server, deploy it as a `service` type.
+9. **Agent `collaborators` is required** -- Every agent manifest must include at least one collaborator for access control.

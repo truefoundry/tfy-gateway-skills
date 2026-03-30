@@ -24,7 +24,7 @@ When the user asks to **deploy a guardrails server** or run guardrails as a depl
 
 1. **Clone the default repo:** [truefoundry/custom-guardrails-template](https://github.com/truefoundry/custom-guardrails-template)
 2. **Build on top of it** — Add or adjust custom rules, providers, or config within the template structure; do not build from scratch.
-3. **Deploy** — Use the `deploy` skill to deploy the resulting service (Dockerfile or build from source as in the template).
+3. **Deploy** — Deploy the resulting service to your infrastructure (Dockerfile or build from source as in the template).
 
 This keeps guardrail servers compatible with TrueFoundry AI Gateway expectations.
 

@@ -31,6 +31,8 @@ List, create, or delete personal access tokens for API authentication, CI/CD pip
 
 Run the `status` skill first to verify `TFY_BASE_URL` and `TFY_API_KEY` are set and valid.
 
+If the user does not have an account or PAT yet, do not continue with the token APIs. First have them run `uv run tfy register`, complete any browser-based CAPTCHA or human verification the CLI requests, verify their email, open the tenant URL returned by the CLI, and create their first PAT from the tenant dashboard.
+
 When using direct API, set `TFY_API_SH` to the full path of this skill's `scripts/tfy-api.sh`. See `references/tfy-api-setup.md` for paths per agent.
 
 ## Step 2: List Access Tokens
@@ -136,7 +138,7 @@ $TFY_API_SH DELETE /api/svc/v1/personal-access-tokens/TOKEN_ID
 ## Composability
 
 - **AI Gateway**: PATs are used to authenticate AI Gateway requests (`ai-gateway` skill)
-- **GitOps / CI/CD**: PATs are needed for automated deployments (`gitops` skill, `deploy` skill declarative apply workflow)
+- **GitOps / CI/CD**: PATs are needed for automated deployments and CI/CD pipelines
 - **Status**: Use `status` skill to verify a PAT is working
 - **Secrets**: Store PATs as secrets for deployments (`secrets` skill)
 

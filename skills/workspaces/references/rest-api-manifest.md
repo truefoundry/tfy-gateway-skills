@@ -7,7 +7,7 @@ Deploy services and jobs to TrueFoundry using `PUT /api/svc/v1/apps` — no Pyth
 ## Setup
 
 ```bash
-TFY_API_SH=~/.claude/skills/truefoundry-deploy/scripts/tfy-api.sh
+TFY_API_SH=~/.claude/skills/_shared/scripts/tfy-api.sh
 ```
 
 See `references/tfy-api-setup.md` for agent-specific paths.

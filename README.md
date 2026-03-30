@@ -1,114 +1,52 @@
-# TrueFoundry Agent Skills
+# TrueFoundry Gateway Skills
 
-[![CI](https://github.com/truefoundry/tfy-agent-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/truefoundry/tfy-agent-skills/actions/workflows/ci.yml)
+[![CI](https://github.com/truefoundry/tfy-gateway-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/truefoundry/tfy-gateway-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Agent skills for [TrueFoundry](https://truefoundry.com) following the [Agent Skills](https://agentskills.io) open format. A curated set of skills that let AI coding assistants deploy, monitor, and manage ML infrastructure.
+Markdown skill files that let AI coding agents configure and manage the [TrueFoundry](https://truefoundry.com) AI Gateway. Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
-Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
+> Looking to deploy workloads? TrueFoundry Enterprise with a connected cluster is required. See [truefoundry.com](https://truefoundry.com).
 
 ## Install
 
-Install Gateway skills (default track):
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
+npx skills add truefoundry/tfy-gateway-skills
 ```
 
-To install a different track:
+Or via curl:
 
 ```bash
-# Deploy skills (infrastructure, apps, jobs, etc.)
-curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash -s -- deploy
-
-# All skills (gateway + deploy)
-curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash -s -- all
+curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-gateway-skills/main/scripts/install.sh | bash
 ```
 
-Restart your agent and start asking.
-
-If credentials are not set, your agent will prompt for them. You can also pre-set them via env vars or a `.env` file in your project root:
+Restart your agent. If credentials are not set, your agent will prompt for them. You can also pre-set them:
 
 ```bash
 export TFY_BASE_URL=https://your-org.truefoundry.cloud
-export TFY_HOST=https://your-org.truefoundry.cloud  # CLI host (same as TFY_BASE_URL)
 export TFY_API_KEY=tfy-...  # https://docs.truefoundry.com/docs/generate-api-key
 ```
 
-Do not commit `.env` files or API keys to Git.
-
-If you do not have a TrueFoundry account yet, complete signup first, verify your email, open your tenant URL, create a personal access token, and then set `TFY_API_KEY` for the skills that use the platform API.
-
-## Product Tracks
-
-- `gateway` installs AI Gateway-focused skills plus shared operational skills.
-- `deploy` installs AI Deploy-focused skills plus shared operational skills.
-- `all` installs every skill.
-
-## What You Can Do
-
-Just ask your agent in plain English:
-
-**Gateway (default track):**
-- *"add a new LLM provider to the gateway"*
-- *"set up guardrails for PII filtering"*
-- *"register an MCP server"*
-- *"create a prompt template"*
-
-**Deploy track:**
-- *"deploy my FastAPI app"*
-- *"launch a Jupyter notebook with a GPU"*
-- *"deploy Postgres with Helm"*
-
-**Shared (included in all tracks):**
-- *"show logs for my-service"*
-- *"set up a secret for my database password"*
-- *"what's my connection status?"*
-
-Your agent picks the right skill based on what you ask. Deployment skills are explicit-only: use wording like "deploy", "helm", or "llm deploy".
+New to TrueFoundry? Run `uv run tfy register` to sign up interactively.
 
 ## Skills
 
-| Track | Skills |
-|-------|--------|
-| **Gateway** | [ai-gateway](skills/ai-gateway), [guardrails](skills/guardrails), [mcp-servers](skills/mcp-servers), [prompts](skills/prompts) |
-| **Deploy** | [applications](skills/applications), [deploy](skills/deploy), [gitops](skills/gitops), [helm](skills/helm), [jobs](skills/jobs), [llm-deploy](skills/llm-deploy), [ml-repos](skills/ml-repos), [notebooks](skills/notebooks), [service-test](skills/service-test), [ssh-server](skills/ssh-server), [tracing](skills/tracing), [volumes](skills/volumes), [workflows](skills/workflows), [workspaces](skills/workspaces) |
-| **Shared** | [access-control](skills/access-control), [access-tokens](skills/access-tokens), [docs](skills/docs), [logs](skills/logs), [onboarding](skills/onboarding), [secrets](skills/secrets), [status](skills/status) |
+| Category | Skills |
+|----------|--------|
+| **Gateway** | [agents](skills/agents), [ai-gateway](skills/ai-gateway), [ai-monitoring](skills/ai-monitoring), [guardrails](skills/guardrails), [integrations](skills/integrations), [mcp-servers](skills/mcp-servers), [prompts](skills/prompts) |
+| **Platform** | [access-control](skills/access-control), [access-tokens](skills/access-tokens), [docs](skills/docs), [logs](skills/logs), [onboarding](skills/onboarding), [secrets](skills/secrets), [status](skills/status), [tracing](skills/tracing), [workspaces](skills/workspaces) |
 
-Each skill is a standalone markdown file (`skills/{name}/SKILL.md`) following the [Agent Skills](https://agentskills.io) open format.
-
-## How It Works
-
-Skills are markdown files with instructions your agent reads at runtime. When you ask a question, your agent matches it to the right skill and follows the instructions — calling TrueFoundry APIs, running CLI commands, or both.
-
-No SDKs to learn, no code to write. Your agent handles everything.
+Just ask your agent in plain English — it picks the right skill automatically.
 
 ## Development
 
 ```bash
-# Edit shared files in skills/_shared/, then sync to all skills
-./scripts/sync-shared.sh
-
-# Run local validation (including offline security checks)
-./scripts/validate-skills.sh
-./scripts/validate-skill-security.sh
-
-# Optional: enable pre-push hook so checks run automatically before git push
-./scripts/setup-git-hooks.sh
-
-# Install a product track and restart
-./scripts/install.sh
-./scripts/install.sh deploy
+./scripts/sync-shared.sh              # sync shared files to all skills
+./scripts/validate-skills.sh          # validate frontmatter and structure
+./scripts/validate-skill-security.sh  # offline security checks
+./scripts/install.sh                  # install locally
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details on adding new skills.
-
-## Community
-
-- [Contributing Guide](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
-- [Support](SUPPORT.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 

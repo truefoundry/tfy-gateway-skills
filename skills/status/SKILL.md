@@ -21,8 +21,8 @@ Verify TrueFoundry credentials and connectivity, or diagnose authentication issu
 ## When NOT to Use
 
 - User wants to list workspaces → prefer `workspaces` skill; ask if the user wants another valid path
-- User wants to deploy → prefer `deploy` skill; ask if the user wants another valid path
-- User wants to see running apps → prefer `applications` skill; ask if the user wants another valid path
+- User wants to deploy → deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. Contact TrueFoundry (https://truefoundry.com) to get started
+- User wants to see running apps → deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. Contact TrueFoundry (https://truefoundry.com) to get started
 
 </objective>
 
@@ -92,6 +92,8 @@ TrueFoundry Status:
 - API Key: (not set) ✗
 
 Set TFY_BASE_URL and TFY_API_KEY in your environment or .env file.
+If you do not have a TrueFoundry account yet, run: uv run tfy register
+That flow may open a browser for CAPTCHA or human verification before email verification completes.
 Get an API key: https://docs.truefoundry.com/docs/generating-truefoundry-api-keys
 ```
 
@@ -103,7 +105,7 @@ Get an API key: https://docs.truefoundry.com/docs/generating-truefoundry-api-key
 - The agent has tested the API connection with a lightweight call and reported the result
 - The user can see a clear status summary showing which components are configured and which are missing
 - The agent has provided actionable next steps if any credential or connectivity issue was found
-- The user knows which skill to use next based on their goal (`deploy`, list workspaces, etc.)
+- The user knows which skill to use next based on their goal (list workspaces, AI gateway, etc.)
 
 </success_criteria>
 
@@ -128,6 +130,9 @@ Cannot reach TFY_BASE_URL. Check:
 ```
 TFY_BASE_URL and TFY_API_KEY are required.
 Set them via environment variables or add to .env in project root.
+If the user is new to TrueFoundry, have them run `uv run tfy register` first,
+complete any browser-based CAPTCHA or human verification it requests, verify their email,
+open the returned tenant URL, and create a PAT there.
 ```
 
 ### CLI Host Missing (`TFY_HOST` error)
@@ -142,7 +147,7 @@ run: export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 
 ## Composability
 
-- **After status OK**: Use any other skill (workspaces, applications, deploy, etc.)
+- **After status OK**: Use any other skill in this repo (workspaces, AI gateway, secrets, etc.)
 - **To set credentials**: Export env vars or create .env file
 - **If using tool calls**: Use `tfy_config_set` to persist credentials
 
