@@ -582,6 +582,100 @@ integrations:
 
 ---
 
+## Gateway Load Balancing Config
+
+Configure virtual models with intelligent request routing across multiple model targets.
+
+### Top-level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Config name. |
+| `type` | string | Yes | Must be `gateway-load-balancing-config` |
+| `rules` | array | Yes | Routing rules. See below. |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique rule identifier. |
+| `type` | string | Yes | `weight-based-routing`, `latency-based-routing`, or `priority-based-routing` |
+| `when` | object | Yes | Match conditions: `subjects`, `models`, `metadata`. |
+| `sticky_routing` | object | No | Pin sessions to targets. `ttl_seconds` + `session_identifiers` (key/source pairs). |
+| `load_balance_targets` | array | Yes | Target configurations. See below. |
+
+### Load Balance Target
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target` | string | Yes | Model reference: `"<provider-account>/<integration>"` |
+| `weight` | int | No | Traffic weight (weight-based only). |
+| `priority` | int | No | Priority rank, 0 = highest (priority-based only). |
+| `fallback_candidate` | bool | No | Eligible for failover. |
+| `fallback_status_codes` | array | No | Status codes that trigger failover. |
+| `sla_cutoff` | object | No | `time_per_output_token_ms` threshold (priority-based). |
+| `retry_config` | object | No | `delay` (ms), `attempts`, `on_status_codes`. |
+| `headers_override` | object | No | `set` (key-value) and `remove` (array) headers per target. |
+| `override_params` | object | No | Override model params (e.g., `temperature`, `top_p`). |
+
+---
+
+## Gateway Rate Limiting Config
+
+Configure rate limits per user, team, model, or custom metadata. First matching rule wins.
+
+### Top-level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Config name. |
+| `type` | string | Yes | Must be `gateway-rate-limiting-config` |
+| `rules` | array | Yes | Rate limit rules. |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique rule identifier. |
+| `when` | object | Yes | Match conditions: `subjects`, `models`, `metadata`. Empty `{}` matches all. |
+| `limit_to` | int | Yes | Numeric limit value. |
+| `unit` | string | Yes | `requests_per_minute`, `requests_per_hour`, `requests_per_day`, `tokens_per_minute`, `tokens_per_hour`, or `tokens_per_day`. |
+| `rate_limit_applies_per` | array | No | Create separate limits per entity (max 2). Options: `user`, `model`, `virtualaccount`, `metadata.<key>`. |
+
+---
+
+## Gateway Budget Config
+
+Enforce cost limits with optional alert notifications.
+
+### Top-level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Config name. |
+| `type` | string | Yes | Must be `gateway-budget-config` |
+| `rules` | array | Yes | Budget rules. |
+
+### Rule
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique rule identifier. |
+| `when` | object | Yes | Match conditions: `subjects`, `models`, `metadata`. |
+| `limit_to` | number | Yes | Dollar limit. |
+| `unit` | string | Yes | `cost_per_day`, `cost_per_week`, or `cost_per_month`. |
+| `budget_applies_per` | array | No | Separate budgets per entity. Options: `user`, `model`, `team`, `virtualaccount`, `metadata.<key>`. |
+| `alerts` | object | No | Alert config. See below. |
+
+### Alerts
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `thresholds` | array | Yes | Percentage thresholds (e.g., `[75, 90, 100]`). |
+| `notification_target` | array | Yes | Notification channels: `email`, `slack-webhook`, or `slack-bot`. |
+
+---
+
 ## Shared Object Schemas
 
 ### Image
@@ -1012,7 +1106,13 @@ For GPU or resource-intensive workloads, specify node capacity preference.
 | `role` | Role definition for access control |
 | `team` | Team definition with members |
 | `gateway-guardrails-config` | Guardrail rules for AI Gateway |
+| `gateway-load-balancing-config` | Virtual model routing (weight/latency/priority) |
+| `gateway-rate-limiting-config` | Rate limiting rules (RPM/TPM per user/team/model) |
+| `gateway-budget-config` | Cost budget limits with alerts |
+| `gateway-fallback-config` | Fallback behavior configuration |
+| `gateway-data-routing-config` | Data-based routing rules |
 | `provider-account/guardrail-config-group` | Guardrail provider integration |
+| `provider-account/self-hosted-model` | External OpenAI-compatible model endpoint |
 
 ### Protocol Values
 

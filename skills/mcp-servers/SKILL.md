@@ -263,6 +263,45 @@ tfy apply -f mcp-server-openapi.yaml
 $TFY_API_SH PUT /api/svc/v1/apps "$(cat mcp-server-openapi.yaml | yq -o json)"
 ```
 
+## Registering Stdio-Based MCP Servers
+
+Stdio-based MCP servers (e.g., `npx @modelcontextprotocol/server-*`) communicate over stdin/stdout and cannot be registered directly. Convert them to HTTP first using `mcp-proxy` or a similar wrapper, then register the HTTP endpoint.
+
+### Step 1: Wrap with mcp-proxy
+
+Create a Dockerfile that runs the stdio server behind an HTTP transport:
+
+```dockerfile
+FROM node:22-slim
+RUN npm install -g @anthropic-ai/mcp-proxy @modelcontextprotocol/server-filesystem
+EXPOSE 8080
+CMD ["mcp-proxy", "--transport", "streamable-http", "--port", "8080", "--", \
+     "npx", "@modelcontextprotocol/server-filesystem", "/data"]
+```
+
+### Step 2: Deploy to your infrastructure
+
+Build and deploy the container to any platform that exposes HTTP (your cloud, Kubernetes, etc.). Note the resulting URL.
+
+### Step 3: Register as remote MCP server
+
+```yaml
+name: filesystem-mcp
+type: mcp-server/remote
+description: Filesystem access via MCP (stdio wrapped with mcp-proxy)
+url: "https://your-mcp-proxy-endpoint.example.com/mcp"
+transport: streamable-http
+collaborators:
+  - subject: "team:engineering"
+    role_id: admin
+```
+
+```bash
+tfy apply -f mcp-server-stdio-wrapped.yaml
+```
+
+> **Note:** Any stdio MCP server can be wrapped this way — GitHub, Slack, filesystem, database servers, etc. The key is converting the transport from stdio to HTTP before registering with TrueFoundry.
+
 ## Delete MCP Server
 
 ### Via Tool Call

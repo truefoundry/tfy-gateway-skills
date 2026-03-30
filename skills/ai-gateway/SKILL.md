@@ -295,66 +295,215 @@ print(resp.choices[0].message.content)
 
 > **Note:** One-off gateway config applies should use `tfy apply` directly. For CI/CD pipelines, integrate `tfy apply` into your existing automation.
 
-## Load Balancing & Routing
+## Virtual Models & Load Balancing
 
-The gateway supports intelligent request routing across multiple model instances.
+Virtual models route requests across multiple model instances using a `gateway-load-balancing-config` manifest. Targets reference real catalog models as `"<provider-account-name>/<integration-name>"`.
 
 ### Weight-Based Routing
 
-Distribute requests proportionally:
-- 90% to Azure GPT-4o (primary)
-- 10% to OpenAI GPT-4o (overflow)
+```yaml
+name: chat-routing
+type: gateway-load-balancing-config
+rules:
+  - id: weighted-chat
+    type: weight-based-routing
+    when:
+      subjects: ["*"]
+      models: ["openai/gpt-4o"]
+    load_balance_targets:
+      - target: "openai-main/gpt-4o"
+        weight: 70
+        fallback_candidate: true
+        retry_config:
+          delay: 100
+          attempts: 1
+          on_status_codes: ["429", "500", "502", "503"]
+      - target: "azure-backup/gpt-4o"
+        weight: 30
+        fallback_candidate: true
+        retry_config:
+          delay: 100
+          attempts: 1
+          on_status_codes: ["429", "500", "502", "503"]
+```
 
 ### Latency-Based Routing
 
-Automatically route to the lowest-latency model:
-- Measures time per output token over last 20 minutes
-- Models within 1.2x of fastest are treated equally
-- Models with < 3 recent requests get preferential routing for data collection
+Automatically routes to the lowest-latency model (measures time per output token over last 20 minutes):
+
+```yaml
+rules:
+  - id: latency-chat
+    type: latency-based-routing
+    when:
+      subjects: ["*"]
+      models: ["openai/gpt-4o"]
+    load_balance_targets:
+      - target: "openai-main/gpt-4o"
+        fallback_candidate: true
+      - target: "azure-backup/gpt-4o"
+        fallback_candidate: true
+```
 
 ### Priority-Based Routing
 
-Route to highest-priority healthy model with SLA cutoff:
-- Monitors average Time Per Output Token over 3-minute windows
-- Auto-marks models unhealthy when TPOT exceeds threshold
-- Automatic recovery when metrics improve
+Routes to highest-priority healthy model with SLA cutoff (auto-marks unhealthy when TPOT exceeds threshold):
 
-### Fallback Configuration
-
-- **Default retry codes**: 429, 500, 502, 503
-- **Default fallback codes**: 401, 403, 404, 429, 500, 502, 503
-- Per-target retry attempts and delay intervals
-- Auto-failover to backup models when primary is down
-
-### Routing Config via GitOps
-
-Routing configurations can be managed as YAML and applied via `tfy apply`:
-
-```bash
-# Store routing config in git, apply via CLI
-tfy apply -f gateway-routing-config.yaml
+```yaml
+rules:
+  - id: priority-chat
+    type: priority-based-routing
+    when:
+      subjects: ["team:premium"]
+      models: ["*"]
+    load_balance_targets:
+      - target: "openai-main/gpt-4o"
+        priority: 0
+        sla_cutoff:
+          time_per_output_token_ms: 50
+        fallback_candidate: true
+      - target: "azure-backup/gpt-4o"
+        priority: 1
+        fallback_candidate: true
 ```
 
-For CI/CD integration, add `tfy apply` to your existing automation pipeline.
+### Sticky Sessions
+
+Pin users to the same target for a duration:
+
+```yaml
+rules:
+  - id: sticky-chat
+    type: weight-based-routing
+    sticky_routing:
+      ttl_seconds: 3600
+      session_identifiers:
+        - key: x-user-id
+          source: headers
+    load_balance_targets:
+      - target: "openai-main/gpt-4o"
+        weight: 50
+      - target: "azure-backup/gpt-4o"
+        weight: 50
+```
+
+### Header Overrides Per Target
+
+```yaml
+load_balance_targets:
+  - target: "openai-main/gpt-4o"
+    weight: 80
+    headers_override:
+      set:
+        x-region: us-east-1
+      remove:
+        - x-internal-debug
+```
+
+### Fallback Behavior
+
+Fallback is configured per-target inside `load_balance_targets`:
+- `fallback_status_codes`: defaults to `["401", "403", "404", "429", "500", "502", "503"]`
+- `fallback_candidate: true` marks a target as eligible for failover
+- `retry_config.on_status_codes` controls which errors trigger retries
+
+### Apply
+
+```bash
+tfy apply -f gateway-load-balancing-config.yaml --dry-run --show-diff
+tfy apply -f gateway-load-balancing-config.yaml
+```
+
+> **Note:** Targets must be real catalog models, not nested virtual models.
 
 ## Rate Limiting
 
-Control model usage per user, team, or application:
+Configure rate limits per user, team, model, or custom metadata using a `gateway-rate-limiting-config` manifest. Only the first matching rule applies — place specific rules before generic ones.
 
-- **Requests per minute (RPM)** limits
-- **Tokens per minute (TPM)** limits
-- Per-model or global limits
-- Configure via TrueFoundry dashboard → AI Gateway → Rate Limiting
+```yaml
+name: rate-limits
+type: gateway-rate-limiting-config
+rules:
+  - id: "team-rpm-limit"
+    when:
+      subjects: ["team:backend"]
+      models: ["openai-main/gpt-4o"]
+    limit_to: 20000
+    unit: tokens_per_minute
+
+  - id: "user-daily-limit"
+    when:
+      subjects: ["user:bob@example.com"]
+      models: ["openai-main/gpt-4o"]
+    limit_to: 1000
+    unit: requests_per_day
+
+  - id: "per-project-hourly"
+    when: {}
+    limit_to: 50000
+    unit: tokens_per_hour
+    rate_limit_applies_per: ["metadata.project_id"]
+
+  - id: "global-fallback"
+    when: {}
+    limit_to: 500
+    unit: requests_per_minute
+    rate_limit_applies_per: ["user"]
+```
+
+**Units:** `requests_per_minute`, `requests_per_hour`, `requests_per_day`, `tokens_per_minute`, `tokens_per_hour`, `tokens_per_day`
+
+**`rate_limit_applies_per`:** Creates separate limits per entity (max 2 values). Options: `user`, `model`, `virtualaccount`, `metadata.<key>`.
+
+```bash
+tfy apply -f gateway-rate-limiting-config.yaml
+```
 
 ## Budget Controls
 
-Enforce cost limits:
+Enforce cost limits per user, team, or metadata using a `gateway-budget-config` manifest. Costs are tracked automatically based on model pricing.
 
-- Per-user spending caps
-- Per-team budgets
-- Per-model cost limits
-- Automatic blocking when budget exceeded
-- Configure via TrueFoundry dashboard → AI Gateway → Budget Limiting
+```yaml
+name: budget-controls
+type: gateway-budget-config
+rules:
+  - id: "team-monthly-budget"
+    when:
+      subjects: ["team:engineering"]
+    limit_to: 5000
+    unit: cost_per_month
+    budget_applies_per: ["team"]
+    alerts:
+      thresholds: [75, 90, 100]
+      notification_target:
+        - type: email
+          notification_channel: "budget-alerts"
+          to_emails: ["lead@example.com"]
+
+  - id: "user-daily-budget"
+    when: {}
+    limit_to: 100
+    unit: cost_per_day
+    budget_applies_per: ["user"]
+
+  - id: "project-daily-budget"
+    when:
+      metadata:
+        environment: "production"
+    limit_to: 200
+    unit: cost_per_day
+    budget_applies_per: ["metadata.project_id"]
+```
+
+**Units:** `cost_per_day` (resets UTC midnight), `cost_per_week` (resets Monday), `cost_per_month` (resets 1st)
+
+**`budget_applies_per`:** Same options as rate limiting — `user`, `model`, `team`, `virtualaccount`, `metadata.<key>`.
+
+**Alerts:** Configure threshold percentages with email, Slack webhook, or Slack bot notifications.
+
+```bash
+tfy apply -f gateway-budget-config.yaml
+```
 
 ## Observability
 
