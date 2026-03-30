@@ -1,5 +1,5 @@
 ---
-name: guardrails
+name: truefoundry-guardrails
 description: Configures content safety guardrails for TrueFoundry AI Gateway. Supports PII filtering, content moderation, prompt injection detection, and custom rules. Use when adding safety controls to LLM or MCP tool calls.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

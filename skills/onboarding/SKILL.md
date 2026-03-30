@@ -1,5 +1,5 @@
 ---
-name: onboarding
+name: truefoundry-onboarding
 description: Guides new users through TrueFoundry setup — account registration, email verification, credential configuration, and first deployment. Use when the user says "get started", "set up truefoundry", "new account", "register", "onboard", "I'm new", or has no credentials configured.
 license: MIT
 compatibility: Requires Bash, curl, and Python (uv or pip)

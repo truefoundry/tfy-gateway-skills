@@ -1,5 +1,5 @@
 ---
-name: workspaces
+name: truefoundry-workspaces
 description: Lists TrueFoundry workspaces and clusters. Provides workspace FQNs for deployment, cluster connectivity status, available GPU types, and base domains.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

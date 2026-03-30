@@ -1,5 +1,5 @@
 ---
-name: access-tokens
+name: truefoundry-access-tokens
 description: Manages TrueFoundry personal access tokens (PATs). List, create, and delete tokens for API auth, CI/CD, and gateway access.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

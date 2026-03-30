@@ -1,5 +1,5 @@
 ---
-name: docs
+name: truefoundry-docs
 description: Fetches TrueFoundry documentation, API reference, and deployment guides. Use when the user needs platform docs or how-to guidance.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

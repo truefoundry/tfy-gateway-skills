@@ -1,5 +1,5 @@
 ---
-name: mcp-servers
+name: truefoundry-mcp-servers
 description: Registers MCP servers with TrueFoundry for discovery and access control. Supports remote servers, virtual (composite) servers, and OpenAPI-to-MCP wrapping. Use when adding, listing, or managing MCP server registrations.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

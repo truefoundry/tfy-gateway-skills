@@ -1,5 +1,5 @@
 ---
-name: ai-monitoring
+name: truefoundry-ai-monitoring
 description: Monitors AI Gateway traffic, costs, latency, errors, and token usage by querying request traces via the spans query API.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

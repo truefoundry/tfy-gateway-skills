@@ -69,8 +69,9 @@ while IFS= read -r skill_md; do
   [[ -n "$description" ]] || fail "$skill_md missing frontmatter field: description"
   [[ -n "$allowed_tools" ]] || fail "$skill_md missing frontmatter field: allowed-tools"
 
-  if [[ "$name" != "$skill_dir" ]]; then
-    fail "$skill_md name '$name' must match directory '$skill_dir'"
+  expected_name="truefoundry-$skill_dir"
+  if [[ "$name" != "$expected_name" ]]; then
+    fail "$skill_md name '$name' must match expected '$expected_name'"
   fi
 
   if ! [[ "$name" =~ ^[a-z0-9-]+$ ]]; then

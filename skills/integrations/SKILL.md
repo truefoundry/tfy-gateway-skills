@@ -1,5 +1,5 @@
 ---
-name: integrations
+name: truefoundry-integrations
 description: Manages TrueFoundry LLM provider account integrations. Add, list, and manage providers (OpenAI, AWS Bedrock, Google Vertex, Azure, Groq, Together AI, self-hosted models, etc.).
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
