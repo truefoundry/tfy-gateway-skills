@@ -47,6 +47,7 @@ AGENTS_GLOBAL=(
   ".roo-code|.roo-code/skills|Roo Code"
 )
 
+# All skill source directories in this repo.
 SKILL_NAMES=(
   access-control access-tokens agents ai-gateway ai-monitoring docs guardrails integrations logs mcp-servers onboarding prompts secrets status tracing workspaces
 )
