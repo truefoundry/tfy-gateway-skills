@@ -81,13 +81,18 @@ $TFY_API_SH GET "/api/svc/v1/apps?workspaceFqn=${TFY_WORKSPACE_FQN}&applicationN
 ```bash
 pip install 'truefoundry==0.5.0'
 
-# Interactive login (recommended — avoids exposing credentials in shell history)
+# New user signup
+uv run tfy register
+
+# Existing account: interactive login (recommended — avoids exposing credentials in shell history)
 tfy login --host "${TFY_HOST:-${TFY_BASE_URL%/}}"
 
 # Non-interactive login for CI/CD (TFY_API_KEY must be a masked CI secret)
 # SECURITY: Avoid running this locally — the API key will appear in shell history.
 tfy login --host "${TFY_HOST:-${TFY_BASE_URL%/}}" --api-key "$TFY_API_KEY"
 ```
+
+For first-time setup, `tfy register` is interactive and may open a browser for CAPTCHA or other human verification. It then guides the user through email verification, returns the tenant URL, and points them to create a PAT. After that, export `TFY_API_KEY` and use the normal CLI or API flows.
 
 ## `tfy apply` vs `tfy deploy`
 

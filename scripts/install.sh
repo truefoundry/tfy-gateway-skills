@@ -2,7 +2,7 @@
 # TrueFoundry Agent Skills installer
 #
 # Install:  curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
-# Options:  ... | bash -s -- [gateway|deploy|all] [--global] [--local] [--agents claude,cursor,codex]
+# Options:  ... | bash -s -- [--global] [--local] [--agents claude,cursor,codex]
 #
 # Or run from inside the repo:  ./scripts/install.sh
 set -euo pipefail
@@ -47,21 +47,9 @@ AGENTS_GLOBAL=(
   ".roo-code|.roo-code/skills|Roo Code"
 )
 
-# Skill tracks.
-SHARED_SKILLS=(
-  access-control access-tokens docs logs onboarding secrets status
+SKILL_NAMES=(
+  access-control access-tokens agents ai-gateway ai-monitoring docs guardrails integrations logs mcp-servers onboarding prompts secrets status tracing workspaces
 )
-
-GATEWAY_SKILLS=(
-  ai-gateway guardrails mcp-servers prompts
-)
-
-DEPLOY_SKILLS=(
-  applications deploy gitops helm jobs llm-deploy ml-repos notebooks service-test ssh-server tracing volumes workflows workspaces
-)
-
-TRACK="gateway"
-SKILL_NAMES=()
 
 # Shared files (relative to _shared/ in source)
 SHARED_SCRIPTS=( "scripts/tfy-api.sh" "scripts/tfy-version.sh" )
@@ -75,7 +63,6 @@ SHA_SET_BY_ARG=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    gateway|deploy|all) TRACK="$1"; shift ;;
     --global) MODE="global"; shift ;;
     --local)  MODE="local";  shift ;;
     --agents) FILTER_AGENTS="$2"; shift 2 ;;
@@ -84,19 +71,15 @@ while [[ $# -gt 0 ]]; do
     --help|-h)
       cat <<EOF
 Usage: install.sh [--global] [--local] [--agents claude,cursor,codex] [--ref REF] [--sha256 SHA256]
-       install.sh [gateway|deploy|all] [--global] [--local] [--agents claude,cursor,codex] [--ref REF] [--sha256 SHA256]
 
 Options:
-  gateway          Install Gateway skills plus shared skills (default)
-  deploy           Install Deploy skills plus shared skills
-  all              Install every skill
   --global         Install to ~/.{agent}/skills/ only
   --local          Install to ./{agent}/skills/ in current directory only
   --agents LIST    Comma-separated agent names: claude,cursor,codex,opencode,windsurf,cline,roo-code
   --ref REF        Git ref to install from (branch, tag, or commit SHA)
   --sha256 HASH    Verify downloaded tarball SHA256 before extraction
 
-Without flags, installs the "gateway" track globally to all detected agents,
+Without flags, installs globally to all detected agents,
 plus locally if agent config dirs exist in the current directory.
 
 Environment:
@@ -113,24 +96,6 @@ agent_allowed() {
   local name="$1"
   [ -z "$FILTER_AGENTS" ] && return 0
   echo ",$FILTER_AGENTS," | grep -qi ",$name,"
-}
-
-set_skill_names_for_track() {
-  case "$TRACK" in
-    gateway)
-      SKILL_NAMES=( "${SHARED_SKILLS[@]}" "${GATEWAY_SKILLS[@]}" )
-      ;;
-    deploy)
-      SKILL_NAMES=( "${SHARED_SKILLS[@]}" "${DEPLOY_SKILLS[@]}" )
-      ;;
-    all)
-      SKILL_NAMES=( "${SHARED_SKILLS[@]}" "${GATEWAY_SKILLS[@]}" "${DEPLOY_SKILLS[@]}" )
-      ;;
-    *)
-      error "Unknown track: $TRACK"
-      exit 1
-      ;;
-  esac
 }
 
 sha256_of_file() {
@@ -330,7 +295,6 @@ printf '\n%sTrueFoundry Skills%s\n\n' "$BOLD" "$NC"
 
 SOURCE_DIR=""
 resolve_source
-set_skill_names_for_track
 printf "\n"
 
 installed=0
@@ -362,9 +326,8 @@ if [ "$installed" -eq 0 ]; then
 fi
 
 banner
-info "Installed track: ${CYAN}$TRACK${NC}"
 printf '  %sShared files in %s_shared/%s — update once, all skills use it.%s\n\n' "$DIM" "$CYAN" "$DIM" "$NC"
 warn "Restart your agent to load skills."
 printf "\n"
-info "Run again anytime to update: ${DIM}curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/scripts/install.sh | bash -s -- $TRACK${NC}"
+info "Run again anytime to update: ${DIM}curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/scripts/install.sh | bash${NC}"
 printf "\n"

@@ -96,9 +96,9 @@ Logs for tfy-tool-server (last 20 lines):
 
 ## Composability
 
-- **Find app first**: Use `applications` skill to get app ID or FQN
+- **Find app first**: Use `applications` skill (from [`tfy-deployment-agent-skills`](https://github.com/truefoundry/tfy-deployment-agent-skills)) to get app ID or FQN
 - **Find workspace**: Use `workspaces` skill to get workspace ID
-- **After deploy**: Check logs to verify the app started
+- **After deploy**: Check logs to verify the app started (deploy via [`tfy-deployment-agent-skills`](https://github.com/truefoundry/tfy-deployment-agent-skills))
 - **Debug failures**: Download logs with `searchString=error`
 
 </references>

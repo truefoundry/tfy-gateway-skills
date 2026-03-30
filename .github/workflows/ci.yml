@@ -67,7 +67,7 @@ jobs:
         run: |
           export HOME="$(mktemp -d)"
           mkdir -p "$HOME/${{ matrix.config_dir }}"
-          bash scripts/install.sh all --global --agents "${{ matrix.agent }}" > /tmp/install_run_${{ matrix.agent }}.txt
+          bash scripts/install.sh --global --agents "${{ matrix.agent }}" > /tmp/install_run_${{ matrix.agent }}.txt
 
           target_dir="$HOME/${{ matrix.skills_dir }}"
           test -d "$target_dir"

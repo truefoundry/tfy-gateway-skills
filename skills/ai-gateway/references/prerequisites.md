@@ -17,10 +17,18 @@ export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 If not found, install it:
 
 ```bash
-pip install 'truefoundry==0.5.0' && tfy login --host "$TFY_BASE_URL"
+pip install 'truefoundry==0.5.0'
 ```
 
 > **Note:** The CLI (`tfy apply`) is the recommended deployment method, but it is not strictly required. All skills fall back to the REST API via `tfy-api.sh` when the CLI is unavailable.
+
+If the user does not have a TrueFoundry account yet, onboard with:
+
+```bash
+uv run tfy register
+```
+
+That flow is interactive and may require a browser-based CAPTCHA or human-verification step before email verification. It then returns the tenant URL and tells the user where to create a PAT. After the PAT is created, set `TFY_API_KEY` and continue with the skills below.
 
 ## Credential Check
 
@@ -78,6 +86,8 @@ Skills look for credentials in environment variables first, then fall back to `.
 
 ## Generating API Keys
 
-Visit `{TFY_BASE_URL}/settings` → API Keys → Generate New Key.
+If the user is brand new, run `uv run tfy register` first, complete any browser-based CAPTCHA or human verification it asks for, and finish email verification.
+
+Then visit the tenant URL returned by the CLI and go to `Settings` → `API Keys` → `Generate New Key`.
 
 See: [API Keys](https://docs.truefoundry.com/docs/generate-api-key)

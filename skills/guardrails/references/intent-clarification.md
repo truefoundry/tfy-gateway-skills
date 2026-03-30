@@ -17,23 +17,7 @@ This can be done in two ways: <Option A> or <Option B>. Which path do you want?
 
 ## Deployment Templates
 
-### Database / Postgres / Redis
-
-```text
-I can deploy this as a Helm chart or as a containerized service. Which one do you want?
-```
-
-### LLM Serving
-
-```text
-Do you want dedicated model serving (`llm-deploy`) or a generic service deployment (`deploy`)?
-```
-
-### Manual Deploy vs GitOps
-
-```text
-Do you want a one-time/manual deployment now, or GitOps CI/CD setup for automatic deploys on push?
-```
+> **Note:** Deployment skills (`deploy`, `llm-deploy`, `gitops`, `helm`, `jobs`, `notebooks`, `workflows`, `ssh-server`, `volumes`, `ml-repos`, `applications`, `service-test`) have moved to the **tfy-deployment-agent-skills** repo. If a user request requires deploying workloads, inform them that deployment capabilities are available via the `tfy-deployment-agent-skills` skill pack.
 
 ### Logs vs Status
 
@@ -43,7 +27,5 @@ Do you want runtime logs for debugging, or deployment/pod status only?
 
 ## Tie-Breaking Guidance
 
-- If user says "production-ready database", recommend Helm first.
-- If user says "quick local test", recommend the simpler path with fewer required inputs.
-- If user says "docker", "container image", "dockerfile", or similar for a database deploy, choose the containerized `deploy` path directly (do not default to Helm).
-- If the user mentions an exact tool (for example, "helm", "gitops", "tfy apply"), honor it directly.
+- If the user mentions an exact tool (for example, "helm", "gitops", "tfy apply"), inform them that deployment skills are available in the `tfy-deployment-agent-skills` skill pack.
+- If a user request is purely about AI gateway configuration (providers, keys, routing, rate limits, guardrails), proceed with the relevant gateway skill.
