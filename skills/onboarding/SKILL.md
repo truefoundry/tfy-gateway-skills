@@ -214,7 +214,7 @@ After successful setup, guide the user based on what they want to do:
 ```
 If tfy CLI is not installed:
   uv run --from truefoundry tfy register
-  # or: pip install truefoundry && tfy register
+  # or: pip install 'truefoundry>=0.5.0' && tfy register
 
 If registration service is unreachable:
   Check network connectivity to https://registration.truefoundry.com
