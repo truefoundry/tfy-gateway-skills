@@ -20,8 +20,8 @@ Access LLMs through TrueFoundry's unified OpenAI-compatible gateway, configure a
 
 ## When NOT to Use
 
-- User wants to deploy a self-hosted model → this requires the `llm-deploy` skill from the **tfy-deploy-skills** package; suggest the user install that package, then connect the model to this gateway
-- User wants to deploy tool servers → this requires the `deploy` skill from the **tfy-deploy-skills** package; suggest the user install that package for service deployments
+- User wants to deploy a self-hosted model → deploying self-hosted models requires a TrueFoundry Enterprise account with a connected cluster. See https://truefoundry.com
+- User wants to deploy tool servers → deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. See https://truefoundry.com
 - User wants to manage TrueFoundry platform credentials → prefer `status` skill; ask if the user wants another valid path
 
 </objective>
@@ -210,7 +210,7 @@ Currently done through the TrueFoundry dashboard UI:
 
 ### Adding Self-Hosted Models (Cluster-Internal)
 
-After deploying a model (using the `llm-deploy` skill from the **tfy-deploy-skills** package):
+After deploying a self-hosted model:
 
 1. Go to **AI Gateway → Models → Add Provider Account**
 2. Select **"Self Hosted"** as the provider type
@@ -293,7 +293,7 @@ resp = client.chat.completions.create(
 print(resp.choices[0].message.content)
 ```
 
-> **Note:** For CI/CD GitOps pipelines that apply routing config, see the `deploy` and `gitops` skills in the **tfy-deploy-skills** package. One-off gateway config applies should use `tfy apply` directly.
+> **Note:** One-off gateway config applies should use `tfy apply` directly. For CI/CD pipelines, integrate `tfy apply` into your existing automation.
 
 ## Load Balancing & Routing
 
@@ -335,7 +335,7 @@ Routing configurations can be managed as YAML and applied via `tfy apply`:
 tfy apply -f gateway-routing-config.yaml
 ```
 
-For CI/CD integration, see the `deploy` and `gitops` skills in the **tfy-deploy-skills** package.
+For CI/CD integration, add `tfy apply` to your existing automation pipeline.
 
 ## Rate Limiting
 
@@ -405,7 +405,7 @@ For content filtering, PII detection, prompt injection prevention, and custom sa
 
 If a user has already deployed a tool server and wants to attach it to MCP gateway:
 
-1. Verify deployment status and endpoint URL (requires `deploy` and `applications` skills from the **tfy-deploy-skills** package)
+1. Verify deployment status and endpoint URL via the TrueFoundry dashboard
 2. Register the endpoint as an MCP server (`mcp-servers` skill)
 3. Confirm registration ID/name and share how to reference it in policies
 
@@ -484,12 +484,12 @@ Usage:
 
 ## Composability
 
-- **Deploy model first**: Use the `llm-deploy` skill (from the **tfy-deploy-skills** package) to deploy a self-hosted model, then add to gateway
+- **Deploy model first**: Deploy a self-hosted model (requires TrueFoundry Enterprise), then add to gateway
 - **Need API key**: Create PAT/VAT in TrueFoundry dashboard → Access
 - **Rate limiting**: Configure in dashboard → AI Gateway → Rate Limiting
-- **Routing config**: Apply routing YAML directly with `tfy apply`; for GitOps pipelines, see the `deploy` and `gitops` skills in the **tfy-deploy-skills** package
-- **Tool servers**: Deploy tool servers using the `deploy` skill (from the **tfy-deploy-skills** package), then register in gateway
-- **Check deployed models**: Use the `applications` skill (from the **tfy-deploy-skills** package) to see running model services
+- **Routing config**: Apply routing YAML directly with `tfy apply`; for CI/CD pipelines, integrate `tfy apply` into your automation
+- **Tool servers**: Deploy tool servers to your infrastructure, then register in gateway
+- **Check deployed models**: Check the TrueFoundry dashboard to see running model services
 - **Benchmark through gateway**: Use your preferred load-testing tool against gateway endpoints
 
 </references>

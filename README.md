@@ -5,7 +5,7 @@
 
 Markdown skill files that let AI coding agents configure and manage the [TrueFoundry](https://truefoundry.com) AI Gateway. Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
-> Looking for deployment skills? See [tfy-deploy-skills](https://github.com/truefoundry/tfy-deploy-skills).
+> Looking to deploy workloads? TrueFoundry Enterprise with a connected cluster is required. See [truefoundry.com](https://truefoundry.com).
 
 ## Install
 

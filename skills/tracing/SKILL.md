@@ -293,7 +293,7 @@ traceloop.initialize({
 
 - **Preflight**: Use `status` skill to verify TFY_BASE_URL and TFY_API_KEY
 - **Secrets**: Use `secrets` skill to store TFY_API_KEY as a secret instead of hardcoding
-- **Deploy**: After instrumenting, use `deploy` skill from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills) to deploy the traced application
+- **Deploy**: After instrumenting, deploy your application to your infrastructure
 - **Logs**: Use `logs` skill to debug if traces aren't appearing
 
 ## API Endpoints

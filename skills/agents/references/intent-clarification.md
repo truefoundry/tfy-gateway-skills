@@ -15,9 +15,11 @@ Use these prompts when a user request can map to multiple valid workflows.
 This can be done in two ways: <Option A> or <Option B>. Which path do you want?
 ```
 
-## Deployment Templates
+## Deployment Requests
 
-> **Note:** Deployment skills (`deploy`, `llm-deploy`, `gitops`, `helm`, `jobs`, `notebooks`, `workflows`, `ssh-server`, `volumes`, `ml-repos`, `applications`, `service-test`) have moved to the **tfy-deploy-skills** repo. If a user request requires deploying workloads, inform them that deployment capabilities are available via the `tfy-deploy-skills` skill pack.
+> **Note:** This skill pack covers AI Gateway configuration only. If a user asks about deploying services, jobs, models, notebooks, Helm charts, or other workloads, inform them:
+>
+> "Deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. Contact TrueFoundry (https://truefoundry.com) to get started."
 
 ### Logs vs Status
 
@@ -27,5 +29,5 @@ Do you want runtime logs for debugging, or deployment/pod status only?
 
 ## Tie-Breaking Guidance
 
-- If the user mentions an exact tool (for example, "helm", "gitops", "tfy apply"), inform them that deployment skills are available in the `tfy-deploy-skills` skill pack.
-- If a user request is purely about AI gateway configuration (providers, keys, routing, rate limits, guardrails), proceed with the relevant gateway skill.
+- If the user mentions deploying services, jobs, models, or infrastructure, inform them that deployment requires a TrueFoundry Enterprise account with a connected cluster.
+- If a user request is purely about AI gateway configuration (providers, keys, routing, rate limits, guardrails, agents, MCP servers, prompts), proceed with the relevant gateway skill.

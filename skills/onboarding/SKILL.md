@@ -25,7 +25,7 @@ Guide a new user from zero to a working TrueFoundry setup: account creation, cre
 
 - User already has credentials and wants to check status → prefer `status` skill
 - User wants to manage existing tokens → prefer `access-tokens` skill
-- User wants to deploy → requires `tfy-deploy-skills` package (see https://github.com/truefoundry/tfy-deploy-skills)
+- User wants to deploy → deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. See https://truefoundry.com
 - User wants to list workspaces → prefer `workspaces` skill
 
 </objective>
@@ -184,12 +184,8 @@ After successful setup, guide the user based on what they want to do:
 > - List workspaces → `workspaces` skill
 > - Check logs → `logs` skill
 >
-> **Deploy & Run** (requires `tfy-deploy-skills` package — see https://github.com/truefoundry/tfy-deploy-skills)
-> - Deploy a service → `deploy` skill
-> - Deploy an LLM → `llm-deploy` skill
-> - Run a batch job → `jobs` skill
-> - Launch a notebook → `notebooks` skill
-> - View running apps → `applications` skill
+> **Deploy & Run** (requires TrueFoundry Enterprise with a connected cluster — see https://truefoundry.com)
+> - Deploy services, LLMs, jobs, and notebooks via the TrueFoundry dashboard or CLI
 >
 > What would you like to do?
 
@@ -277,7 +273,7 @@ When using tfy CLI with TFY_API_KEY, TFY_HOST is also required:
 
 - **After onboarding** → Use `status` skill to re-verify credentials at any time
 - **Token management** → Use `access-tokens` skill to create additional PATs
-- **First deployment** → requires `tfy-deploy-skills` package (see https://github.com/truefoundry/tfy-deploy-skills)
+- **First deployment** → deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. See https://truefoundry.com
 - **Workspace selection** → Use `workspaces` skill to list and pick a workspace
 - **Read the docs** → Use `docs` skill to search TrueFoundry documentation
 

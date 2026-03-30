@@ -21,7 +21,7 @@ Manage AI agents in the TrueFoundry Agent Registry — list agents, inspect agen
 ## When NOT to Use
 
 - User wants to manage prompts directly → prefer `prompts` skill
-- User wants to deploy a service → requires the `deploy` skill from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills)
+- User wants to deploy a service → deploying workloads requires a TrueFoundry Enterprise account with a connected cluster. See https://truefoundry.com
 - User wants to configure AI Gateway routes → prefer `ai-gateway` skill
 - User wants to manage access control roles → prefer `access-control` skill
 

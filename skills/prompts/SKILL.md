@@ -182,7 +182,6 @@ client.prompt_versions.get_by_fqn(fqn="ml-repo:prompt-name:production")
 
 ## Composability
 
-- **With deployments**: Use `applications` skill (from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills)) to check deployed services that consume prompts
 - **For versioning**: List prompt versions to track changes
 - **Create/update flow**: Use `workspaces` skill to find the ML repo FQN, then create or update the prompt
 - **Tagging flow**: After creating a new version, apply a `production` tag to promote it

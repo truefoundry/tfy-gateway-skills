@@ -300,7 +300,7 @@ $TFY_API_SH DELETE /api/svc/v1/mcp-servers/SERVER_ID
 ## Composability
 
 - **Preflight**: Use `status` skill to verify credentials before managing MCP servers
-- **Before registering**: Deploy the MCP server as a service (use `deploy` skill from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills)), set up teams/roles for collaborators (use `access-control` skill)
+- **Before registering**: Deploy the MCP server to your infrastructure, then register it here. Set up teams/roles for collaborators (use `access-control` skill)
 - **After registering**: Reference MCP servers in agent manifests, configure guardrails for MCP tools
 
 </references>

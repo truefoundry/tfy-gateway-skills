@@ -138,7 +138,7 @@ $TFY_API_SH DELETE /api/svc/v1/personal-access-tokens/TOKEN_ID
 ## Composability
 
 - **AI Gateway**: PATs are used to authenticate AI Gateway requests (`ai-gateway` skill)
-- **GitOps / CI/CD**: PATs are needed for automated deployments (`gitops` and `deploy` skills from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills))
+- **GitOps / CI/CD**: PATs are needed for automated deployments and CI/CD pipelines
 - **Status**: Use `status` skill to verify a PAT is working
 - **Secrets**: Store PATs as secrets for deployments (`secrets` skill)
 
