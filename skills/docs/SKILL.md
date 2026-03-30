@@ -108,3 +108,34 @@ Or use WebFetch if available in the agent.
 - **For troubleshooting**: Fetch relevant docs page and summarize
 
 </references>
+
+<troubleshooting>
+
+## Error Handling
+
+### Documentation page returns 404
+```
+The URL may have changed. Try searching the docs index:
+  curl -sL "https://truefoundry.com/docs" | head -100
+
+Or check the sitemap for the current URL structure.
+```
+
+### curl fails or times out
+```
+Check network connectivity:
+  curl -sI https://truefoundry.com
+
+If behind a proxy, ensure HTTP_PROXY / HTTPS_PROXY are set.
+If curl is unavailable, use WebFetch or suggest the user open the URL in a browser.
+```
+
+### Documentation content is truncated or unparseable
+```
+Some pages render dynamically. Try:
+  - Increasing the head limit (e.g., head -500)
+  - Using WebFetch if available in the agent
+  - Providing the direct URL to the user to open in a browser
+```
+
+</troubleshooting>

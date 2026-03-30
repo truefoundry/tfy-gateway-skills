@@ -1,6 +1,6 @@
 # Manifest Schema Reference
 
-Complete YAML manifest field reference for all TrueFoundry deployment types. This is the single source of truth for manifest structure used by `tfy apply -f manifest.yaml` and REST API `PUT /api/svc/v1/apps`.
+YAML manifest field reference for TrueFoundry resource types. This covers gateway-related types (Service, Agent, MCP Server, Role, Team, Guardrails) as well as deployment types for reference. For full deployment skill support (Jobs, Notebooks, Helm, etc.), install [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills). Used by `tfy apply -f manifest.yaml` and REST API `PUT /api/svc/v1/apps`.
 
 ---
 

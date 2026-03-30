@@ -53,7 +53,7 @@ SKILL_NAMES=(
 
 # Shared files (relative to _shared/ in source)
 SHARED_SCRIPTS=( "scripts/tfy-api.sh" "scripts/tfy-version.sh" )
-SHARED_REFS=( "references/api-endpoints.md" "references/container-versions.md" "references/prerequisites.md" "references/tfy-api-setup.md" "references/gpu-reference.md" "references/cluster-discovery.md" "references/health-probes.md" "references/resource-estimation.md" "references/rest-api-manifest.md" "references/manifest-schema.md" "references/manifest-defaults.md" "references/cli-fallback.md" )
+SHARED_REFS=( "references/api-endpoints.md" "references/container-versions.md" "references/prerequisites.md" "references/tfy-api-setup.md" "references/gpu-reference.md" "references/cluster-discovery.md" "references/health-probes.md" "references/intent-clarification.md" "references/resource-estimation.md" "references/rest-api-manifest.md" "references/manifest-schema.md" "references/manifest-defaults.md" "references/cli-fallback.md" )
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 MODE=""            # "" = auto (global + local if applicable), "global", "local"

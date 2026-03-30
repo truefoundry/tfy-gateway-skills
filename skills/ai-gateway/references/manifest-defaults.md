@@ -1,6 +1,6 @@
 # Manifest Defaults
 
-Per-workload-type recommended defaults with "Override When" guidance and complete YAML templates. All templates use `${VARIABLE}` for user-provided values and sensible defaults for everything else.
+Per-workload-type recommended defaults with "Override When" guidance and complete YAML templates. All templates use `${VARIABLE}` for user-provided values and sensible defaults for everything else. Includes deployment types for reference; for full deployment skill support install [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills).
 
 See `references/manifest-schema.md` for full field documentation.
 
