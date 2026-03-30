@@ -162,7 +162,7 @@ For the full GPU type reference table and SDK usage examples, see `references/gp
 
 ## Composability
 
-- **Need workspace for deploy**: Use this skill first, then `deploy` skill (from [`tfy-deployment-agent-skills`](https://github.com/truefoundry/tfy-deployment-agent-skills)) with the `fqn`
+- **Need workspace for deploy**: Use this skill first, then `deploy` skill (from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills)) with the `fqn`
 - **Need cluster for filtering**: Pass `cluster_id` to workspaces
 - **Check infra status**: Get cluster + addons for monitoring
 

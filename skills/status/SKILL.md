@@ -21,8 +21,8 @@ Verify TrueFoundry credentials and connectivity, or diagnose authentication issu
 ## When NOT to Use
 
 - User wants to list workspaces → prefer `workspaces` skill; ask if the user wants another valid path
-- User wants to deploy → deployment skills are in a separate repo; inform the user that deploy/application management requires the `tfy-deployment-agent-skills` package
-- User wants to see running apps → deployment skills are in a separate repo; inform the user that deploy/application management requires the `tfy-deployment-agent-skills` package
+- User wants to deploy → deployment skills are in a separate repo; inform the user that deploy/application management requires the `tfy-deploy-skills` package
+- User wants to see running apps → deployment skills are in a separate repo; inform the user that deploy/application management requires the `tfy-deploy-skills` package
 
 </objective>
 
@@ -105,7 +105,7 @@ Get an API key: https://docs.truefoundry.com/docs/generating-truefoundry-api-key
 - The agent has tested the API connection with a lightweight call and reported the result
 - The user can see a clear status summary showing which components are configured and which are missing
 - The agent has provided actionable next steps if any credential or connectivity issue was found
-- The user knows which skill to use next based on their goal (list workspaces, AI gateway, etc.), and is informed that deploy/application management requires the separate `tfy-deployment-agent-skills` package
+- The user knows which skill to use next based on their goal (list workspaces, AI gateway, etc.), and is informed that deploy/application management requires the separate `tfy-deploy-skills` package
 
 </success_criteria>
 
@@ -147,7 +147,7 @@ run: export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
 
 ## Composability
 
-- **After status OK**: Use any other skill in this repo (workspaces, AI gateway, secrets, etc.); for deploy/application management, the user needs the separate `tfy-deployment-agent-skills` package
+- **After status OK**: Use any other skill in this repo (workspaces, AI gateway, secrets, etc.); for deploy/application management, the user needs the separate `tfy-deploy-skills` package
 - **To set credentials**: Export env vars or create .env file
 - **If using tool calls**: Use `tfy_config_set` to persist credentials
 

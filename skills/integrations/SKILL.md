@@ -416,7 +416,7 @@ The provider account response object contains:
 - **Preflight**: Use `status` skill to verify platform connectivity before any operations
 - **Store credentials first**: Use `secrets` skill to create secret groups with API keys before adding providers
 - **Feed into gateway**: Provider accounts supply models to the AI Gateway (`ai-gateway` skill)
-- **Self-hosted models**: Deploy models with `llm-deploy` skill (from [`tfy-deployment-agent-skills`](https://github.com/truefoundry/tfy-deployment-agent-skills)), then register as self-hosted provider accounts
+- **Self-hosted models**: Deploy models with `llm-deploy` skill (from [`tfy-deploy-skills`](https://github.com/truefoundry/tfy-deploy-skills)), then register as self-hosted provider accounts
 - **Access control**: Provider account collaborators control who can use the models
 
 ## API Endpoints

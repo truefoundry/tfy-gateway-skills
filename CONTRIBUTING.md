@@ -6,8 +6,8 @@ Thank you for your interest in contributing! This guide covers how to add new sk
 
 ```bash
 # Clone the repo
-git clone https://github.com/truefoundry/tfy-agent-skills.git
-cd tfy-agent-skills
+git clone https://github.com/truefoundry/tfy-gateway-skills.git
+cd tfy-gateway-skills
 
 # Install skills locally
 ./scripts/install.sh
@@ -130,6 +130,6 @@ Before submitting a PR:
 
 ## Questions?
 
-- Open an issue at https://github.com/truefoundry/tfy-agent-skills/issues
+- Open an issue at https://github.com/truefoundry/tfy-gateway-skills/issues
 - See [AGENTS.md](AGENTS.md) for agent-specific documentation
 - See [SUPPORT.md](SUPPORT.md) for troubleshooting guidance

@@ -1,18 +1,24 @@
 # TrueFoundry Agent Skills
 
-[![CI](https://github.com/truefoundry/tfy-agent-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/truefoundry/tfy-agent-skills/actions/workflows/ci.yml)
+[![CI](https://github.com/truefoundry/tfy-gateway-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/truefoundry/tfy-gateway-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Agent skills for [TrueFoundry](https://truefoundry.com) AI Gateway following the [Agent Skills](https://agentskills.io) open format. A curated set of skills that let AI coding assistants configure and manage the AI Gateway, agents, monitoring, integrations, guardrails, MCP servers, and prompts.
 
 Works with Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, and Roo Code.
 
-> Looking for deployment skills (services, jobs, Helm, LLM deploy, etc.)? See [tfy-deployment-agent-skills](https://github.com/truefoundry/tfy-deployment-agent-skills).
+> Looking for deployment skills (services, jobs, Helm, LLM deploy, etc.)? See [tfy-deploy-skills](https://github.com/truefoundry/tfy-deploy-skills).
 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
+npx @anthropic-ai/skills add truefoundry/tfy-gateway-skills
+```
+
+Or install via curl:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-gateway-skills/main/scripts/install.sh | bash
 ```
 
 Restart your agent and start asking. If credentials are not set, your agent will prompt for them. You can also pre-set them via env vars or a `.env` file in your project root:

@@ -759,7 +759,7 @@ env:
   API_KEY: tfy-secret://my-org:my-app-secrets:API_KEY
 ```
 
-The secret group must be created before deploying. See the `secrets` skill for how to create secret groups. For the full deployment secrets workflow, see the [tfy-deployment-agent-skills](https://github.com/truefoundry/tfy-deployment-agent-skills) repo.
+The secret group must be created before deploying. See the `secrets` skill for how to create secret groups. For the full deployment secrets workflow, see the [tfy-deploy-skills](https://github.com/truefoundry/tfy-deploy-skills) repo.
 
 ### Resources
 
@@ -1112,7 +1112,7 @@ alerts:
     on_completion: false
 ```
 
-> **Important:** Workflow task definitions (resources, images, pip packages) live in the Python code via `PythonTaskConfig`, not in the YAML manifest. The manifest only controls the deployment wrapper. For workflow Python code patterns, see the [tfy-deployment-agent-skills](https://github.com/truefoundry/tfy-deployment-agent-skills) repo.
+> **Important:** Workflow task definitions (resources, images, pip packages) live in the Python code via `PythonTaskConfig`, not in the YAML manifest. The manifest only controls the deployment wrapper. For workflow Python code patterns, see the [tfy-deploy-skills](https://github.com/truefoundry/tfy-deploy-skills) repo.
 
 ---
 

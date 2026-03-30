@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # TrueFoundry Agent Skills installer
 #
-# Install:  curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-agent-skills/main/scripts/install.sh | bash
+# Install:  curl -fsSL https://raw.githubusercontent.com/truefoundry/tfy-gateway-skills/main/scripts/install.sh | bash
 # Options:  ... | bash -s -- [--global] [--local] [--agents claude,cursor,codex]
 #
 # Or run from inside the repo:  ./scripts/install.sh
 set -euo pipefail
 
-REPO="truefoundry/tfy-agent-skills"
+REPO="truefoundry/tfy-gateway-skills"
 BRANCH="main"
 DEFAULT_REF="$BRANCH"
 SOURCE_REF="${TFY_SKILLS_REF:-$DEFAULT_REF}"
