@@ -10,7 +10,7 @@ Markdown skill files that let AI coding agents configure and manage the [TrueFou
 ## Install
 
 ```bash
-npx @anthropic-ai/skills add truefoundry/tfy-gateway-skills
+npx skills add truefoundry/tfy-gateway-skills
 ```
 
 Or via curl:
