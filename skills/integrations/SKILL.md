@@ -76,10 +76,10 @@ The model count is derived from the `integrations` array length in each provider
 $TFY_API_SH GET '/api/svc/v1/llm-gateway/model/enabled'
 
 # Filter by type
-$TFY_API_SH GET '/api/svc/v1/llm-gateway/model/enabled?type=chat'
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/model/enabled?modelType=chat'
 ```
 
-**`type` filter options:** `chat`, `embedding`, `image`, `audio`, `rerank`
+**`modelType` filter options:** `chat`, `completion`, `embedding`
 
 Present results as a formatted table:
 
@@ -382,23 +382,23 @@ For models already deployed on TrueFoundry, use the quick-registration endpoint 
 
 ```bash
 $TFY_API_SH POST '/api/svc/v1/llm-gateway/model/custom-truefoundry-hosted' '{
-  "name": "my-llama-3-8b",
-  "endpointUrl": "https://my-llama.my-org.truefoundry.cloud",
-  "modelType": "chat",
-  "contextLength": 8192
+  "application_id": "app-abc123",
+  "provider_account_name": "truefoundry-models",
+  "model_name": "my-llama-3-8b"
 }'
 ```
 
 **Fields:**
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | Yes | Name to identify the model in the gateway |
-| `endpointUrl` | Yes | Public endpoint URL of the deployed model service |
-| `modelType` | Yes | `chat`, `embedding`, `image`, `audio`, or `rerank` |
-| `contextLength` | No | Max context window in tokens |
+| `application_id` | Yes | Application ID of the deployed TrueFoundry service |
+| `provider_account_name` | Yes | Name of the provider account to associate the model with |
+| `model_name` | Yes | Model name to use in the gateway |
+
+Response: `{ "id": "<model-id>" }`
 
 **When to use this vs `provider-account/self-hosted-model` manifest:**
-- Use this endpoint for a quick registration of a TFY-deployed model
+- Use this endpoint when the model is already deployed on TrueFoundry and you have its `application_id`
 - Use `provider-account/self-hosted-model` via `tfy apply` when you need fine-grained auth settings, multiple models under one provider account, or collaborator role control
 
 ## Known Provider Types
@@ -451,14 +451,30 @@ The provider account response object contains:
 
 After creating a provider account, run a connectivity test to validate all models are reachable.
 
-`POST /api/svc/v1/llm-gateway/test` — streams SSE results testing every model in the provider account. Run this immediately after creation before directing users to the new models.
+`POST /api/svc/v1/llm-gateway/test` — streams SSE results testing every model in a provider account manifest. Pass the full manifest (same structure used for `tfy apply`). Run this before or after creation to validate connectivity.
 
 ```bash
-# Test connectivity for all models in a provider account (streams SSE)
+# Test connectivity using the provider account manifest (streams SSE)
 curl -N \
   -H "Authorization: Bearer $TFY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"providerAccountName": "openai-main"}' \
+  -d '{
+    "manifest": {
+      "name": "openai-main",
+      "type": "provider-account/openai",
+      "integrations": [
+        {
+          "name": "gpt-4o",
+          "type": "integration/model/openai",
+          "model_types": ["chat"],
+          "auth_data": {
+            "type": "bearer-auth",
+            "bearer_token": "tfy-secret://TENANT:SECRET_GROUP:OPENAI_API_KEY"
+          }
+        }
+      ]
+    }
+  }' \
   "$TFY_BASE_URL/api/svc/v1/llm-gateway/test"
 ```
 

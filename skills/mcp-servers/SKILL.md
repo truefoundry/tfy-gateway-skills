@@ -328,7 +328,18 @@ For MCP servers registered with `auth_data.type: oauth2`, use these endpoints to
 $TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/auth/status'
 ```
 
-Returns `{authenticated: boolean, expiresAt?, username?}`. Always check this before triggering an auth flow — if already authenticated, no user action is needed.
+Returns overall status and per-server details. For Virtual MCP servers, each source server has its own status:
+
+```json
+{
+  "status": "authenticated",
+  "servers": [
+    {"serverName": "github-server", "serverFqn": "provider1/github-server", "status": "authenticated"}
+  ]
+}
+```
+
+`status` is `"authenticated"` only if all OAuth sub-servers are authenticated. Always check this before triggering an auth flow.
 
 ### Get OAuth Authorization URL
 
@@ -336,15 +347,31 @@ Returns `{authenticated: boolean, expiresAt?, username?}`. Always check this bef
 $TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/oauth2/authorize'
 ```
 
-Returns an authorization URL. Share this URL with the user and ask them to open it in their browser to complete the OAuth consent flow.
+Returns an array of authorization URLs (one per OAuth sub-server for Virtual MCP servers):
+
+```json
+{
+  "authorizationUrls": [
+    {
+      "serverName": "github-server",
+      "serverFqn": "provider1/github-server",
+      "authorizationUrl": "https://github.com/login/oauth/authorize?client_id=...&code_challenge=abc123&code_challenge_method=S256"
+    }
+  ]
+}
+```
+
+Share each `authorizationUrl` with the user and ask them to open it in their browser. The URL uses OAuth 2.1 PKCE.
+
+Optional query param: `redirectUrl` — custom URL to redirect to after OAuth callback.
 
 ### Get Auth Details
 
 ```bash
-$TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/auth'
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/auth?userId=USER_ID&tenantName=TENANT'
 ```
 
-Returns the current OAuth token details: scopes granted, token expiry, and the connected user identity.
+Required query params: `userId`, `tenantName`. Returns per-server auth data including token expiry and scopes. Admin access required.
 
 ### Revoke Auth
 
@@ -375,10 +402,10 @@ The `baseUrl` query parameter is required. Response contains a `snippets` array 
 ### Typical OAuth Flow
 
 1. Register MCP server with `auth_data.type: oauth2` (see Register MCP Server section above)
-2. Check auth status → `{authenticated: false}`
-3. Get authorization URL → share with user: "Please open this URL to authorize access: `<url>`"
-4. User completes consent in browser → tokens stored automatically
-5. Check auth status → `{authenticated: true, username: "user@example.com"}`
+2. Check auth status → `{status: "unauthenticated", servers: [...]}`
+3. Get authorization URL → share each `authorizationUrl` with the user: "Please open this URL to authorize access: `<url>`"
+4. User completes OAuth 2.1 PKCE consent in browser → tokens stored automatically
+5. Check auth status → `{status: "authenticated", servers: [{status: "authenticated", ...}]}`
 
 </instructions>
 

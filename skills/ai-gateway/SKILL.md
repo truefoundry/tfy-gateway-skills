@@ -509,7 +509,7 @@ tfy apply -f gateway-budget-config.yaml
 
 Use the gateway config API to read back or remove existing configurations.
 
-**Valid `{type}` values:** `gateway-rate-limiting-config`, `gateway-budget-config`, `gateway-load-balancing-config`
+**Valid `{type}` values:** `gateway-rate-limiting-config`, `gateway-budget-config`, `gateway-load-balancing-config`, `gateway-fallback-config`, `gateway-guardrails-config`, `gateway-otel-config`, `gateway-global-settings`, `gateway-data-access-config`, `gateway-data-routing-config`
 
 ### Read Current Config
 
@@ -657,12 +657,12 @@ Generates code for Python, OpenAI SDK, LangChain, Node.js, and cURL:
 ```bash
 $TFY_API_SH POST '/api/svc/v1/llm-gateway/generate-code-snippet' '{
   "model": "openai/gpt-4o",
-  "inference_type": "chat_completion",
+  "inference_type": "chat",
   "messages": [{"role": "user", "content": "Hello"}]
 }'
 ```
 
-**`inference_type` options:** `chat_completion`, `completion`, `embedding`, `image_generation`, `image_edit`, `audio_transcription`, `audio_translation`, `text_to_speech`, `rerank`
+**`inference_type` options:** `chat`, `completion`, `embedding`, `rerank`, `image`, `text_to_speech`, `audio_transcription`, `audio_translation`, `realtime`
 
 ### Feature-Specific Snippet (v2)
 
@@ -671,15 +671,22 @@ Generates streaming and non-streaming variants for advanced features:
 ```bash
 $TFY_API_SH POST '/api/svc/v1/llm-gateway/generate-code-snippet/v2' '{
   "model": "openai/gpt-4o",
-  "inference_type": "chat_completion",
+  "inference_type": "chat",
   "feature": "structured-output",
-  "messageConfig": {"messages": [{"role": "user", "content": "Extract name and age"}]}
+  "messageConfig": {
+    "includeSystemPrompt": true,
+    "includeUserMessage": true,
+    "includeAssistantMessage": false,
+    "includeDeveloperMessage": false
+  }
 }'
 ```
 
 **`feature` options:** `structured-output`, `tool-call`, `parallel-tool-call`, `reasoning`, `json-output`
 
-Response contains `openAI.stream` and `openAI.non_stream` code snippets.
+**`messageConfig`** controls which message roles appear in the snippet (all booleans, all required).
+
+Response contains `openAI.stream` and `openAI.non_stream` code snippets (strings).
 
 ### Agent Chat Snippet
 
