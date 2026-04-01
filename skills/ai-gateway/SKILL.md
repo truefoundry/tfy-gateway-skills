@@ -505,6 +505,60 @@ rules:
 tfy apply -f gateway-budget-config.yaml
 ```
 
+## Inspecting & Removing Gateway Config
+
+Use the gateway config API to read back or remove existing configurations.
+
+**Valid `{type}` values:** `gateway-rate-limiting-config`, `gateway-budget-config`, `gateway-load-balancing-config`
+
+### Read Current Config
+
+```bash
+# Inspect current rate limiting rules
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/config/gateway-rate-limiting-config'
+
+# Inspect current budget controls
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/config/gateway-budget-config'
+
+# Inspect current load balancing config
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/config/gateway-load-balancing-config'
+```
+
+### Check Live Budget Usage
+
+```bash
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/config/budget/usage'
+```
+
+Response contains one entry per budget rule:
+
+```json
+[
+  {
+    "budgetRuleId": "team-monthly-budget",
+    "used": 12.45,
+    "limit": 100.0,
+    "currency": "USD",
+    "period": "cost_per_month",
+    "applies_per": "team"
+  }
+]
+```
+
+### Delete a Config Type
+
+Removes a config type entirely (all rules within it). Requires human approval before executing.
+
+```bash
+# Remove rate limiting
+$TFY_API_SH DELETE '/api/svc/v1/llm-gateway/config/gateway-rate-limiting-config'
+
+# Remove budget controls
+$TFY_API_SH DELETE '/api/svc/v1/llm-gateway/config/gateway-budget-config'
+```
+
+> **Note:** `tfy apply` is the preferred way to update configs (it diffs and applies). Use DELETE only to remove a config type entirely.
+
 ## Observability
 
 ### Request Logging
@@ -592,6 +646,77 @@ Configure the gateway as a custom API endpoint in your coding assistant settings
 - Base URL: `{TFY_BASE_URL}/api/llm`
 - API Key: Your PAT or VAT
 
+## Generating Integration Code Snippets
+
+Use the code generation API to get TFY-specific boilerplate with the correct base URL and auth headers pre-filled. Prefer this over generating generic OpenAI code when the user needs ready-to-run examples for their specific model.
+
+### Standard Snippet (v1)
+
+Generates code for Python, OpenAI SDK, LangChain, Node.js, and cURL:
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/generate-code-snippet' '{
+  "model": "openai/gpt-4o",
+  "inference_type": "chat_completion",
+  "messages": [{"role": "user", "content": "Hello"}]
+}'
+```
+
+**`inference_type` options:** `chat_completion`, `completion`, `embedding`, `image_generation`, `image_edit`, `audio_transcription`, `audio_translation`, `text_to_speech`, `rerank`
+
+### Feature-Specific Snippet (v2)
+
+Generates streaming and non-streaming variants for advanced features:
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/generate-code-snippet/v2' '{
+  "model": "openai/gpt-4o",
+  "inference_type": "chat_completion",
+  "feature": "structured-output",
+  "messageConfig": {"messages": [{"role": "user", "content": "Extract name and age"}]}
+}'
+```
+
+**`feature` options:** `structured-output`, `tool-call`, `parallel-tool-call`, `reasoning`, `json-output`
+
+Response contains `openAI.stream` and `openAI.non_stream` code snippets.
+
+### Agent Chat Snippet
+
+Generates Python code to chat with a registered TrueFoundry agent:
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/generate-code-snippet/agent/chat' '{
+  "agent_name": "my-agent",
+  "messages": [{"role": "user", "content": "Hello"}]
+}'
+```
+
+### Remote Agent Snippet
+
+Generates code to call a remote or A2A agent server:
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/generate-code-snippet/remote-agent' '{
+  "gatewayBaseUrl": "https://your-org.truefoundry.cloud",
+  "agentName": "my-remote-agent"
+}'
+```
+
+### Handling the Response
+
+All endpoints return a `snippets` array. Present each snippet as a labeled code block:
+
+```json
+{
+  "snippets": [
+    {"language": "python", "labelName": "Python (OpenAI SDK)", "code": "..."},
+    {"language": "javascript", "labelName": "Node.js", "code": "..."},
+    {"language": "curl", "labelName": "cURL", "code": "..."}
+  ]
+}
+```
+
 ## Presenting Gateway Info
 
 When the user asks about gateway configuration:
@@ -626,6 +751,8 @@ Usage:
 - The user can verify successful responses from the gateway with correct model output
 - The agent has provided working code snippets tailored to the user's language and framework
 - Rate limiting, budget controls, or routing are configured if the user requested them
+- The user can read back and inspect current gateway rate limit, budget, and load balancing configurations
+- Budget usage per rule is shown in real-time when requested
 
 </success_criteria>
 
@@ -635,8 +762,8 @@ Usage:
 
 - **Deploy model first**: Deploy a self-hosted model (requires TrueFoundry Enterprise), then add to gateway
 - **Need API key**: Create PAT/VAT in TrueFoundry dashboard → Access
-- **Rate limiting**: Configure in dashboard → AI Gateway → Rate Limiting
-- **Routing config**: Apply routing YAML directly with `tfy apply`; for CI/CD pipelines, integrate `tfy apply` into your automation
+- **Rate limiting**: Apply with `tfy apply -f gateway-rate-limiting-config.yaml`; read back with `GET /api/svc/v1/llm-gateway/config/gateway-rate-limiting-config`
+- **Routing config**: Apply routing YAML directly with `tfy apply`; read back with `GET /api/svc/v1/llm-gateway/config/gateway-load-balancing-config`; for CI/CD pipelines, integrate `tfy apply` into your automation
 - **Tool servers**: Deploy tool servers to your infrastructure, then register in gateway
 - **Check deployed models**: Check the TrueFoundry dashboard to see running model services
 - **Benchmark through gateway**: Use your preferred load-testing tool against gateway endpoints

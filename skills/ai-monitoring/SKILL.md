@@ -344,6 +344,53 @@ Cost Summary (last 24h):
 
 Convert `durationNs` (nanoseconds) to human-readable format: divide by 1,000,000,000 for seconds.
 
+## Exporting Raw Gateway Metrics
+
+For aggregated time-series data (billing reports, dashboards, data warehouse ingestion), use the gateway metrics APIs instead of the spans query.
+
+**When to use which:**
+- **Spans query** (`POST /api/svc/v1/spans/query`) — per-request traces with full inputs/outputs, latency per call, error messages; best for debugging individual requests
+- **Metrics export** (below) — pre-aggregated data grouped by model/provider/time; best for cost reporting and dashboards
+
+### Export Raw Model Usage Data
+
+`POST /api/svc/v1/llm-gateway/metrics/model/fetch` — returns raw per-model usage records (tokens, cost, latency) for a time window.
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/metrics/model/fetch' '{
+  "startTime": "2024-01-01T00:00:00Z",
+  "endTime": "2024-01-31T23:59:59Z",
+  "models": ["openai/gpt-4o"]
+}'
+```
+
+Omit `models` to fetch data for all models. Response is a list of records suitable for CSV export or warehouse ingestion.
+
+### Query Aggregated Metrics
+
+`POST /api/svc/v1/llm-gateway/metrics/query` — returns aggregated metrics (request count, error rate, p50/p95 latency, total cost) grouped by the specified dimensions.
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/metrics/query' '{
+  "startTime": "2024-01-01T00:00:00Z",
+  "endTime": "2024-01-31T23:59:59Z",
+  "groupBy": ["model", "provider"]
+}'
+```
+
+**`groupBy` options:** `model`, `provider`, `user`, `team`, `virtualaccount`
+
+Present aggregated results as a summary table:
+
+```
+Gateway Metrics (Jan 2024):
+| Model             | Provider  | Requests | Errors | Avg Latency | Total Cost |
+|-------------------|-----------|----------|--------|-------------|------------|
+| openai/gpt-4o     | openai    | 1,420    | 12     | 850ms       | $28.40     |
+| anthropic/claude  | anthropic | 580      | 3      | 1,200ms     | $11.60     |
+| Total             |           | 2,000    | 15     | 960ms       | $40.00     |
+```
+
 </instructions>
 
 <success_criteria>
@@ -356,6 +403,7 @@ Convert `durationNs` (nanoseconds) to human-readable format: divide by 1,000,000
 - Results are presented as formatted tables, not raw JSON
 - Pagination is handled correctly for large result sets
 - The agent asked for `dataRoutingDestination` or `tracingProjectFqn` before querying
+- The user can export raw gateway metrics for a date range or query aggregated metrics grouped by model/provider
 
 </success_criteria>
 
@@ -365,6 +413,7 @@ Convert `durationNs` (nanoseconds) to human-readable format: divide by 1,000,000
 
 - **Preflight check**: Use `status` skill to verify credentials before querying
 - **Gateway configuration**: Use `ai-gateway` skill to configure models, routing, rate limits
+- **Spans vs metrics**: Use spans query for per-request debugging; use metrics export/query for aggregated cost reports and dashboards
 - **Instrument your app**: Use `tracing` skill to add tracing to your own applications (different from monitoring existing gateway traces)
 - **View container logs**: Use `logs` skill for application-level logs (not gateway request traces)
 - **Manage access tokens**: Use `access-tokens` skill to create/manage PAT or VAT used for gateway auth

@@ -318,6 +318,68 @@ tfy_mcp_servers_delete(id="SERVER_ID")
 $TFY_API_SH DELETE /api/svc/v1/mcp-servers/SERVER_ID
 ```
 
+## MCP Server OAuth & Auth Management
+
+For MCP servers registered with `auth_data.type: oauth2`, use these endpoints to manage user authentication lifecycle.
+
+### Check Auth Status
+
+```bash
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/auth/status'
+```
+
+Returns `{authenticated: boolean, expiresAt?, username?}`. Always check this before triggering an auth flow — if already authenticated, no user action is needed.
+
+### Get OAuth Authorization URL
+
+```bash
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/oauth2/authorize'
+```
+
+Returns an authorization URL. Share this URL with the user and ask them to open it in their browser to complete the OAuth consent flow.
+
+### Get Auth Details
+
+```bash
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/auth'
+```
+
+Returns the current OAuth token details: scopes granted, token expiry, and the connected user identity.
+
+### Revoke Auth
+
+Removes stored OAuth tokens. Requires human approval before executing.
+
+```bash
+$TFY_API_SH DELETE '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/auth'
+```
+
+### Rotate DCR Client
+
+Rotates the Dynamic Client Registration (DCR) credentials for the MCP server. Use when credentials are suspected compromised. Requires human approval.
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/dcr/rotate' '{}'
+```
+
+### Get MCP Code Snippet
+
+Returns ready-to-use code showing how to connect to this MCP server from an application:
+
+```bash
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/mcp-servers/SERVER_ID/code-snippet?baseUrl=https://your-org.truefoundry.cloud'
+```
+
+The `baseUrl` query parameter is required. Response contains a `snippets` array with `{language, code, labelName}` entries.
+
+### Typical OAuth Flow
+
+1. Register MCP server with `auth_data.type: oauth2` (see Register MCP Server section above)
+2. Check auth status → `{authenticated: false}`
+3. Get authorization URL → share with user: "Please open this URL to authorize access: `<url>`"
+4. User completes consent in browser → tokens stored automatically
+5. Check auth status → `{authenticated: true, username: "user@example.com"}`
+
 </instructions>
 
 <success_criteria>
@@ -331,6 +393,8 @@ $TFY_API_SH DELETE /api/svc/v1/mcp-servers/SERVER_ID
 - The user can delete an MCP server registration
 - The agent has confirmed any create/delete operations before executing
 - Collaborators are correctly specified when provided
+- For OAuth-protected MCP servers, the user can complete the authorization flow and verify auth status
+- Auth can be revoked and DCR credentials rotated when needed
 
 </success_criteria>
 
@@ -381,6 +445,22 @@ Invalid transport type. Use "streamable-http" or "sse".
 ### OAuth2 Configuration Error
 ```
 OAuth2 auth_data missing required fields. Ensure authorization_url, token_url, client_id, and client_secret are provided.
+```
+
+### OAuth2 Token Expired
+```
+Auth status shows authenticated: false after previous successful auth.
+Tokens may have expired. Re-run the auth flow:
+1. GET .../oauth2/authorize to get a fresh authorization URL
+2. Direct the user to open it and re-authorize
+```
+
+### DCR Rotation Failed
+```
+DCR client rotation failed. Check:
+- The MCP server was registered with DCR-based OAuth2
+- Your API key has sufficient permissions (provider-account-manager role)
+- Retry once — if it fails again, check the server's OAuth provider status
 ```
 
 ### Virtual Server Reference Not Found

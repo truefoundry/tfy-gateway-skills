@@ -67,6 +67,32 @@ Provider Accounts:
 
 The model count is derived from the `integrations` array length in each provider account response.
 
+## Step 2b: List Enabled Models
+
+`GET /api/svc/v1/llm-gateway/model/enabled` returns all models currently accessible through the gateway across all active provider accounts. This is the canonical way to discover what a user can call — as opposed to listing provider accounts (which shows configuration, not availability).
+
+```bash
+# List all enabled models
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/model/enabled'
+
+# Filter by type
+$TFY_API_SH GET '/api/svc/v1/llm-gateway/model/enabled?type=chat'
+```
+
+**`type` filter options:** `chat`, `embedding`, `image`, `audio`, `rerank`
+
+Present results as a formatted table:
+
+```
+Enabled Models:
+| Model Name              | Provider       | Type      | Status  |
+|-------------------------|----------------|-----------|---------|
+| openai/gpt-4o           | openai         | chat      | enabled |
+| openai/text-embedding-3 | openai         | embedding | enabled |
+| anthropic/claude-3-5    | anthropic      | chat      | enabled |
+| my-llama-3              | self-hosted    | chat      | enabled |
+```
+
 ## Step 3: Create Provider Account
 
 Before creating, ensure the user has stored their provider credentials as TrueFoundry secrets (use `secrets` skill). All `bearer_token`, `api_key`, and credential fields MUST use `tfy-secret://` references.
@@ -348,6 +374,33 @@ PAYLOAD
 $TFY_API_SH POST /api/svc/v1/provider-accounts "$payload"
 ```
 
+## Registering a Custom TrueFoundry-Hosted Model
+
+For models already deployed on TrueFoundry, use the quick-registration endpoint to add them to the gateway without building a full provider account manifest.
+
+`POST /api/svc/v1/llm-gateway/model/custom-truefoundry-hosted`
+
+```bash
+$TFY_API_SH POST '/api/svc/v1/llm-gateway/model/custom-truefoundry-hosted' '{
+  "name": "my-llama-3-8b",
+  "endpointUrl": "https://my-llama.my-org.truefoundry.cloud",
+  "modelType": "chat",
+  "contextLength": 8192
+}'
+```
+
+**Fields:**
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Name to identify the model in the gateway |
+| `endpointUrl` | Yes | Public endpoint URL of the deployed model service |
+| `modelType` | Yes | `chat`, `embedding`, `image`, `audio`, or `rerank` |
+| `contextLength` | No | Max context window in tokens |
+
+**When to use this vs `provider-account/self-hosted-model` manifest:**
+- Use this endpoint for a quick registration of a TFY-deployed model
+- Use `provider-account/self-hosted-model` via `tfy apply` when you need fine-grained auth settings, multiple models under one provider account, or collaborator role control
+
 ## Known Provider Types
 
 | Provider | Manifest Type | Auth Type |
@@ -394,6 +447,41 @@ The provider account response object contains:
 - `manifest.integrations` contains the integration definitions (model configs)
 - Top-level `integrations` contains expanded integration objects with their own IDs
 
+## Step 4: Test Provider Account
+
+After creating a provider account, run a connectivity test to validate all models are reachable.
+
+`POST /api/svc/v1/llm-gateway/test` — streams SSE results testing every model in the provider account. Run this immediately after creation before directing users to the new models.
+
+```bash
+# Test connectivity for all models in a provider account (streams SSE)
+curl -N \
+  -H "Authorization: Bearer $TFY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"providerAccountName": "openai-main"}' \
+  "$TFY_BASE_URL/api/svc/v1/llm-gateway/test"
+```
+
+> **Note:** This endpoint streams via Server-Sent Events (SSE). Use `curl -N` directly rather than `$TFY_API_SH`, which may buffer the stream.
+
+Each SSE event tests one model:
+
+```
+data: {"model": "openai/gpt-4o", "status": "success", "latencyMs": 423}
+data: {"model": "openai/gpt-4o-mini", "status": "error", "error": "Invalid API key"}
+```
+
+Present results as a pass/fail table:
+
+```
+Provider Account Test: openai-main
+| Model             | Status  | Latency |
+|-------------------|---------|---------|
+| openai/gpt-4o     | ✓ pass  | 423ms   |
+| openai/gpt-4o-mini| ✗ fail  | —       |
+Error: Invalid API key
+```
+
 </instructions>
 
 <success_criteria>
@@ -406,6 +494,9 @@ The provider account response object contains:
 - The agent has confirmed the provider type and model details before creating
 - The agent has directed the user to store credentials as TrueFoundry secrets before creating the provider account
 - Provider accounts are accessible through the AI Gateway after creation
+- The user can list all currently enabled models in the gateway with type filtering
+- The user can test a provider account and see pass/fail status for each model
+- Custom TFY-hosted models can be quickly registered via the dedicated endpoint
 
 </success_criteria>
 
@@ -427,6 +518,9 @@ See `references/api-endpoints.md` for the full Provider Accounts API reference.
 |--------|----------|-------------|
 | GET | `/api/svc/v1/provider-accounts` | List all provider accounts |
 | POST | `/api/svc/v1/provider-accounts` | Create a new provider account |
+| GET | `/api/svc/v1/llm-gateway/model/enabled` | List all enabled gateway models |
+| POST | `/api/svc/v1/llm-gateway/model/custom-truefoundry-hosted` | Register a custom TFY-hosted model |
+| POST | `/api/svc/v1/llm-gateway/test` | Test all models in a provider account (SSE) |
 
 </references>
 
@@ -484,6 +578,15 @@ If not visible:
 ```
 The type query parameter on GET /api/svc/v1/provider-accounts does not filter
 results. Fetch all provider accounts and filter client-side by the provider field.
+```
+
+### Provider Test Failures
+```
+Model shows "error" in test results. Check:
+- The secret reference resolves correctly (use secrets skill to verify)
+- The provider API key has not expired or been revoked
+- The model name in the integration matches the provider's actual model ID
+- For self-hosted models, verify the endpoint URL is reachable from the cluster
 ```
 
 </troubleshooting>
