@@ -32,6 +32,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development workflow.
 - **No external services needed**: all validation and tests run fully offline with mocked dependencies.
 - **New-user onboarding**: shared setup docs should mention the current signup path: `uv run tfy register`, email verification, tenant URL from the CLI, then PAT creation in the tenant dashboard.
 
+## Skills (16 total)
+
+| Category | Skills |
+|----------|--------|
+| **Gateway** | agents, ai-gateway, ai-monitoring, guardrails, integrations, mcp-servers, prompts |
+| **Platform** | access-control, access-tokens, docs, logs, onboarding, secrets, status, tracing, workspaces |
+
 ---
 
 ## Gateway Configurator

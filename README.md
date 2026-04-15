@@ -31,7 +31,7 @@ Install from the Claude Code plugin marketplace:
 What you get:
 - 16 skills loaded automatically
 - 2 specialized agents (gateway configurator, troubleshoot)
-- 3 hooks enforcing safe gateway workflows
+- 4 hooks enforcing safe gateway workflows
 - Automatic credential checks on session start
 
 ### Codex CLI (Plugin -- Full Enforcement)
