@@ -12,14 +12,6 @@ fail() {
   errors=$((errors + 1))
 }
 
-require_file_contains() {
-  local file="$1"
-  local needle="$2"
-  if ! grep -Fq "$needle" "$file"; then
-    fail "$file missing required text: $needle"
-  fi
-}
-
 get_frontmatter_block() {
   local file="$1"
   awk '

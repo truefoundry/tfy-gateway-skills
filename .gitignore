@@ -9,11 +9,13 @@ __pycache__/
 .augment/
 .claude/
 .codex/
+!/.codex/hooks.json
 .codebuddy/
 .commandcode/
 .continue/
 .crush/
 .cursor/
+!/.cursor/rules/
 .factory/
 .goose/
 .iflow/
@@ -34,7 +36,5 @@ __pycache__/
 .vibe/
 .windsurf/
 .zencoder/
-/AGENTS.md
-/agents.md
 /CLAUDE.md
 /claude.md

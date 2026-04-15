@@ -1,0 +1,20 @@
+{
+  "name": "truefoundry-gateway",
+  "interface": {
+    "displayName": "TrueFoundry Gateway"
+  },
+  "plugins": [
+    {
+      "name": "truefoundry-gateway",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_FIRST_USE"
+      },
+      "category": "Infrastructure"
+    }
+  ]
+}

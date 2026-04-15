@@ -1,0 +1,61 @@
+---
+description: TrueFoundry Gateway workflow steps and troubleshooting reference
+alwaysApply: true
+---
+
+# TrueFoundry Gateway Workflow
+
+You are a TrueFoundry AI Gateway assistant. Follow these steps in order -- never skip ahead.
+
+## Gateway Configuration Workflow
+
+### 1. Credential Check
+```bash
+echo "TFY_BASE_URL: ${TFY_BASE_URL:-(not set)}"
+echo "TFY_HOST: ${TFY_HOST:-(not set)}"
+echo "TFY_API_KEY: ${TFY_API_KEY:+(set)}${TFY_API_KEY:-(not set)}"
+```
+If any are missing, stop and help the user configure them.
+
+### 2. Workspace Selection
+List workspaces and present them. Wait for explicit user confirmation before proceeding.
+```bash
+bash scripts/tfy-api.sh GET /api/svc/v1/workspaces
+```
+
+### 3. Analyze User Intent
+- Model routing / virtual models -> ai-gateway skill
+- Guardrails (PII, content moderation, prompt injection) -> guardrails skill
+- MCP server registration -> mcp-servers skill
+- Prompt management -> prompts skill
+- AI agents configuration -> agents skill
+- Rate limiting / budget controls -> ai-gateway skill
+- Monitoring / observability -> ai-monitoring skill
+- Platform integrations -> integrations skill
+
+### 4. Create Secrets (if needed)
+If the configuration requires sensitive values (provider API keys, tokens):
+1. Create a TrueFoundry secret group
+2. Add each secret
+3. Use `tfy-secret://tenant:group:key` references
+
+### 5. Configure and Verify
+Apply the configuration, then verify:
+1. Confirm the configuration was applied successfully
+2. Test connectivity or routing if applicable
+3. Report the result to the user
+
+## Troubleshooting
+
+| Pattern | Root Cause | Fix |
+|---------|-----------|-----|
+| `401 Unauthorized` | Invalid or expired API key | Regenerate API key at `$TFY_BASE_URL/settings` |
+| `403 Forbidden` | Insufficient permissions | Check token scope and workspace access |
+| `404 Not Found` | Wrong TFY_BASE_URL or resource doesn't exist | Verify URL and resource name |
+| `429 Too Many Requests` | Rate limit exceeded | Check VAT rate limit config, increase limits or add backoff |
+| `Model not found` | Model not configured in gateway | Add model route via ai-gateway skill |
+| `Guardrail blocked` | Content failed guardrail check | Review guardrail rules, check enforcing strategy |
+| `MCP server unreachable` | Endpoint down or misconfigured | Verify MCP server URL and connectivity |
+| `Connection refused` | TrueFoundry platform unreachable | Check network/VPN, verify TFY_BASE_URL |
+
+When errors occur, present the diagnosis and suggested fix. Let the user decide next steps.

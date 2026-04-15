@@ -1,0 +1,49 @@
+---
+description: TrueFoundry AI Gateway configuration rules
+globs: ["*.yaml", "*.yml"]
+alwaysApply: false
+---
+
+# TrueFoundry Gateway Configuration Rules
+
+These rules apply when working with AI Gateway configuration.
+
+## Model Routing
+
+Virtual models support multiple routing strategies:
+- **Weight-based**: distribute traffic by percentage across providers
+- **Latency-based**: route to the fastest responding provider
+- **Priority-based**: use primary provider, failover to secondary
+- **Sticky routing**: route same user to same provider for consistency
+
+Always confirm the routing strategy with the user before configuring.
+
+## Rate Limiting
+
+- Rate limits are configured per Virtual Access Token (VAT)
+- Available dimensions: requests per minute (RPM), tokens per minute (TPM)
+- Budget controls cap total spend per token over a time period
+- Always show the rate limit configuration to the user before applying
+
+## Guardrail Configuration
+
+Before applying any guardrail:
+1. Confirm which guardrail providers to use (PII, content moderation, prompt injection, custom)
+2. Set the enforcing strategy: `enforce`, `audit`, or `enforce_but_ignore_on_error`
+3. Define conditions: which models, users, teams, or MCP tools the guardrail applies to
+4. Choose operation type: `validate` (block) or `mutate` (modify content)
+
+## MCP Server Registration
+
+- Remote MCP servers require a valid endpoint URL
+- Virtual (composite) servers aggregate multiple MCP servers
+- OpenAPI-to-MCP wrapping requires an OpenAPI spec URL
+- Always verify connectivity after registration
+
+## Environment Variables for API Calls
+
+```bash
+export TFY_HOST="${TFY_HOST:-${TFY_BASE_URL%/}}"
+```
+
+Always set `TFY_HOST` before running any `tfy` CLI commands.

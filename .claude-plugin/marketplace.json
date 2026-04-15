@@ -1,0 +1,37 @@
+{
+  "name": "truefoundry-gateway-skills",
+  "owner": {
+    "name": "TrueFoundry",
+    "email": "support@truefoundry.com"
+  },
+  "metadata": {
+    "description": "Configure and manage TrueFoundry AI Gateway with AI coding assistants",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "truefoundry-gateway",
+      "description": "Full TrueFoundry Gateway plugin with configurator agent, troubleshoot agent, hooks (credential bootstrap, delete blocking, secret scanning), and 16 gateway skills",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/access-control",
+        "./skills/access-tokens",
+        "./skills/agents",
+        "./skills/ai-gateway",
+        "./skills/ai-monitoring",
+        "./skills/docs",
+        "./skills/guardrails",
+        "./skills/integrations",
+        "./skills/logs",
+        "./skills/mcp-servers",
+        "./skills/onboarding",
+        "./skills/prompts",
+        "./skills/secrets",
+        "./skills/status",
+        "./skills/tracing",
+        "./skills/workspaces"
+      ]
+    }
+  ]
+}

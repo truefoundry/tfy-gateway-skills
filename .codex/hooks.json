@@ -1,0 +1,25 @@
+{
+  "SessionStart": [
+    {
+      "command": ["bash", "./plugin-scripts/session-start.sh"],
+      "timeout": 30
+    }
+  ],
+  "PreToolUse": [
+    {
+      "match": { "tool": "shell" },
+      "command": ["bash", "./plugin-scripts/block-delete-operations.sh"],
+      "timeout": 5
+    },
+    {
+      "match": { "tool": "shell" },
+      "command": ["bash", "./hooks/auto-approve-tfy-api.sh"],
+      "timeout": 5
+    },
+    {
+      "match": { "tool": "shell" },
+      "command": ["bash", "./plugin-scripts/pre-tool-secret-scan.sh"],
+      "timeout": 5
+    }
+  ]
+}

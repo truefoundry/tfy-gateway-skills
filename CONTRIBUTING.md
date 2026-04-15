@@ -86,6 +86,7 @@ Before submitting a PR:
 1. Run `shellcheck` on any modified shell scripts:
    ```bash
    shellcheck scripts/*.sh hooks/auto-approve-tfy-api.sh skills/_shared/scripts/*.sh
+   shellcheck plugin-scripts/*.sh
    ```
 
 2. Run validation and failure-mode tests:

@@ -1,0 +1,10 @@
+{
+  "name": "truefoundry-gateway",
+  "version": "1.0.0",
+  "description": "Configure and manage TrueFoundry AI Gateway — model routing, guardrails, rate limiting, MCP servers, and monitoring.",
+  "author": { "name": "TrueFoundry" },
+  "homepage": "https://github.com/truefoundry/tfy-gateway-skills",
+  "repository": "https://github.com/truefoundry/tfy-gateway-skills",
+  "license": "MIT",
+  "skills": "./skills/"
+}
