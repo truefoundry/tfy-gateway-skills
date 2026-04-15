@@ -1,5 +1,5 @@
 ---
-name: prompts
+name: truefoundry-prompts
 description: Manages TrueFoundry prompt registry prompts and versions. Handles listing, creating, updating, deleting, and tagging prompt versions.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

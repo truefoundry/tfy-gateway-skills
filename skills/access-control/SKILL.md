@@ -1,5 +1,5 @@
 ---
-name: access-control
+name: truefoundry-access-control
 description: Manages TrueFoundry roles, teams, and collaborators. Create custom roles, organize users into teams, and grant access to resources. Use when managing permissions, creating teams, or adding collaborators.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

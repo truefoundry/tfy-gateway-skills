@@ -1,5 +1,5 @@
 ---
-name: status
+name: truefoundry-status
 description: Checks TrueFoundry connection status and verifies credentials (TFY_BASE_URL/TFY_HOST, TFY_API_KEY). Used as a preflight check before any TrueFoundry operation.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

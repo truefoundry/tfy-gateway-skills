@@ -1,5 +1,5 @@
 ---
-name: ai-gateway
+name: truefoundry-ai-gateway
 description: Configures TrueFoundry AI Gateway for unified OpenAI-compatible LLM access. Covers auth (PAT/VAT), model routing, rate limiting, and budget controls.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

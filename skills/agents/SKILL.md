@@ -1,5 +1,5 @@
 ---
-name: agents
+name: truefoundry-agents
 description: Manages TrueFoundry Agent Registry. List, create, update, and delete AI agents with prompt-backed sources, collaborator access, and sample inputs.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

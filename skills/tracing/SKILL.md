@@ -1,5 +1,5 @@
 ---
-name: tracing
+name: truefoundry-tracing
 description: Adds OpenTelemetry-based tracing to applications via TrueFoundry's tracing platform (Traceloop SDK). Creates tracing projects, instruments Python/TypeScript code, and captures LLM calls and custom spans.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

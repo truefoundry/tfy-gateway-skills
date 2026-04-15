@@ -10,8 +10,10 @@ Markdown skill files that let AI coding agents configure and manage the [TrueFou
 ## Install
 
 ```bash
-npx skills add truefoundry/tfy-gateway-skills
+npx skills add truefoundry/tfy-gateway-skills --all
 ```
+
+`--all` installs all skills for all agents without interactive selection prompts.
 
 Or via curl:
 
@@ -36,6 +38,8 @@ New to TrueFoundry? Run `uv run tfy register` to sign up interactively.
 | **Platform** | [access-control](skills/access-control), [access-tokens](skills/access-tokens), [docs](skills/docs), [logs](skills/logs), [onboarding](skills/onboarding), [secrets](skills/secrets), [status](skills/status), [tracing](skills/tracing), [workspaces](skills/workspaces) |
 
 Just ask your agent in plain English — it picks the right skill automatically.
+
+Installed skill names are namespaced as `truefoundry-<skill>` (for example, `truefoundry-ai-gateway`) to avoid collisions with generic skill names.
 
 ## Development
 

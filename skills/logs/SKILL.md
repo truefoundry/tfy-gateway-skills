@@ -1,5 +1,5 @@
 ---
-name: logs
+name: truefoundry-logs
 description: Views, downloads, and searches application and job logs from TrueFoundry. Supports time-range filtering, pod filtering, and error search.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance

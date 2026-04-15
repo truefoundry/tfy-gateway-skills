@@ -1,5 +1,5 @@
 ---
-name: secrets
+name: truefoundry-secrets
 description: Manages TrueFoundry secret groups and secrets. Handles listing, creating, updating, and deleting secret groups and individual key-value secrets.
 license: MIT
 compatibility: Requires Bash, curl, and access to a TrueFoundry instance
