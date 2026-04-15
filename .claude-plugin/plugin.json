@@ -1,0 +1,34 @@
+{
+  "name": "truefoundry-gateway",
+  "version": "1.0.0",
+  "description": "Configure and manage TrueFoundry AI Gateway — model routing, guardrails, rate limiting, MCP servers, and monitoring. Enforces safe workflows with credential checks and secret scanning.",
+  "author": {
+    "name": "TrueFoundry",
+    "url": "https://github.com/truefoundry"
+  },
+  "repository": "https://github.com/truefoundry/tfy-gateway-skills",
+  "license": "MIT",
+  "keywords": [
+    "truefoundry",
+    "gateway",
+    "llm",
+    "routing",
+    "guardrails",
+    "mcp",
+    "ai-gateway",
+    "rate-limiting"
+  ],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json",
+  "userConfig": {
+    "TFY_BASE_URL": {
+      "description": "TrueFoundry platform URL (e.g., https://your-org.truefoundry.cloud)",
+      "sensitive": false
+    },
+    "TFY_API_KEY": {
+      "description": "TrueFoundry API key for authentication",
+      "sensitive": true
+    }
+  }
+}

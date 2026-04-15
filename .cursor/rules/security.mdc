@@ -1,0 +1,37 @@
+---
+description: Security rules for TrueFoundry Gateway operations
+alwaysApply: true
+---
+
+# TrueFoundry Security Rules
+
+These rules ALWAYS apply, regardless of context. They are non-negotiable safety measures.
+
+## Deletion Protection
+
+NEVER delete any TrueFoundry resource via API or CLI. This includes gateway configs, model routes, guardrails, MCP servers, workspaces, secrets, and any other resource.
+
+If a user asks to delete something, respond with:
+> To delete [resource], go to your TrueFoundry dashboard at `$TFY_BASE_URL`, navigate to [specific path], and delete it from the UI.
+
+This prevents accidental deletions through automation.
+
+## Secret Management
+
+- NEVER put raw credentials, API keys, passwords, or tokens in configuration YAML files
+- NEVER log or echo secret values in shell commands
+- NEVER commit `.env` files or files containing credentials
+- Always use `tfy-secret://tenant:group:key` references for sensitive values
+- Create secrets via the TrueFoundry secrets API before referencing them in configs
+
+## Credential Handling
+
+- Verify `TFY_API_KEY` is set before making API calls, but never print its value
+- Use `${TFY_API_KEY:+(set)}` pattern to confirm presence without exposing the value
+- Never pass API keys as CLI arguments (they appear in process listings)
+
+## Workspace Safety
+
+- NEVER auto-select a workspace, even if only one exists
+- Always list available workspaces and require explicit user confirmation
+- This prevents accidental changes to production environments
